@@ -178,17 +178,22 @@ export function useSubscription() {
           console.log('Clear pending purchases error:', e);
         }
 
-        // Check for existing purchases
+        // Check for existing purchases - this is the source of truth for subscription status
         try {
           const purchases = await ExpoIAP.getAvailablePurchases();
           console.log('Available purchases:', purchases);
 
-          const hasRemoveAds = purchases?.some(
+          const hasActiveSubscription = purchases?.some(
             (purchase: any) => purchase.productId === PRODUCT_ID
           );
-          if (hasRemoveAds) {
-            setState(prev => ({ ...prev, isSubscribed: true }));
-            saveSubscription(true);
+
+          // Update subscription status based on Apple's response (source of truth)
+          // If no active subscription found, user's trial/subscription has expired
+          setState(prev => ({ ...prev, isSubscribed: hasActiveSubscription }));
+          saveSubscription(hasActiveSubscription);
+
+          if (!hasActiveSubscription) {
+            console.log('No active subscription found - trial/subscription may have expired');
           }
         } catch (e) {
           console.log('Get purchases error:', e);

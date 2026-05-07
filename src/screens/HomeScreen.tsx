@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Animated, {
   FadeInDown,
@@ -27,9 +27,9 @@ import { BlurView } from 'expo-blur';
 import Svg, { Circle } from 'react-native-svg';
 
 import { colors, spacing, borderRadius, typography, categoryColors } from '../theme';
-import { categories } from '../data/categories';
+import { getCategoriesByType, contentTypeInfo, ContentType } from '../data/allCategories';
 import { useStore } from '../store/useStore';
-import { RootStackParamList } from '../navigation';
+import { TabStackParamList } from '../navigation';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
 import UpgradeModal from '../components/UpgradeModal';
 import { Category } from '../types';
@@ -37,7 +37,8 @@ import { Category } from '../types';
 const { width, height } = Dimensions.get('window');
 const cardWidth = (width - spacing.lg * 3) / 2;
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type NavigationProp = NativeStackNavigationProp<TabStackParamList>;
+type HomeRouteProp = RouteProp<TabStackParamList, 'Home'>;
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -289,16 +290,64 @@ const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   'GitBranch': 'git-branch-outline',
   'Archive': 'archive-outline',
   'BarChart': 'bar-chart-outline',
+  // System Design icons
+  'Database': 'server-outline',
+  'Zap': 'flash-outline',
+  'Mail': 'mail-outline',
+  'Briefcase': 'briefcase-outline',
+  // Direct Ionicons mappings for new categories
+  'logo-apple': 'phone-portrait-outline',
+  'logo-android': 'tablet-portrait-outline',
+  'layers-outline': 'layers-outline',
+  'color-wand-outline': 'color-wand-outline',
+  'git-branch-outline': 'git-branch-outline',
+  'construct-outline': 'construct-outline',
+  'cloud-download-outline': 'cloud-download-outline',
+  'refresh-outline': 'refresh-outline',
+  'code-slash-outline': 'code-slash-outline',
+  'speedometer-outline': 'speedometer-outline',
+  'server-outline': 'server-outline',
+  'hardware-chip-outline': 'hardware-chip-outline',
+  'flash-outline': 'flash-outline',
+  'swap-horizontal-outline': 'swap-horizontal-outline',
+  'chatbubbles-outline': 'chatbubbles-outline',
+  'shield-checkmark-outline': 'shield-checkmark-outline',
+  // Web Development icons
+  'globe-outline': 'globe-outline',
+  'logo-javascript': 'code-outline',
+  'logo-react': 'infinite-outline',
+  'code-outline': 'code-outline',
+  'infinite-outline': 'infinite-outline',
+  // iOS icons
+  'phone-portrait-outline': 'phone-portrait-outline',
+  'git-network-outline': 'git-network-outline',
+  // Backend Development icons
+  'cloud-outline': 'cloud-outline',
+  'key-outline': 'key-outline',
+  'apps-outline': 'apps-outline',
+  'mail-outline': 'mail-outline',
 };
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<HomeRouteProp>();
+  const contentType = route.params?.contentType || 'algorithms';
   const { user, initGuestUser, getCategoryProgress } = useStore();
   const { isSubscribed, purchase, restore, product, isLoading: subLoading } = useSubscriptionContext();
   const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [progressModalVisible, setProgressModalVisible] = useState(false);
   const [streakModalVisible, setStreakModalVisible] = useState(false);
+
+  // Track if initial animation has played to prevent re-animation on tab switch
+  const hasAnimated = useRef(false);
+  useEffect(() => {
+    hasAnimated.current = true;
+  }, []);
+
+  // Get categories for this content type
+  const categories = getCategoriesByType(contentType);
+  const typeInfo = contentTypeInfo[contentType];
 
   useEffect(() => {
     if (!user) {
@@ -314,9 +363,6 @@ export default function HomeScreen() {
       navigation.navigate('Category', { slug: category.slug });
     }
   };
-
-  const algorithmPatterns = categories.slice(0, 19);
-  const otherCategories = categories.slice(19);
 
   const totalProgress = categories.reduce((sum, cat) => {
     const progress = getCategoryProgress(cat.id);
@@ -361,7 +407,7 @@ export default function HomeScreen() {
     return (
       <Animated.View
         key={category.id}
-        entering={FadeInRight.delay(index * 50).springify()}
+        entering={hasAnimated.current ? undefined : FadeInRight.delay(index * 50).springify()}
       >
         <TouchableOpacity
           style={[
@@ -405,7 +451,7 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <Animated.View entering={FadeInDown.delay(100)} style={styles.header}>
+        <Animated.View entering={hasAnimated.current ? undefined : FadeInDown.delay(100)} style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.userName}>Welcome back!</Text>
           </View>
@@ -421,88 +467,19 @@ export default function HomeScreen() {
           </View>
         </Animated.View>
 
-        {/* Progress Card */}
-        <Animated.View entering={FadeInDown.delay(200)} style={styles.statsContainer}>
-          <TouchableOpacity
-            style={styles.progressCard}
-            onPress={() => setProgressModalVisible(true)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.statIcon, { backgroundColor: `${colors.primary}20` }]}>
-              <Ionicons name="trending-up" size={24} color={colors.primary} />
-            </View>
-            <View style={styles.progressCardText}>
-              <Text style={styles.statValue}>{overallProgress}%</Text>
-              <Text style={styles.statLabel}>Overall Progress</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.inkLight} />
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Unlock Premium Card */}
-        {!isSubscribed && (
-          <Animated.View entering={FadeInDown.delay(250)} style={styles.promoCard}>
-            <View style={styles.promoContent}>
-              <View style={styles.promoIcon}>
-                <Ionicons name="lock-open" size={24} color={colors.white} />
-              </View>
-              <View style={styles.promoText}>
-                <Text style={styles.promoTitle}>Unlock All Content</Text>
-                <Text style={styles.promoSubtitle}>
-                  {product?.price || '$0.99'}/month • All topics included
-                </Text>
-              </View>
-            </View>
-            <View style={styles.promoButtons}>
-              <TouchableOpacity
-                style={styles.promoButton}
-                onPress={() => setUpgradeModalVisible(true)}
-                disabled={subLoading}
-              >
-                <Text style={styles.promoButtonText}>
-                  {subLoading ? 'Loading...' : 'Upgrade'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.restoreButton}
-                onPress={restore}
-                disabled={subLoading}
-              >
-                <Text style={styles.restoreButtonText}>Restore</Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        )}
-
-        {/* Algorithm Patterns Section */}
-        <Animated.View entering={FadeInDown.delay(300)} style={styles.section}>
+        {/* Categories Section */}
+        <Animated.View entering={hasAnimated.current ? undefined : FadeInDown.delay(300)} style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionIconContainer}>
-              <Ionicons name="code-slash" size={20} color={colors.white} />
+            <View style={[styles.sectionIconContainer, { backgroundColor: typeInfo.color }]}>
+              <Ionicons name={typeInfo.icon as any} size={20} color={colors.white} />
             </View>
             <View>
-              <Text style={styles.sectionTitle}>Algorithm Patterns</Text>
-              <Text style={styles.sectionSubtitle}>Master 19 essential patterns</Text>
+              <Text style={styles.sectionTitle}>{typeInfo.title}</Text>
+              <Text style={styles.sectionSubtitle}>{typeInfo.subtitle}</Text>
             </View>
           </View>
           <View style={styles.categoryGrid}>
-            {algorithmPatterns.map((cat, index) => renderCategoryCard(cat, index))}
-          </View>
-        </Animated.View>
-
-        {/* Interview Topics Section */}
-        <Animated.View entering={FadeInDown.delay(400)} style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconContainer, { backgroundColor: colors.accent }]}>
-              <Ionicons name="briefcase" size={20} color={colors.white} />
-            </View>
-            <View>
-              <Text style={styles.sectionTitle}>Interview Topics</Text>
-              <Text style={styles.sectionSubtitle}>System design & platform prep</Text>
-            </View>
-          </View>
-          <View style={styles.categoryGrid}>
-            {otherCategories.map((cat, index) => renderCategoryCard(cat, index + 14))}
+            {categories.map((cat, index) => renderCategoryCard(cat, index))}
           </View>
         </Animated.View>
 
@@ -552,7 +529,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xl,
   },
   headerLeft: {},
-  headerRight: {},
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   userName: {
     ...typography.displaySmall,
     color: colors.ink,

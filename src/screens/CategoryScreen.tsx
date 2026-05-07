@@ -13,8 +13,8 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import Animated, { FadeInDown, FadeInRight, FadeOutLeft } from 'react-native-reanimated';
 
 import { colors, spacing, borderRadius, typography, categoryColors } from '../theme';
-import { getCategoryBySlug } from '../data/categories';
-import { RootStackParamList } from '../navigation';
+import { getCategoryBySlug, categoryHasVisualizations } from '../data/allCategories';
+import { TabStackParamList } from '../navigation';
 import CardsTab from '../components/CardsTab';
 import QuizTab from '../components/QuizTab';
 import VisualizeTab from '../components/VisualizeTab';
@@ -24,30 +24,7 @@ import { useSubscriptionContext } from '../context/SubscriptionContext';
 
 const { width } = Dimensions.get('window');
 
-// Algorithm categories that have visualizations
-const algorithmCategories = [
-  'sliding-window',
-  'two-pointers',
-  'fast-slow-pointers',
-  'merge-intervals',
-  'cyclic-sort',
-  'linked-list-reversal',
-  'tree-bfs',
-  'tree-dfs',
-  'two-heaps',
-  'subsets',
-  'binary-search',
-  'top-k-elements',
-  'k-way-merge',
-  'topological-sort',
-  'island-matrix',
-  'bitwise-xor',
-  'backtracking',
-  'knapsack-dp',
-  'monotonic-stack',
-];
-
-type CategoryRouteProp = RouteProp<RootStackParamList, 'Category'>;
+type CategoryRouteProp = RouteProp<TabStackParamList, 'Category'>;
 
 const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   'Layers': 'layers-outline',
@@ -72,6 +49,26 @@ const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   'GitBranch': 'git-branch-outline',
   'Archive': 'archive-outline',
   'BarChart': 'bar-chart-outline',
+  // Direct Ionicons mappings for new categories
+  'logo-apple': 'phone-portrait-outline',
+  'logo-android': 'tablet-portrait-outline',
+  'phone-portrait-outline': 'phone-portrait-outline',
+  'code-outline': 'code-outline',
+  'infinite-outline': 'infinite-outline',
+  'layers-outline': 'layers-outline',
+  'color-wand-outline': 'color-wand-outline',
+  'git-branch-outline': 'git-branch-outline',
+  'construct-outline': 'construct-outline',
+  'cloud-download-outline': 'cloud-download-outline',
+  'refresh-outline': 'refresh-outline',
+  'code-slash-outline': 'code-slash-outline',
+  'speedometer-outline': 'speedometer-outline',
+  'server-outline': 'server-outline',
+  'hardware-chip-outline': 'hardware-chip-outline',
+  'flash-outline': 'flash-outline',
+  'swap-horizontal-outline': 'swap-horizontal-outline',
+  'chatbubbles-outline': 'chatbubbles-outline',
+  'shield-checkmark-outline': 'shield-checkmark-outline',
 };
 
 type TabType = 'learn' | 'visualize' | 'cards' | 'quiz';
@@ -118,8 +115,8 @@ export default function CategoryScreen() {
   }
 
   const catColors = categoryColors[category.id] || { color: colors.primary, dark: colors.primaryDark };
-  const isAlgorithmCategory = algorithmCategories.includes(category.id);
-  const tabs = isAlgorithmCategory ? baseTabs : baseTabs.filter(t => t.id !== 'visualize');
+  const hasVisualizations = categoryHasVisualizations(category);
+  const tabs = hasVisualizations ? baseTabs : baseTabs.filter(t => t.id !== 'visualize');
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

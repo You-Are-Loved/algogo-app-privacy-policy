@@ -23,6 +23,7 @@ import Animated, {
 
 import { colors, spacing, borderRadius, typography } from '../theme';
 import { Category } from '../types';
+import DiagramVisualization from './DiagramVisualization';
 
 const { width } = Dimensions.get('window');
 const CELL_SIZE = 44;
@@ -2149,6 +2150,15 @@ export default function VisualizeTab({ category, catColors }: VisualizeTabProps)
       case 'monotonic-stack':
         return <MonotonicStackViz catColors={catColors} />;
       default:
+        // Check if category has visualization data (for System Design, iOS, Android)
+        if (category.visualizations && category.visualizations.length > 0) {
+          return (
+            <DiagramVisualization
+              visualizations={category.visualizations}
+              catColors={catColors}
+            />
+          );
+        }
         return (
           <View style={styles.noViz}>
             <Ionicons name="analytics-outline" size={48} color={colors.inkLighter} />
@@ -2183,6 +2193,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: spacing.lg,
+    paddingBottom: 100, // Account for tab bar
   },
   header: {
     flexDirection: 'row',

@@ -4,15 +4,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProgress, CategoryProgress } from '../types';
 import { categories } from '../data/categories';
 
+export const CURRENT_TERMS_VERSION = 2;
+
 interface AppState {
   user: UserProgress | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   hasAcceptedTerms: boolean;
+  acceptedTermsVersion: number;
+  hasSeenOnboarding: boolean;
 
   setUser: (user: UserProgress | null) => void;
   setLoading: (loading: boolean) => void;
   acceptTerms: () => void;
+  completeOnboarding: () => void;
 
   completeLearn: (categoryId: string) => void;
   viewLearnSection: (categoryId: string, sectionId: string) => void;
@@ -55,10 +60,13 @@ export const useStore = create<AppState>()(
       isAuthenticated: false,
       isLoading: true,
       hasAcceptedTerms: false,
+      acceptedTermsVersion: 0,
+      hasSeenOnboarding: false,
 
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       setLoading: (isLoading) => set({ isLoading }),
-      acceptTerms: () => set({ hasAcceptedTerms: true }),
+      acceptTerms: () => set({ hasAcceptedTerms: true, acceptedTermsVersion: CURRENT_TERMS_VERSION }),
+      completeOnboarding: () => set({ hasSeenOnboarding: true }),
 
       initGuestUser: () => {
         const guestUser: UserProgress = {
@@ -258,7 +266,7 @@ export const useStore = create<AppState>()(
     {
       name: 'algogo-storage',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ user: state.user, hasAcceptedTerms: state.hasAcceptedTerms }),
+      partialize: (state) => ({ user: state.user, hasAcceptedTerms: state.hasAcceptedTerms, acceptedTermsVersion: state.acceptedTermsVersion, hasSeenOnboarding: state.hasSeenOnboarding }),
     }
   )
 );

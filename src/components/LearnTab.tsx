@@ -35,8 +35,13 @@ const parseContent = (content: string) => {
   return result;
 };
 
+// Helper to get section ID (fallback to index-based ID if not present)
+const getSectionId = (section: any, index: number, categoryId: string): string => {
+  return section.id || `${categoryId}-section-${index}`;
+};
+
 export default function LearnTab({ category, catColors }: LearnTabProps) {
-  const firstSectionId = category.learnContent[0]?.id || '';
+  const firstSectionId = getSectionId(category.learnContent[0], 0, category.id);
   const { viewLearnSection, getCategoryProgress } = useStore();
   const progress = getCategoryProgress(category.id);
 
@@ -98,13 +103,14 @@ export default function LearnTab({ category, catColors }: LearnTabProps) {
 
       {/* Sections */}
       {category.learnContent.map((section, index) => {
-        const isExpanded = expandedSections.includes(section.id);
-        const isViewed = viewedSections.has(section.id);
+        const sectionId = getSectionId(section, index, category.id);
+        const isExpanded = expandedSections.includes(sectionId);
+        const isViewed = viewedSections.has(sectionId);
         const parsedContent = parseContent(section.content);
 
         return (
           <Animated.View
-            key={section.id}
+            key={sectionId}
             entering={FadeInDown.delay(150 + index * 50)}
             layout={Layout.springify()}
             style={styles.sectionWrapper}
@@ -115,7 +121,7 @@ export default function LearnTab({ category, catColors }: LearnTabProps) {
                 isExpanded && styles.sectionHeaderExpanded,
                 isExpanded && { backgroundColor: `${catColors.color}08` },
               ]}
-              onPress={() => toggleSection(section.id)}
+              onPress={() => toggleSection(sectionId)}
               activeOpacity={0.7}
             >
               <View style={[
@@ -208,6 +214,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: spacing.lg,
+    paddingBottom: 100, // Account for tab bar
   },
   progressHeader: {
     backgroundColor: colors.card,

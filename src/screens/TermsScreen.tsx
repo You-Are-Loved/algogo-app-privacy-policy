@@ -42,7 +42,7 @@ export default function TermsScreen() {
           onScroll={handleScroll}
           scrollEventThrottle={16}
         >
-          <Text style={styles.lastUpdated}>Last Updated: December 2024</Text>
+          <Text style={styles.lastUpdated}>Last Updated: April 2026</Text>
 
           <Text style={styles.sectionTitle}>1. Acceptance of Terms</Text>
           <Text style={styles.bodyText}>

@@ -14,10 +14,20 @@ export interface QuizQuestion {
 }
 
 export interface LearnSection {
-  id: string;
+  id?: string; // Optional - will use index-based fallback if not provided
   title: string;
   content: string;
   codeExample?: string;
+}
+
+export interface Visualization {
+  id?: string;
+  title: string;
+  type?: string; // 'diagram' | 'flowchart' | 'tree' | 'flow' | 'comparison' | 'stateDiagram' | etc.
+  description?: string;
+  data?: Record<string, any>; // Flexible data structure for different visualization types
+  nodes?: { id: string; label: string; description?: string; position?: string; type?: string; x?: number; y?: number }[];
+  edges?: { from: string; to: string; label?: string }[];
 }
 
 export interface Category {
@@ -31,6 +41,7 @@ export interface Category {
   flashcards: Flashcard[];
   quizQuestions: QuizQuestion[];
   learnContent: LearnSection[];
+  visualizations?: Visualization[];
   premium?: boolean; // Requires subscription to access
 }
 

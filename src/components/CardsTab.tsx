@@ -228,6 +228,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: spacing.lg,
+    paddingBottom: 100, // Account for tab bar
   },
   progressSection: {
     marginBottom: spacing.lg,

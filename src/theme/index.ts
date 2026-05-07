@@ -131,6 +131,12 @@ export const typography = {
     fontWeight: '700' as const,
     lineHeight: 24,
   },
+  headlineSmall: {
+    fontFamily: 'System',
+    fontSize: 16,
+    fontWeight: '700' as const,
+    lineHeight: 22,
+  },
   bodyLarge: {
     fontFamily: 'System',
     fontSize: 16,
@@ -167,6 +173,12 @@ export const typography = {
     fontWeight: '700' as const,
     lineHeight: 14,
   },
+  caption: {
+    fontFamily: 'System',
+    fontSize: 12,
+    fontWeight: '500' as const,
+    lineHeight: 16,
+  },
 };
 
 // Category colors
@@ -194,6 +206,46 @@ export const categoryColors: Record<string, { color: string; dark: string }> = {
   'web-dev': { color: '#E17055', dark: '#C96248' },
   'ios': { color: '#0984E3', dark: '#0870C4' },
   'android': { color: '#00B894', dark: '#009B7D' },
+  // System Design subcategories
+  'sd-fundamentals': { color: '#636E72', dark: '#4A5568' },
+  'sd-databases': { color: '#4A5568', dark: '#2D3748' },
+  'sd-caching': { color: '#718096', dark: '#4A5568' },
+  'sd-load-balancing': { color: '#5A67D8', dark: '#4C51BF' },
+  'sd-microservices': { color: '#667EEA', dark: '#5A67D8' },
+  'sd-messaging': { color: '#7F9CF5', dark: '#667EEA' },
+  'sd-reliability': { color: '#4299E1', dark: '#3182CE' },
+  // iOS subcategories
+  'ios-swift-fundamentals': { color: '#FA7343', dark: '#D55A2B' },
+  'ios-uikit-essentials': { color: '#5AC8FA', dark: '#40A8D8' },
+  'ios-swiftui': { color: '#0A84FF', dark: '#0066CC' },
+  'ios-concurrency': { color: '#FF9500', dark: '#CC7700' },
+  'ios-architecture': { color: '#AF52DE', dark: '#8E40B5' },
+  'ios-data-networking': { color: '#30D158', dark: '#26A646' },
+  'ios-lifecycle-testing': { color: '#FF375F', dark: '#CC2C4C' },
+  // Android subcategories
+  'android-kotlin-fundamentals': { color: '#7F52FF', dark: '#6641CC' },
+  'android-activity-fragments': { color: '#3DDC84', dark: '#31B06A' },
+  'android-jetpack-compose': { color: '#4285F4', dark: '#3570C7' },
+  'android-coroutines-flow': { color: '#FF7043', dark: '#CC5A36' },
+  'android-architecture-components': { color: '#00BCD4', dark: '#0097A7' },
+  'android-networking-storage': { color: '#8BC34A', dark: '#6F9C3B' },
+  'android-testing-performance': { color: '#FF5722', dark: '#CC461B' },
+  // Web Development categories
+  'html-semantics': { color: '#E34F26', dark: '#C13818' },
+  'css-layouts': { color: '#264DE4', dark: '#1A3BC2' },
+  'js-fundamentals': { color: '#F7DF1E', dark: '#C9B617' },
+  'react-patterns': { color: '#61DAFB', dark: '#21A4C9' },
+  'state-management': { color: '#764ABC', dark: '#5C3A91' },
+  'web-performance': { color: '#00C853', dark: '#009624' },
+  'web-security': { color: '#FF5252', dark: '#D32F2F' },
+  // Backend Development categories
+  'rest-apis': { color: '#2196F3', dark: '#1976D2' },
+  'database-design': { color: '#4CAF50', dark: '#388E3C' },
+  'auth': { color: '#9C27B0', dark: '#7B1FA2' },
+  'microservices': { color: '#FF9800', dark: '#F57C00' },
+  'caching': { color: '#E91E63', dark: '#C2185B' },
+  'message-queues': { color: '#00BCD4', dark: '#0097A7' },
+  'devops-basics': { color: '#607D8B', dark: '#455A64' },
 };
 
 // Common styles
