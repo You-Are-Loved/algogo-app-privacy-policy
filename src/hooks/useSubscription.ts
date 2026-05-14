@@ -142,12 +142,20 @@ export function useSubscription() {
 
           if (products && products.length > 0) {
             const p = products[0];
+            // expo-iap 3.x: displayPrice is the locale-formatted string ("$1.99").
+            // localizedPrice is sometimes null on subscriptions; p.price is a raw
+            // Number whose float representation can read "1.9999999998".
+            const displayPrice =
+              p.displayPrice ||
+              p.localizedPrice ||
+              (typeof p.price === 'number' ? `$${p.price.toFixed(2)}` : p.price) ||
+              '$1.99';
             setState(prev => ({
               ...prev,
               product: {
-                price: p.localizedPrice || p.price || '$0.99/year',
-                title: p.title || 'Remove Ads',
-                description: p.description || 'Ad-free experience',
+                price: displayPrice,
+                title: p.title || 'Algogo Pro',
+                description: p.description || 'Unlock all categories',
               },
               isLoading: false,
             }));
