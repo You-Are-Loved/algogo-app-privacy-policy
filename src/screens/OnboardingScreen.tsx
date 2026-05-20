@@ -35,6 +35,11 @@ import { useSubscriptionContext } from '../context/SubscriptionContext';
 import { getProblem } from '../data/blind75';
 import { buildPracticeHtml } from '../practice/practiceHtml';
 import { ensurePracticeRuntime } from '../practice/stageAssets';
+import {
+  ExecResult,
+  ConsoleOutput,
+  ResultBreakdown,
+} from '../practice/ResultViews';
 import { behavioralQuestions } from '../data/behavioral';
 import BehavioralCard from '../components/BehavioralCard';
 import {
@@ -507,7 +512,7 @@ function OfflineStep() {
 
       <View style={styles.offlinePerks}>
         <PerkRow icon="cloud-offline-outline" text="Study on the subway, on a flight, in the woods" />
-        <PerkRow icon="code-slash-outline" text="Run Python solutions to algorithm problems with no signal" />
+        <PerkRow icon="code-slash-outline" text="Run Python solutions to algorithm problems with no wifi" />
         <PerkRow icon="git-network-outline" text="Sketch and test system-design diagrams offline" />
         <PerkRow icon="chatbubbles-outline" text="Write and edit behavioral answers anywhere" />
         <PerkRow icon="lock-closed-outline" text="Everything stays on your device" />
@@ -559,8 +564,7 @@ function PracticeStep() {
   const [stagedDir, setStagedDir] = useState<string | null>(null);
   const [runtimeReady, setRuntimeReady] = useState(false);
   const [running, setRunning] = useState(false);
-  const [resultText, setResultText] = useState<string | null>(null);
-  const [resultPass, setResultPass] = useState<boolean | null>(null);
+  const [result, setResult] = useState<ExecResult | null>(null);
   const [kbVisible, setKbVisible] = useState(false);
 
   useEffect(() => {
@@ -614,18 +618,15 @@ function PracticeStep() {
       if (msg.type === 'ready') {
         setRuntimeReady(true);
       } else if (msg.type === 'result') {
-        const p = msg.payload;
-        const pass = p.passed === p.total && p.total > 0;
-        setResultPass(pass);
-        setResultText(
-          pass
-            ? `All ${p.total} tests passed in ${p.totalRuntimeMs} ms`
-            : `${p.passed} / ${p.total} tests passed`
-        );
+        setResult(msg.payload as ExecResult);
         setRunning(false);
       } else if (msg.type === 'error') {
-        setResultPass(false);
-        setResultText('Something went wrong running your code.');
+        setResult({
+          passed: 0,
+          total: 0,
+          cases: [{ hidden: false, pass: false, runtimeMs: 0, error: msg.error }],
+          totalRuntimeMs: 0,
+        });
         setRunning(false);
       }
     } catch {}
@@ -634,12 +635,10 @@ function PracticeStep() {
   const handleRun = () => {
     if (!problem || !runtimeReady || running) return;
     setRunning(true);
-    setResultText(null);
-    setResultPass(null);
-    const tests = [
-      ...problem.examples.map((t) => ({ ...t, hidden: false })),
-      ...problem.hiddenTests.map((t) => ({ ...t, hidden: true })),
-    ];
+    setResult(null);
+    // Keep onboarding light — just the first visible example so the slide
+    // never overruns the Continue button.
+    const tests = problem.examples.slice(0, 1).map((t) => ({ ...t, hidden: false }));
     webRef.current?.postMessage(
       JSON.stringify({ type: 'run', fnName: problem.functionName, tests })
     );
@@ -751,24 +750,37 @@ function PracticeStep() {
           )}
         </TouchableOpacity>
 
-        {resultText && (
-          <Animated.View
-            entering={FadeIn.duration(220)}
-            style={[
-              styles.practiceResult,
-              resultPass ? styles.practiceResultPass : styles.practiceResultFail,
-            ]}
-          >
-            <Ionicons
-              name={resultPass ? 'checkmark-circle' : 'alert-circle'}
-              size={16}
-              color={resultPass ? colors.primary : colors.accent}
-            />
-            <Text style={styles.practiceResultText}>{resultText}</Text>
+        {result && (
+          <Animated.View entering={FadeIn.duration(220)} style={styles.practiceResultsBlock}>
+            <ResultSummaryPill result={result} />
+            <ScrollView
+              style={styles.practiceResultsScroll}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
+            >
+              <ResultBreakdown result={result} problem={problem} />
+              <ConsoleOutput result={result} />
+            </ScrollView>
           </Animated.View>
         )}
       </Animated.View>
     </Animated.View>
+  );
+}
+
+function ResultSummaryPill({ result }: { result: ExecResult }) {
+  const allPass = result.passed === result.total && result.total > 0;
+  const fatal = result.cases.length === 1 && result.cases[0].error && result.total === 0;
+  const tone = allPass
+    ? { bg: `${colors.primary}15`, fg: colors.primary, icon: 'checkmark-circle' as const, label: `All ${result.total} tests passed in ${result.totalRuntimeMs} ms` }
+    : fatal
+    ? { bg: `${colors.error}15`, fg: colors.error, icon: 'close-circle' as const, label: "Your code didn't run" }
+    : { bg: `${colors.accent}15`, fg: colors.accent, icon: 'alert-circle' as const, label: `${result.passed} / ${result.total} tests passed` };
+  return (
+    <View style={[styles.practiceResult, { backgroundColor: tone.bg }]}>
+      <Ionicons name={tone.icon} size={16} color={tone.fg} />
+      <Text style={styles.practiceResultText}>{tone.label}</Text>
+    </View>
   );
 }
 
@@ -855,12 +867,14 @@ function SystemDesignTeaserStep() {
         Sketch your way through system design
       </Animated.Text>
       <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
-        Drag a node. Tap two nodes to draw a wire. Add more from the palette.
+        Drag a node. Tap two nodes to draw a wire. Add more from the palette.{'\n'}
+        Inside the app you'll get real problems with a Test button that
+        checks your wiring against the spec.
       </Animated.Text>
 
       <Animated.View
         entering={FadeInDown.delay(400).duration(500)}
-        style={[styles.sdCanvas, { height: 220 }]}
+        style={[styles.sdCanvas, { height: 220, width: SCREEN_WIDTH - spacing.lg * 2, alignSelf: 'center' }]}
         onLayout={(e) => {
           const { width, height } = e.nativeEvent.layout;
           setCanvasSize({ w: width, h: height });
@@ -1053,6 +1067,9 @@ function PaywallStep({
         <PaywallFeature icon="lock-open-outline" text="Unlock all 50+ categories" />
         <PaywallFeature icon="copy-outline" text="1,500+ flashcards across 6 tracks" />
         <PaywallFeature icon="analytics-outline" text="Live algorithm visualizations" />
+        <PaywallFeature icon="code-slash-outline" text="75 algorithm problems on device" />
+        <PaywallFeature icon="git-network-outline" text="System-design diagrams that grade themselves" />
+        <PaywallFeature icon="chatbubbles-outline" text="Behavioral prompts with notes that save as you type" />
         <PaywallFeature icon="cloud-offline-outline" text="Works fully offline" />
       </Animated.View>
 
@@ -1718,6 +1735,13 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 15,
   },
+  practiceResultsBlock: {
+    marginTop: spacing.sm,
+  },
+  practiceResultsScroll: {
+    maxHeight: 280,
+    marginTop: spacing.sm,
+  },
   practiceResult: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1725,10 +1749,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
-    marginTop: spacing.sm,
   },
-  practiceResultPass: { backgroundColor: `${colors.primary}15` },
-  practiceResultFail: { backgroundColor: `${colors.accent}15` },
   practiceResultText: {
     ...typography.labelMedium,
     color: colors.ink,
