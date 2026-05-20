@@ -23,6 +23,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
+import * as FileSystem from 'expo-file-system/legacy';
 import Svg, { Line } from 'react-native-svg';
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
@@ -518,7 +519,7 @@ function PerkRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: s
 function PracticeStep() {
   const problem = getProblem('two-sum');
   const webRef = React.useRef<WebView>(null);
-  const [stagedDir, setStagedDir] = useState<string | null>(null);
+  const [pageUri, setPageUri] = useState<string | null>(null);
   const [runtimeReady, setRuntimeReady] = useState(false);
   const [running, setRunning] = useState(false);
   const [resultText, setResultText] = useState<string | null>(null);
@@ -537,7 +538,9 @@ function PracticeStep() {
     (async () => {
       try {
         const dir = await ensurePracticeRuntime();
-        if (!cancelled) setStagedDir(dir);
+        const file = dir + 'onboarding.html';
+        await FileSystem.writeAsStringAsync(file, html);
+        if (!cancelled) setPageUri(file);
       } catch {
         // Onboarding shouldn't block on this; the next button still works.
       }
@@ -545,7 +548,7 @@ function PracticeStep() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [html]);
 
   const onMessage = (e: WebViewMessageEvent) => {
     try {
@@ -620,11 +623,11 @@ function PracticeStep() {
         </View>
 
         <View style={styles.practiceEditorWrap}>
-          {stagedDir ? (
+          {pageUri ? (
             <WebView
               ref={webRef}
               originWhitelist={['file://*']}
-              source={{ html, baseUrl: stagedDir }}
+              source={{ uri: pageUri }}
               allowFileAccess
               allowFileAccessFromFileURLs
               allowUniversalAccessFromFileURLs

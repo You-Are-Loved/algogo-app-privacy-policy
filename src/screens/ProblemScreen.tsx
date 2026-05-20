@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { getProblem, Difficulty, TestCase, Blind75Problem } from '../data/blind75';
@@ -55,7 +56,7 @@ export default function ProblemScreen() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<ExecResult | null>(null);
   const [explanationVisible, setExplanationVisible] = useState(false);
-  const [stagedDir, setStagedDir] = useState<string | null>(null);
+  const [pageUri, setPageUri] = useState<string | null>(null);
   const [stageError, setStageError] = useState<string | null>(null);
 
   if (!problem) {
@@ -73,12 +74,16 @@ export default function ProblemScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    setStagedDir(null);
+    setPageUri(null);
     setStageError(null);
     (async () => {
       try {
         const dir = await ensurePracticeRuntime();
-        if (!cancelled) setStagedDir(dir);
+        // Write the HTML next to the staged Pyodide + CodeMirror assets so
+        // WKWebView's loadFileURL grants the page read access to siblings.
+        const file = dir + `problem-${problem.id}.html`;
+        await FileSystem.writeAsStringAsync(file, html);
+        if (!cancelled) setPageUri(file);
       } catch (e: any) {
         if (!cancelled) setStageError(e?.message || String(e));
       }
@@ -86,7 +91,7 @@ export default function ProblemScreen() {
     return () => {
       cancelled = true;
     };
-  }, [problem.id]);
+  }, [problem.id, html]);
 
   const handleRun = () => {
     if (!runtimeReady || running) return;
@@ -227,11 +232,11 @@ export default function ProblemScreen() {
                     Couldn't prepare the Python runtime: {stageError}
                   </Text>
                 </View>
-              ) : stagedDir ? (
+              ) : pageUri ? (
                 <WebView
                   ref={webRef}
                   originWhitelist={['file://*']}
-                  source={{ html, baseUrl: stagedDir }}
+                  source={{ uri: pageUri }}
                   allowFileAccess
                   allowFileAccessFromFileURLs
                   allowUniversalAccessFromFileURLs
