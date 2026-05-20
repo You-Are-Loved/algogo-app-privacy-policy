@@ -520,6 +520,7 @@ function PracticeStep() {
   const problem = getProblem('two-sum');
   const webRef = React.useRef<WebView>(null);
   const [pageUri, setPageUri] = useState<string | null>(null);
+  const [stagedDir, setStagedDir] = useState<string | null>(null);
   const [runtimeReady, setRuntimeReady] = useState(false);
   const [running, setRunning] = useState(false);
   const [resultText, setResultText] = useState<string | null>(null);
@@ -540,7 +541,10 @@ function PracticeStep() {
         const dir = await ensurePracticeRuntime();
         const file = dir + 'onboarding.html';
         await FileSystem.writeAsStringAsync(file, html);
-        if (!cancelled) setPageUri(file);
+        if (!cancelled) {
+          setStagedDir(dir);
+          setPageUri(file);
+        }
       } catch {
         // Onboarding shouldn't block on this; the next button still works.
       }
@@ -623,11 +627,12 @@ function PracticeStep() {
         </View>
 
         <View style={styles.practiceEditorWrap}>
-          {pageUri ? (
+          {pageUri && stagedDir ? (
             <WebView
               ref={webRef}
               originWhitelist={['file://*']}
               source={{ uri: pageUri }}
+              allowingReadAccessToURL={stagedDir}
               allowFileAccess
               allowFileAccessFromFileURLs
               allowUniversalAccessFromFileURLs

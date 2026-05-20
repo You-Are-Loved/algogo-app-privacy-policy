@@ -57,6 +57,7 @@ export default function ProblemScreen() {
   const [result, setResult] = useState<ExecResult | null>(null);
   const [explanationVisible, setExplanationVisible] = useState(false);
   const [pageUri, setPageUri] = useState<string | null>(null);
+  const [stagedDir, setStagedDir] = useState<string | null>(null);
   const [stageError, setStageError] = useState<string | null>(null);
 
   if (!problem) {
@@ -75,15 +76,17 @@ export default function ProblemScreen() {
   useEffect(() => {
     let cancelled = false;
     setPageUri(null);
+    setStagedDir(null);
     setStageError(null);
     (async () => {
       try {
         const dir = await ensurePracticeRuntime();
-        // Write the HTML next to the staged Pyodide + CodeMirror assets so
-        // WKWebView's loadFileURL grants the page read access to siblings.
         const file = dir + `problem-${problem.id}.html`;
         await FileSystem.writeAsStringAsync(file, html);
-        if (!cancelled) setPageUri(file);
+        if (!cancelled) {
+          setStagedDir(dir);
+          setPageUri(file);
+        }
       } catch (e: any) {
         if (!cancelled) setStageError(e?.message || String(e));
       }
@@ -232,11 +235,12 @@ export default function ProblemScreen() {
                     Couldn't prepare the Python runtime: {stageError}
                   </Text>
                 </View>
-              ) : pageUri ? (
+              ) : pageUri && stagedDir ? (
                 <WebView
                   ref={webRef}
                   originWhitelist={['file://*']}
                   source={{ uri: pageUri }}
+                  allowingReadAccessToURL={stagedDir}
                   allowFileAccess
                   allowFileAccessFromFileURLs
                   allowUniversalAccessFromFileURLs
