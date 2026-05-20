@@ -73,6 +73,9 @@ function bundleCodeMirror() {
   console.log('Bundling CodeMirror via esbuild');
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cm-bundle-'));
   const entry = path.join(tmp, 'entry.js');
+  // IIFE that hangs everything off window.__cm__. We avoid ES module output
+  // because real iOS devices serve file:// .js with a non-JS MIME type and
+  // refuse to import() them. The IIFE is loaded via XHR + eval at runtime.
   fs.writeFileSync(
     entry,
     `export * as state from '@codemirror/state';
@@ -107,7 +110,7 @@ export * as autocomplete from '@codemirror/autocomplete';
   const esbuild = path.join(tmp, 'node_modules', '.bin', 'esbuild');
   console.log('  esbuild ...');
   execSync(
-    `"${esbuild}" "${entry}" --bundle --format=esm --target=es2020 --minify --outfile="${out}"`,
+    `"${esbuild}" "${entry}" --bundle --format=iife --global-name=__cm__ --target=es2020 --minify --outfile="${out}"`,
     { cwd: tmp, stdio: 'inherit' },
   );
   const size = fs.statSync(out).size;

@@ -202,7 +202,13 @@ const STARTER = \`${safeStarter}\`;
 
 async function initEditor() {
   try {
-    const cm = await import('./codemirror-bundle.js');
+    // Load CodeMirror via XHR + eval (IIFE). Real iOS devices reject file://
+    // .js scripts as modules due to MIME-type, so we avoid dynamic import().
+    await loadScriptAsText('./codemirror-bundle.js');
+    const cm = window.__cm__;
+    if (!cm || !cm.state) {
+      throw new Error('CodeMirror bundle did not populate window.__cm__');
+    }
     const { EditorState } = cm.state;
     const {
       EditorView,
