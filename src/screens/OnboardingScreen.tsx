@@ -538,105 +538,8 @@ const ONBOARD_KEY_SHORTCUTS: { label: string; insert: string; cursorOffset?: num
 // STEP 5 — Practice (live Pyodide editor with Two Sum)
 // ============================================================================
 function PracticeStep() {
-  const problem = getProblem('two-sum');
-  const webRef = React.useRef<WebView>(null);
-  const [pageUri, setPageUri] = useState<string | null>(null);
-  const [stagedDir, setStagedDir] = useState<string | null>(null);
-  const [runtimeReady, setRuntimeReady] = useState(false);
-  const [running, setRunning] = useState(false);
-  const [result, setResult] = useState<ExecResult | null>(null);
-  const [kbHeight, setKbHeight] = useState(0);
-
-  useEffect(() => {
-    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const s = Keyboard.addListener(showEvt, (e: any) =>
-      setKbHeight(e?.endCoordinates?.height || 0),
-    );
-    const h = Keyboard.addListener(hideEvt, () => setKbHeight(0));
-    return () => {
-      s.remove();
-      h.remove();
-    };
-  }, []);
-
-  const insertSnippet = (text: string, cursorOffset?: number) => {
-    webRef.current?.postMessage(
-      JSON.stringify({ type: 'insert', text, cursorOffset }),
-    );
-  };
-
-  const html = React.useMemo(
-    () =>
-      problem
-        ? buildPracticeHtml({ starter: problem.starter, fnName: problem.functionName })
-        : '',
-    [problem?.id]
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const dir = await ensurePracticeRuntime();
-        const file = dir + 'onboarding.html';
-        await FileSystem.writeAsStringAsync(file, html);
-        if (!cancelled) {
-          setStagedDir(dir);
-          setPageUri(file);
-        }
-      } catch {
-        // Onboarding shouldn't block on this; the next button still works.
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [html]);
-
-  const onMessage = (e: WebViewMessageEvent) => {
-    try {
-      const msg = JSON.parse(e.nativeEvent.data);
-      if (msg.type === 'ready') {
-        setRuntimeReady(true);
-      } else if (msg.type === 'result') {
-        setResult(msg.payload as ExecResult);
-        setRunning(false);
-      } else if (msg.type === 'error') {
-        setResult({
-          passed: 0,
-          total: 0,
-          cases: [{ hidden: false, pass: false, runtimeMs: 0, error: msg.error }],
-          totalRuntimeMs: 0,
-        });
-        setRunning(false);
-      }
-    } catch {}
-  };
-
-  const handleRun = () => {
-    if (!problem || !runtimeReady || running) return;
-    setRunning(true);
-    setResult(null);
-    // Keep onboarding light — just the first visible example so the slide
-    // never overruns the Continue button.
-    const tests = problem.examples.slice(0, 1).map((t) => ({ ...t, hidden: false }));
-    webRef.current?.postMessage(
-      JSON.stringify({ type: 'run', fnName: problem.functionName, tests })
-    );
-  };
-
-  if (!problem) return null;
-
   return (
     <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: spacing.md }}
-        showsVerticalScrollIndicator={false}
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
-      >
       <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroIconWrap}>
         <LinearGradient
           colors={[colors.secondary, colors.primary]}
@@ -652,7 +555,8 @@ function PracticeStep() {
         Code, run, repeat
       </Animated.Text>
       <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
-        Try Two Sum right now — the Python runs on your device.
+        75 algorithm problems with a real Python runtime — every solve happens
+        right on your device.
       </Animated.Text>
 
       <Animated.View
@@ -668,109 +572,62 @@ function PracticeStep() {
           <Text style={styles.practiceExampleMono}>[0, 1]</Text>
         </View>
 
-        <View style={styles.practiceEditorWrap}>
-          {pageUri && stagedDir ? (
-            <WebView
-              ref={webRef}
-              originWhitelist={['file://*']}
-              source={{ uri: pageUri }}
-              allowingReadAccessToURL={stagedDir}
-              allowFileAccess
-              allowFileAccessFromFileURLs
-              allowUniversalAccessFromFileURLs
-              onMessage={onMessage}
-              javaScriptEnabled
-              domStorageEnabled
-              allowsBackForwardNavigationGestures={false}
-              scrollEnabled={false}
-              hideKeyboardAccessoryView
-              automaticallyAdjustContentInsets={false}
-              contentInsetAdjustmentBehavior="never"
-              injectedJavaScriptBeforeContentLoaded="window.isReactNativeWebView = true; true;"
-              style={styles.practiceWebview}
-            />
-          ) : (
-            <View style={styles.practiceEditorLoading}>
-              <ActivityIndicator color={colors.secondary} />
-            </View>
-          )}
+        <View style={styles.practiceMockEditor}>
+          <View style={styles.practiceMockLine}>
+            <Text style={styles.practiceMockLineNo}>1</Text>
+            <Text style={styles.practiceMockCode}>
+              <Text style={styles.practiceMockKeyword}>def </Text>
+              <Text style={styles.practiceMockFn}>two_sum</Text>
+              <Text style={styles.practiceMockPlain}>(nums, target):</Text>
+            </Text>
+          </View>
+          <View style={styles.practiceMockLine}>
+            <Text style={styles.practiceMockLineNo}>2</Text>
+            <Text style={styles.practiceMockCode}>
+              <Text style={styles.practiceMockPlain}>    seen = {'{}'}</Text>
+            </Text>
+          </View>
+          <View style={styles.practiceMockLine}>
+            <Text style={styles.practiceMockLineNo}>3</Text>
+            <Text style={styles.practiceMockCode}>
+              <Text style={styles.practiceMockKeyword}>    for </Text>
+              <Text style={styles.practiceMockPlain}>i, n </Text>
+              <Text style={styles.practiceMockKeyword}>in </Text>
+              <Text style={styles.practiceMockPlain}>enumerate(nums):</Text>
+            </Text>
+          </View>
+          <View style={styles.practiceMockLine}>
+            <Text style={styles.practiceMockLineNo}>4</Text>
+            <Text style={styles.practiceMockCode}>
+              <Text style={styles.practiceMockKeyword}>        if </Text>
+              <Text style={styles.practiceMockPlain}>target - n </Text>
+              <Text style={styles.practiceMockKeyword}>in </Text>
+              <Text style={styles.practiceMockPlain}>seen:</Text>
+            </Text>
+          </View>
+          <View style={styles.practiceMockLine}>
+            <Text style={styles.practiceMockLineNo}>5</Text>
+            <Text style={styles.practiceMockCode}>
+              <Text style={styles.practiceMockKeyword}>            return </Text>
+              <Text style={styles.practiceMockPlain}>[seen[target - n], i]</Text>
+            </Text>
+          </View>
+          <View style={styles.practiceMockLine}>
+            <Text style={styles.practiceMockLineNo}>6</Text>
+            <Text style={styles.practiceMockCode}>
+              <Text style={styles.practiceMockPlain}>        seen[n] = i</Text>
+            </Text>
+          </View>
         </View>
 
-        <TouchableOpacity
-          onPress={handleRun}
-          disabled={!runtimeReady || running}
-          activeOpacity={0.85}
-          style={[
-            styles.practiceRunBtn,
-            (!runtimeReady || running) && styles.practiceRunBtnDisabled,
-          ]}
-        >
-          {running ? (
-            <ActivityIndicator color={colors.white} />
-          ) : (
-            <>
-              <Ionicons name="play" size={18} color={colors.white} />
-              <Text style={styles.practiceRunText}>
-                {runtimeReady ? 'Run code' : 'Loading Python…'}
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        {result && (
-          <Animated.View entering={FadeIn.duration(220)} style={styles.practiceResultsBlock}>
-            <ResultSummaryPill result={result} />
-            <ResultBreakdown result={result} problem={problem} />
-            <ConsoleOutput result={result} />
-          </Animated.View>
-        )}
+        <View style={styles.practiceMockResult}>
+          <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+          <Text style={styles.practiceMockResultText}>
+            All 6 tests passed · 4 ms
+          </Text>
+        </View>
       </Animated.View>
-      </ScrollView>
-
-      {kbHeight > 0 && (
-        <View
-          style={[
-            styles.onboardKbBar,
-            styles.onboardKbBarFloating,
-            { bottom: kbHeight },
-          ]}
-        >
-          <ScrollView
-            horizontal
-            keyboardShouldPersistTaps="always"
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.onboardKbBarInner}
-          >
-            {ONBOARD_KEY_SHORTCUTS.map((s) => (
-              <TouchableOpacity
-                key={s.label}
-                style={styles.onboardKbKey}
-                activeOpacity={0.7}
-                onPress={() => insertSnippet(s.insert, s.cursorOffset)}
-              >
-                <Text style={styles.onboardKbKeyText}>{s.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
     </Animated.View>
-  );
-}
-
-function ResultSummaryPill({ result }: { result: ExecResult }) {
-  const allPass = result.passed === result.total && result.total > 0;
-  const fatal = result.cases.length === 1 && result.cases[0].error && result.total === 0;
-  const tone = allPass
-    ? { bg: `${colors.primary}15`, fg: colors.primary, icon: 'checkmark-circle' as const, label: `All ${result.total} tests passed in ${result.totalRuntimeMs} ms` }
-    : fatal
-    ? { bg: `${colors.error}15`, fg: colors.error, icon: 'close-circle' as const, label: "Your code didn't run" }
-    : { bg: `${colors.accent}15`, fg: colors.accent, icon: 'alert-circle' as const, label: `${result.passed} / ${result.total} tests passed` };
-  return (
-    <View style={[styles.practiceResult, { backgroundColor: tone.bg }]}>
-      <Ionicons name={tone.icon} size={16} color={tone.fg} />
-      <Text style={styles.practiceResultText}>{tone.label}</Text>
-    </View>
   );
 }
 
@@ -1035,62 +892,33 @@ function PaywallStep({
 
   return (
     <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
-      <ScrollView
-        style={styles.paywallScroll}
-        contentContainerStyle={styles.paywallScrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.paywallHeroWrap}>
-          <LinearGradient
-            colors={[colors.purple, colors.secondary]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.paywallHeroIcon}
-          >
-            <Ionicons name="sparkles" size={36} color={colors.white} />
-          </LinearGradient>
-        </Animated.View>
+      <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroIconWrap}>
+        <LinearGradient
+          colors={[colors.purple, colors.secondary]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroIcon}
+        >
+          <Ionicons name="sparkles" size={44} color={colors.white} />
+        </LinearGradient>
+      </Animated.View>
 
-        <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
-          Try Algogo Pro free
-        </Animated.Text>
-        <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
-          7 days free, then {price}/month. Cancel anytime.
-        </Animated.Text>
+      <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
+        Try Algogo Pro free
+      </Animated.Text>
+      <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
+        7 days free, then {price}/month. Cancel anytime.
+      </Animated.Text>
 
-        <Animated.View entering={FadeInDown.delay(400).duration(400)} style={styles.paywallFeatures}>
-          <PaywallFeature icon="lock-open-outline" text="Unlock all 50+ categories" />
-          <PaywallFeature icon="copy-outline" text="1,500+ flashcards across 6 tracks" />
-          <PaywallFeature icon="analytics-outline" text="Live algorithm visualizations" />
-          <PaywallFeature icon="code-slash-outline" text="75 algorithm problems on device" />
-          <PaywallFeature icon="git-network-outline" text="System-design diagrams that grade themselves" />
-          <PaywallFeature icon="chatbubbles-outline" text="Behavioral prompts with notes that save as you type" />
-          <PaywallFeature icon="cloud-offline-outline" text="Works fully offline" />
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(500).duration(400)} style={styles.timeline}>
-          <TimelineRow
-            icon="lock-open-outline"
-            color={colors.primary}
-            title="Today"
-            subtitle="Get full access — try everything free"
-          />
-          <View style={styles.timelineLine} />
-          <TimelineRow
-            icon="notifications-outline"
-            color={colors.secondary}
-            title="Day 6"
-            subtitle="We'll remind you the trial is ending"
-          />
-          <View style={styles.timelineLine} />
-          <TimelineRow
-            icon="card-outline"
-            color={colors.accent}
-            title="Day 7"
-            subtitle={`${price}/mo charged unless you cancel`}
-          />
-        </Animated.View>
-      </ScrollView>
+      <Animated.View entering={FadeInDown.delay(400).duration(400)} style={styles.paywallFeatures}>
+        <PaywallFeature icon="lock-open-outline" text="Unlock all 50+ categories" />
+        <PaywallFeature icon="copy-outline" text="1,500+ flashcards across 6 tracks" />
+        <PaywallFeature icon="analytics-outline" text="Live algorithm visualizations" />
+        <PaywallFeature icon="code-slash-outline" text="75 algorithm problems on device" />
+        <PaywallFeature icon="git-network-outline" text="System-design diagrams that grade themselves" />
+        <PaywallFeature icon="chatbubbles-outline" text="Behavioral prompts with notes that save as you type" />
+        <PaywallFeature icon="cloud-offline-outline" text="Works fully offline" />
+      </Animated.View>
 
       <Animated.View entering={FadeInUp.delay(600).duration(400)} style={styles.paywallCtas}>
         <TouchableOpacity
@@ -1650,10 +1478,7 @@ const styles = StyleSheet.create({
     marginLeft: 17,
   },
   paywallCtas: {
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.background,
+    marginTop: 'auto',
   },
   primaryCta: {
     backgroundColor: colors.primary,
@@ -1772,6 +1597,51 @@ const styles = StyleSheet.create({
     ...typography.labelMedium,
     color: colors.ink,
     flex: 1,
+  },
+  practiceMockEditor: {
+    backgroundColor: '#1e1e2e',
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  practiceMockLine: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    alignItems: 'flex-start',
+  },
+  practiceMockLineNo: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 11,
+    color: '#6e7383',
+    width: 20,
+    textAlign: 'right',
+    lineHeight: 18,
+  },
+  practiceMockCode: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#e6e6f0',
+    flex: 1,
+  },
+  practiceMockKeyword: { color: '#c084fc' },
+  practiceMockFn: { color: '#60a5fa' },
+  practiceMockPlain: { color: '#e6e6f0' },
+  practiceMockResult: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: `${colors.primary}15`,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+  },
+  practiceMockResultText: {
+    ...typography.labelMedium,
+    color: colors.primary,
+    fontWeight: '700',
   },
   onboardKbBar: {
     marginTop: spacing.sm,
