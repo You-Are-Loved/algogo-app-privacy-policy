@@ -35,6 +35,15 @@ import { useSubscriptionContext } from '../context/SubscriptionContext';
 import { getProblem } from '../data/blind75';
 import { buildPracticeHtml } from '../practice/practiceHtml';
 import { ensurePracticeRuntime } from '../practice/stageAssets';
+import { behavioralQuestions } from '../data/behavioral';
+import BehavioralCard from '../components/BehavioralCard';
+import {
+  systemDesignProblems,
+  componentCatalog,
+  ComponentType,
+} from '../data/systemDesign';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -111,10 +120,10 @@ export default function OnboardingScreen() {
         {step === 1 && <FlashcardStep />}
         {step === 2 && <QuizStep />}
         {step === 3 && <VisualizationStep />}
-        {step === 4 && <OfflineStep />}
-        {step === 5 && <PracticeStep />}
-        {step === 6 && <SystemDesignTeaserStep />}
-        {step === 7 && <BehavioralStep />}
+        {step === 4 && <PracticeStep />}
+        {step === 5 && <SystemDesignTeaserStep />}
+        {step === 6 && <BehavioralStep />}
+        {step === 7 && <OfflineStep />}
         {step === 8 && (
           <PaywallStep
             product={product}
@@ -498,8 +507,10 @@ function OfflineStep() {
 
       <View style={styles.offlinePerks}>
         <PerkRow icon="cloud-offline-outline" text="Study on the subway, on a flight, in the woods" />
-        <PerkRow icon="flash-outline" text="Instant load — no waiting on the network" />
-        <PerkRow icon="lock-closed-outline" text="Your progress stays on your device" />
+        <PerkRow icon="code-slash-outline" text="Run Python solutions to algorithm problems with no signal" />
+        <PerkRow icon="git-network-outline" text="Sketch and test system-design diagrams offline" />
+        <PerkRow icon="chatbubbles-outline" text="Write and edit behavioral answers anywhere" />
+        <PerkRow icon="lock-closed-outline" text="Everything stays on your device" />
       </View>
     </Animated.View>
   );
@@ -762,31 +773,70 @@ function PracticeStep() {
 }
 
 // ============================================================================
-// STEP 6 — System Design teaser
+// STEP 6 — System Design (interactive mini editor)
 // ============================================================================
+type DemoNodeState = { id: string; type: ComponentType; x: number; y: number };
+type DemoEdgeState = { from: string; to: string };
+
+const DEMO_NODE_W = 76;
+const DEMO_NODE_H = 56;
+const DEMO_PALETTE: ComponentType[] = ['cache', 'database', 'load_balancer', 'message_queue'];
+
 function SystemDesignTeaserStep() {
-  // Static mockup of a small architecture diagram.
-  // Positions are in the local coordinate space of the canvas below.
-  const W = SCREEN_WIDTH - spacing.lg * 4;
-  const H = 200;
-  const nodes = [
-    { x: 28, y: 78, label: 'Client', icon: 'phone-portrait-outline', color: '#8B5CF6' },
-    { x: 0.5, y: 78, label: 'API', icon: 'server-outline', color: '#10B981' },
-    { x: 1.0, y: 22, label: 'Cache', icon: 'flash-outline', color: '#F43F5E' },
-    { x: 1.0, y: 134, label: 'Database', icon: 'cube-outline', color: '#2563EB' },
-  ];
-  const NODE_SIZE = 70;
-  const place = (n: { x: number; y: number }) => {
-    const x = n.x <= 1 ? n.x * (W - NODE_SIZE) : n.x;
-    const y = n.y;
-    return { left: x, top: y, cx: x + NODE_SIZE / 2, cy: y + NODE_SIZE / 2 };
+  const [nodes, setNodes] = useState<DemoNodeState[]>([
+    { id: 'n1', type: 'client', x: 20, y: 80 },
+    { id: 'n2', type: 'web_server', x: 150, y: 80 },
+  ]);
+  const [edges, setEdges] = useState<DemoEdgeState[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [canvasSize, setCanvasSize] = useState({ w: 0, h: 220 });
+  const nextIdRef = React.useRef(3);
+
+  const moveNode = React.useCallback(
+    (id: string, dx: number, dy: number) => {
+      setNodes((prev) =>
+        prev.map((n) =>
+          n.id === id
+            ? {
+                ...n,
+                x: Math.max(0, Math.min(n.x + dx, canvasSize.w - DEMO_NODE_W)),
+                y: Math.max(0, Math.min(n.y + dy, canvasSize.h - DEMO_NODE_H)),
+              }
+            : n,
+        ),
+      );
+    },
+    [canvasSize.w, canvasSize.h],
+  );
+
+  const tapNode = React.useCallback((id: string) => {
+    setSelectedId((prev) => {
+      if (prev === null) return id;
+      if (prev === id) return null;
+      setEdges((existing) => {
+        const dup = existing.some(
+          (e) => (e.from === prev && e.to === id) || (e.from === id && e.to === prev),
+        );
+        if (dup) return existing;
+        return [...existing, { from: prev, to: id }];
+      });
+      return null;
+    });
+  }, []);
+
+  const addNode = (type: ComponentType) => {
+    const id = `n${nextIdRef.current++}`;
+    const offset = nodes.length * 20;
+    setNodes((prev) => [
+      ...prev,
+      {
+        id,
+        type,
+        x: Math.max(10, Math.min(canvasSize.w / 2 - DEMO_NODE_W / 2 + (offset % 60), canvasSize.w - DEMO_NODE_W - 10)),
+        y: Math.max(10, Math.min(40 + (offset % 80), canvasSize.h - DEMO_NODE_H - 10)),
+      },
+    ]);
   };
-  const positions = nodes.map(place);
-  const lines: [number, number][] = [
-    [0, 1],
-    [1, 2],
-    [1, 3],
-  ];
 
   return (
     <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
@@ -805,57 +855,123 @@ function SystemDesignTeaserStep() {
         Sketch your way through system design
       </Animated.Text>
       <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
-        Drag in components, draw connections, and let us check the wiring.
+        Drag a node. Tap two nodes to draw a wire. Add more from the palette.
       </Animated.Text>
 
       <Animated.View
         entering={FadeInDown.delay(400).duration(500)}
-        style={[styles.sdCanvas, { width: W, height: H }]}
+        style={[styles.sdCanvas, { height: 220 }]}
+        onLayout={(e) => {
+          const { width, height } = e.nativeEvent.layout;
+          setCanvasSize({ w: width, h: height });
+        }}
       >
-        <Svg
-          width={W}
-          height={H}
-          style={StyleSheet.absoluteFill as any}
-          pointerEvents="none"
-        >
-          {lines.map(([a, b], i) => (
-            <Line
-              key={i}
-              x1={positions[a].cx}
-              y1={positions[a].cy}
-              x2={positions[b].cx}
-              y2={positions[b].cy}
-              stroke={colors.inkLighter}
-              strokeWidth={2}
-              strokeLinecap="round"
-            />
-          ))}
-        </Svg>
-        {nodes.map((n, i) => (
-          <View
-            key={i}
-            style={[
-              styles.sdNode,
-              {
-                left: positions[i].left,
-                top: positions[i].top,
-                borderColor: n.color,
-                backgroundColor: `${n.color}1A`,
-              },
-            ]}
+        {canvasSize.w > 0 && (
+          <Svg
+            width={canvasSize.w}
+            height={canvasSize.h}
+            style={StyleSheet.absoluteFill as any}
+            pointerEvents="none"
           >
-            <Ionicons name={n.icon as any} size={18} color={n.color} />
-            <Text style={styles.sdNodeLabel}>{n.label}</Text>
-          </View>
+            {edges.map((e, i) => {
+              const f = nodes.find((n) => n.id === e.from);
+              const t = nodes.find((n) => n.id === e.to);
+              if (!f || !t) return null;
+              return (
+                <Line
+                  key={i}
+                  x1={f.x + DEMO_NODE_W / 2}
+                  y1={f.y + DEMO_NODE_H / 2}
+                  x2={t.x + DEMO_NODE_W / 2}
+                  y2={t.y + DEMO_NODE_H / 2}
+                  stroke={colors.inkLight}
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                />
+              );
+            })}
+          </Svg>
+        )}
+        {nodes.map((n) => (
+          <DemoDraggableNode
+            key={n.id}
+            node={n}
+            selected={selectedId === n.id}
+            onTap={tapNode}
+            onMove={moveNode}
+          />
         ))}
       </Animated.View>
 
-      <View style={styles.offlinePerks}>
-        <PerkRow icon="hand-left-outline" text="Tap a palette, drop nodes on the canvas" />
-        <PerkRow icon="checkmark-done-outline" text="Test diagram tells you exactly what's missing" />
-        <PerkRow icon="book-outline" text="Hints and a worked solution when you're stuck" />
-      </View>
+      <Animated.View
+        entering={FadeInDown.delay(500).duration(500)}
+        style={styles.sdDemoPalette}
+      >
+        {DEMO_PALETTE.map((type) => {
+          const spec = componentCatalog[type];
+          return (
+            <TouchableOpacity
+              key={type}
+              style={[styles.sdDemoPaletteBtn, { borderColor: spec.color }]}
+              activeOpacity={0.85}
+              onPress={() => addNode(type)}
+            >
+              <Ionicons name={spec.icon as any} size={16} color={spec.color} />
+              <Text style={styles.sdDemoPaletteLabel}>{spec.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </Animated.View>
     </Animated.View>
+  );
+}
+
+function DemoDraggableNode({
+  node,
+  selected,
+  onTap,
+  onMove,
+}: {
+  node: DemoNodeState;
+  selected: boolean;
+  onTap: (id: string) => void;
+  onMove: (id: string, dx: number, dy: number) => void;
+}) {
+  const spec = componentCatalog[node.type];
+  const pan = Gesture.Pan()
+    .minDistance(6)
+    .onChange((e) => {
+      'worklet';
+      runOnJS(onMove)(node.id, e.changeX, e.changeY);
+    });
+  const tap = Gesture.Tap()
+    .maxDistance(5)
+    .onEnd(() => {
+      'worklet';
+      runOnJS(onTap)(node.id);
+    });
+  const gesture = Gesture.Race(pan, tap);
+
+  return (
+    <GestureDetector gesture={gesture}>
+      <Animated.View
+        style={[
+          styles.sdNode,
+          {
+            width: DEMO_NODE_W,
+            height: DEMO_NODE_H,
+            left: node.x,
+            top: node.y,
+            borderColor: selected ? colors.secondary : spec.color,
+            backgroundColor: `${spec.color}1A`,
+            borderWidth: selected ? 3 : 2,
+          },
+        ]}
+      >
+        <Ionicons name={spec.icon as any} size={16} color={spec.color} />
+        <Text style={styles.sdNodeLabel} numberOfLines={1}>{spec.label}</Text>
+      </Animated.View>
+    </GestureDetector>
   );
 }
 
@@ -863,6 +979,7 @@ function SystemDesignTeaserStep() {
 // STEP 7 — Behavioral practice
 // ============================================================================
 function BehavioralStep() {
+  const firstQuestion = behavioralQuestions[0];
   return (
     <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
       <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroIconWrap}>
@@ -880,85 +997,17 @@ function BehavioralStep() {
         Polish the stories you'll actually tell
       </Animated.Text>
       <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
-        Ten classic behavioral prompts with a notes field per question. Edit
-        in the app — answers save as you type.
+        Tap the prompt below and start drafting. Anything you type saves to
+        your device automatically.
       </Animated.Text>
 
       <Animated.View
         entering={FadeInDown.delay(400).duration(500)}
         style={styles.behavioralStack}
       >
-        <BehavioralPreviewCard
-          number={1}
-          prompt="Tell me about a challenging technical problem you solved recently."
-          meta="84 words saved"
-          checked
-          expanded
-          previewLines={[
-            'Last quarter our checkout latency spiked at peak hours…',
-            'I traced it to a missing index on the orders table…',
-            'Result: p95 dropped from 3.1s to 280ms.',
-          ]}
-        />
-        <BehavioralPreviewCard
-          number={2}
-          prompt="Describe a time you disagreed with a teammate."
-          meta="42 words saved"
-          checked
-        />
-        <BehavioralPreviewCard
-          number={3}
-          prompt="What's a project you're most proud of?"
-          meta="No answer yet"
-        />
+        <BehavioralCard question={firstQuestion} />
       </Animated.View>
     </Animated.View>
-  );
-}
-
-function BehavioralPreviewCard({
-  number,
-  prompt,
-  meta,
-  checked,
-  expanded,
-  previewLines,
-}: {
-  number: number;
-  prompt: string;
-  meta: string;
-  checked?: boolean;
-  expanded?: boolean;
-  previewLines?: string[];
-}) {
-  return (
-    <View style={styles.behavioralCard}>
-      <View style={styles.behavioralRow}>
-        <View style={styles.behavioralNumber}>
-          <Text style={styles.behavioralNumberText}>
-            {String(number).padStart(2, '0')}
-          </Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.behavioralPrompt} numberOfLines={2}>
-            {prompt}
-          </Text>
-          <Text style={styles.behavioralMeta}>{meta}</Text>
-        </View>
-        {checked && (
-          <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
-        )}
-      </View>
-      {expanded && previewLines && (
-        <View style={styles.behavioralPreviewBody}>
-          {previewLines.map((l, i) => (
-            <Text key={i} style={styles.behavioralPreviewText}>
-              {l}
-            </Text>
-          ))}
-        </View>
-      )}
-    </View>
   );
 }
 
@@ -1741,6 +1790,30 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 11,
     fontWeight: '700',
+  },
+  sdDemoPalette: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    justifyContent: 'center',
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.xs,
+  },
+  sdDemoPaletteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    borderWidth: 2,
+    backgroundColor: colors.card,
+  },
+  sdDemoPaletteLabel: {
+    ...typography.labelSmall,
+    color: colors.ink,
+    fontWeight: '700',
+    fontSize: 12,
   },
   // Step 7: behavioral preview
   behavioralStack: {
