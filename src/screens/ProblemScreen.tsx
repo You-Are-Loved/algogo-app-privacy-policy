@@ -10,6 +10,7 @@ import {
   Platform,
   Modal,
   Pressable,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +29,41 @@ const DIFF_COLORS: Record<Difficulty, string> = {
   Medium: colors.accent,
   Hard: colors.error,
 };
+
+// Code-symbol shortcuts that float above the keyboard while the user is
+// typing in the editor. `cursorOffset` (relative to the start of the inserted
+// string) is used to drop the caret inside paired delimiters.
+const KEY_SHORTCUTS: { label: string; insert: string; cursorOffset?: number }[] = [
+  { label: 'Tab', insert: '    ' },
+  { label: ':', insert: ':' },
+  { label: '( )', insert: '()', cursorOffset: 1 },
+  { label: '[ ]', insert: '[]', cursorOffset: 1 },
+  { label: '{ }', insert: '{}', cursorOffset: 1 },
+  { label: '"', insert: '""', cursorOffset: 1 },
+  { label: "'", insert: "''", cursorOffset: 1 },
+  { label: '=', insert: '=' },
+  { label: '==', insert: '==' },
+  { label: '!=', insert: '!=' },
+  { label: '->', insert: '->' },
+  { label: ',', insert: ', ' },
+  { label: '#', insert: '# ' },
+  { label: 'def', insert: 'def ' },
+  { label: 'return', insert: 'return ' },
+  { label: 'if', insert: 'if ' },
+  { label: 'elif', insert: 'elif ' },
+  { label: 'else:', insert: 'else:' },
+  { label: 'for', insert: 'for ' },
+  { label: 'while', insert: 'while ' },
+  { label: 'in', insert: ' in ' },
+  { label: 'not', insert: 'not ' },
+  { label: 'and', insert: ' and ' },
+  { label: 'or', insert: ' or ' },
+  { label: 'None', insert: 'None' },
+  { label: 'True', insert: 'True' },
+  { label: 'False', insert: 'False' },
+  { label: 'len()', insert: 'len()', cursorOffset: 4 },
+  { label: 'range()', insert: 'range()', cursorOffset: 6 },
+];
 
 type RouteP = RouteProp<PracticeStackParamList, 'Problem'>;
 
@@ -59,6 +95,7 @@ export default function ProblemScreen() {
   const [pageUri, setPageUri] = useState<string | null>(null);
   const [stagedDir, setStagedDir] = useState<string | null>(null);
   const [stageError, setStageError] = useState<string | null>(null);
+  const [kbHeight, setKbHeight] = useState(0);
 
   if (!problem) {
     return (
@@ -95,6 +132,26 @@ export default function ProblemScreen() {
       cancelled = true;
     };
   }, [problem.id, html]);
+
+  // Track keyboard height so we can float a code-symbol toolbar just above it.
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const onShow = (e: any) => setKbHeight(e?.endCoordinates?.height || 0);
+    const onHide = () => setKbHeight(0);
+    const s = Keyboard.addListener(showEvt, onShow);
+    const h = Keyboard.addListener(hideEvt, onHide);
+    return () => {
+      s.remove();
+      h.remove();
+    };
+  }, []);
+
+  const insertSnippet = (text: string, cursorOffset?: number) => {
+    webRef.current?.postMessage(
+      JSON.stringify({ type: 'insert', text, cursorOffset }),
+    );
+  };
 
   const handleRun = () => {
     if (!runtimeReady || running) return;
@@ -282,6 +339,29 @@ export default function ProblemScreen() {
             </View>
           )}
         </ScrollView>
+
+        {/* Code-symbol toolbar — sits just above the keyboard when typing */}
+        {kbHeight > 0 && (
+          <View style={styles.kbBar}>
+            <ScrollView
+              horizontal
+              keyboardShouldPersistTaps="always"
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.kbBarInner}
+            >
+              {KEY_SHORTCUTS.map((s) => (
+                <TouchableOpacity
+                  key={s.label}
+                  style={styles.kbKey}
+                  activeOpacity={0.7}
+                  onPress={() => insertSnippet(s.insert, s.cursorOffset)}
+                >
+                  <Text style={styles.kbKeyText}>{s.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* Run button */}
         <View style={styles.runBar}>
@@ -749,6 +829,35 @@ const styles = StyleSheet.create({
   },
   runBtnDisabled: { opacity: 0.6 },
   runBtnText: { ...typography.labelLarge, color: colors.white, fontSize: 16 },
+
+  kbBar: {
+    backgroundColor: colors.card,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  kbBarInner: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+    flexDirection: 'row',
+  },
+  kbKey: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    minWidth: 44,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  kbKeyText: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.ink,
+  },
 
   modalBackdrop: {
     flex: 1,

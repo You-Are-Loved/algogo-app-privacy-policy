@@ -472,6 +472,22 @@ function resetEditor(code) {
   });
 }
 
+// Insert text at the current selection. If \`cursorOffset\` is provided it is
+// applied relative to the start of the inserted string so we can drop the
+// caret inside paired delimiters like () [] {}.
+function insertAtCursor(text, cursorOffset) {
+  if (!editorView) return;
+  const { from, to } = editorView.state.selection.main;
+  const finalText = String(text == null ? '' : text);
+  const offset =
+    typeof cursorOffset === 'number' ? cursorOffset : finalText.length;
+  editorView.dispatch({
+    changes: { from, to, insert: finalText },
+    selection: { anchor: from + offset },
+  });
+  editorView.focus();
+}
+
 // --- RN -> WV bridge ---------------------------------------------------------
 function handleHostMessage(rawData) {
   let msg;
@@ -484,6 +500,8 @@ function handleHostMessage(rawData) {
     runUserCode(msg.fnName, msg.tests);
   } else if (msg.type === 'reset') {
     resetEditor(msg.code);
+  } else if (msg.type === 'insert') {
+    insertAtCursor(msg.text, msg.cursorOffset);
   }
 }
 
