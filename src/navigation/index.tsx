@@ -8,16 +8,25 @@ import HomeScreen from '../screens/HomeScreen';
 import CategoryScreen from '../screens/CategoryScreen';
 import TermsScreen from '../screens/TermsScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
+import PracticeScreen from '../screens/PracticeScreen';
+import ProblemScreen from '../screens/ProblemScreen';
+import SystemDesignScreen from '../screens/SystemDesignScreen';
 
 import { useStore, CURRENT_TERMS_VERSION } from '../store/useStore';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
 import { colors } from '../theme';
 import { ContentType } from '../data/allCategories';
 
-// Stack param lists for each tab
+// Stack param lists
 export type TabStackParamList = {
-  Home: { contentType: ContentType };
+  Home: { contentType?: ContentType };
   Category: { slug: string };
+};
+
+export type PracticeStackParamList = {
+  PracticeList: undefined;
+  Problem: { problemId: string };
+  SystemDesign: { problemId: string };
 };
 
 export type RootStackParamList = {
@@ -26,120 +35,44 @@ export type RootStackParamList = {
   MainTabs: undefined;
 };
 
-// Tab param list
 export type TabParamList = {
-  AlgorithmsTab: undefined;
-  SystemDesignTab: undefined;
-  iOSTab: undefined;
-  AndroidTab: undefined;
-  WebTab: undefined;
-  BackendTab: undefined;
+  StudyTab: undefined;
+  PracticeTab: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
-const TabStack = createNativeStackNavigator<TabStackParamList>();
+const StudyStack = createNativeStackNavigator<TabStackParamList>();
+const PracticeStackNav = createNativeStackNavigator<PracticeStackParamList>();
 
-// Create stack navigator for each tab
-function AlgorithmsStack() {
+function StudyStackNavigator() {
   return (
-    <TabStack.Navigator screenOptions={{ headerShown: false }}>
-      <TabStack.Screen
-        name="Home"
-        component={HomeScreen}
-        initialParams={{ contentType: 'algorithms' }}
-      />
-      <TabStack.Screen
+    <StudyStack.Navigator screenOptions={{ headerShown: false }}>
+      <StudyStack.Screen name="Home" component={HomeScreen} />
+      <StudyStack.Screen
         name="Category"
         component={CategoryScreen}
         options={{ animation: 'slide_from_right' }}
       />
-    </TabStack.Navigator>
+    </StudyStack.Navigator>
   );
 }
 
-function SystemDesignStack() {
+function PracticeStackNavigator() {
   return (
-    <TabStack.Navigator screenOptions={{ headerShown: false }}>
-      <TabStack.Screen
-        name="Home"
-        component={HomeScreen}
-        initialParams={{ contentType: 'system-design' }}
-      />
-      <TabStack.Screen
-        name="Category"
-        component={CategoryScreen}
+    <PracticeStackNav.Navigator screenOptions={{ headerShown: false }}>
+      <PracticeStackNav.Screen name="PracticeList" component={PracticeScreen} />
+      <PracticeStackNav.Screen
+        name="Problem"
+        component={ProblemScreen}
         options={{ animation: 'slide_from_right' }}
       />
-    </TabStack.Navigator>
-  );
-}
-
-function IOSStack() {
-  return (
-    <TabStack.Navigator screenOptions={{ headerShown: false }}>
-      <TabStack.Screen
-        name="Home"
-        component={HomeScreen}
-        initialParams={{ contentType: 'ios' }}
-      />
-      <TabStack.Screen
-        name="Category"
-        component={CategoryScreen}
+      <PracticeStackNav.Screen
+        name="SystemDesign"
+        component={SystemDesignScreen}
         options={{ animation: 'slide_from_right' }}
       />
-    </TabStack.Navigator>
-  );
-}
-
-function AndroidStack() {
-  return (
-    <TabStack.Navigator screenOptions={{ headerShown: false }}>
-      <TabStack.Screen
-        name="Home"
-        component={HomeScreen}
-        initialParams={{ contentType: 'android' }}
-      />
-      <TabStack.Screen
-        name="Category"
-        component={CategoryScreen}
-        options={{ animation: 'slide_from_right' }}
-      />
-    </TabStack.Navigator>
-  );
-}
-
-function WebStack() {
-  return (
-    <TabStack.Navigator screenOptions={{ headerShown: false }}>
-      <TabStack.Screen
-        name="Home"
-        component={HomeScreen}
-        initialParams={{ contentType: 'web' }}
-      />
-      <TabStack.Screen
-        name="Category"
-        component={CategoryScreen}
-        options={{ animation: 'slide_from_right' }}
-      />
-    </TabStack.Navigator>
-  );
-}
-
-function BackendStack() {
-  return (
-    <TabStack.Navigator screenOptions={{ headerShown: false }}>
-      <TabStack.Screen
-        name="Home"
-        component={HomeScreen}
-        initialParams={{ contentType: 'backend' }}
-      />
-      <TabStack.Screen
-        name="Category"
-        component={CategoryScreen}
-        options={{ animation: 'slide_from_right' }}
-      />
-    </TabStack.Navigator>
+    </PracticeStackNav.Navigator>
   );
 }
 
@@ -159,69 +92,29 @@ function MainTabs() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.inkLight,
         tabBarLabelStyle: {
-          fontSize: 10,
+          fontSize: 12,
           fontWeight: '600',
           marginTop: 2,
         },
       }}
     >
       <Tab.Screen
-        name="AlgorithmsTab"
-        component={AlgorithmsStack}
+        name="StudyTab"
+        component={StudyStackNavigator}
         options={{
-          tabBarLabel: 'Algo',
+          tabBarLabel: 'Study',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="book-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="PracticeTab"
+        component={PracticeStackNavigator}
+        options={{
+          tabBarLabel: 'Practice',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="code-slash-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="SystemDesignTab"
-        component={SystemDesignStack}
-        options={{
-          tabBarLabel: 'System',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="server-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="iOSTab"
-        component={IOSStack}
-        options={{
-          tabBarLabel: 'iOS',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="phone-portrait-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="AndroidTab"
-        component={AndroidStack}
-        options={{
-          tabBarLabel: 'Android',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="tablet-portrait-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="WebTab"
-        component={WebStack}
-        options={{
-          tabBarLabel: 'Web',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="globe-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="BackendTab"
-        component={BackendStack}
-        options={{
-          tabBarLabel: 'Backend',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="server-outline" size={size} color={color} />
           ),
         }}
       />
@@ -237,17 +130,9 @@ export default function Navigation() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
         {needsTermsAcceptance ? (
-          <Stack.Screen
-            name="Terms"
-            component={TermsScreen}
-            options={{ animation: 'fade' }}
-          />
+          <Stack.Screen name="Terms" component={TermsScreen} options={{ animation: 'fade' }} />
         ) : needsOnboarding ? (
           <Stack.Screen
             name="Onboarding"

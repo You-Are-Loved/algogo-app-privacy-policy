@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProgress, CategoryProgress } from '../types';
 import { categories } from '../data/categories';
 
-export const CURRENT_TERMS_VERSION = 2;
+export const CURRENT_TERMS_VERSION = 3;
 
 interface AppState {
   user: UserProgress | null;

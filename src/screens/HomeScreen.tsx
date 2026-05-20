@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   Dimensions,
   Modal,
+  Share,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -32,6 +34,7 @@ import { useStore } from '../store/useStore';
 import { TabStackParamList } from '../navigation';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
 import UpgradeModal from '../components/UpgradeModal';
+import RatingPromptModal from '../components/RatingPromptModal';
 import { Category } from '../types';
 
 const { width, height } = Dimensions.get('window');
@@ -328,16 +331,30 @@ const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   'mail-outline': 'mail-outline',
 };
 
+const TRACKS: ContentType[] = ['algorithms', 'system-design', 'ios', 'android', 'web', 'backend'];
+
+const TRACK_PILL_LABEL: Record<ContentType, string> = {
+  'algorithms': 'Algorithms',
+  'system-design': 'System',
+  'ios': 'iOS',
+  'android': 'Android',
+  'web': 'Web',
+  'backend': 'Backend',
+};
+
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<HomeRouteProp>();
-  const contentType = route.params?.contentType || 'algorithms';
   const { user, initGuestUser, getCategoryProgress } = useStore();
   const { isSubscribed, purchase, restore, product, isLoading: subLoading } = useSubscriptionContext();
+  const [activeTrack, setActiveTrack] = useState<ContentType>(
+    route.params?.contentType || 'algorithms'
+  );
   const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [progressModalVisible, setProgressModalVisible] = useState(false);
   const [streakModalVisible, setStreakModalVisible] = useState(false);
+  const [ratingPromptVisible, setRatingPromptVisible] = useState(false);
 
   // Track if initial animation has played to prevent re-animation on tab switch
   const hasAnimated = useRef(false);
@@ -345,9 +362,51 @@ export default function HomeScreen() {
     hasAnimated.current = true;
   }, []);
 
-  // Get categories for this content type
-  const categories = getCategoriesByType(contentType);
-  const typeInfo = contentTypeInfo[contentType];
+  // Show the rating prompt once, after the user has been subscribed for 30+
+  // days and we haven't already asked.
+  useEffect(() => {
+    if (!isSubscribed) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const asked = await AsyncStorage.getItem('@algogo_rating_asked');
+        if (asked === 'true') return;
+        const startStr = await AsyncStorage.getItem('@algogo_subscription_start');
+        if (!startStr) return;
+        const startedAt = parseInt(startStr, 10);
+        if (!Number.isFinite(startedAt)) return;
+        const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+        if (Date.now() - startedAt < THIRTY_DAYS) return;
+        if (cancelled) return;
+        // Defer slightly so it doesn't fight with the page-enter animations.
+        setTimeout(() => {
+          if (!cancelled) setRatingPromptVisible(true);
+        }, 800);
+      } catch {}
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isSubscribed]);
+
+  const handleShareApp = useCallback(async () => {
+    try {
+      await Share.share({
+        message:
+          "I've been using Algogo to brush up on coding interview patterns — give it a try: https://apps.apple.com/app/id6756475892",
+        url: 'https://apps.apple.com/app/id6756475892',
+      });
+    } catch {}
+  }, []);
+
+  const handleRatingClose = useCallback(() => {
+    setRatingPromptVisible(false);
+    AsyncStorage.setItem('@algogo_rating_asked', 'true').catch(() => {});
+  }, []);
+
+  // Get categories for the actively selected track
+  const categories = getCategoriesByType(activeTrack);
+  const typeInfo = contentTypeInfo[activeTrack];
 
   useEffect(() => {
     if (!user) {
@@ -464,11 +523,63 @@ export default function HomeScreen() {
               <Ionicons name="flame" size={20} color={colors.accent} />
               <Text style={styles.streakText}>{user?.streak || 0}</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.shareBtn}
+              onPress={handleShareApp}
+              activeOpacity={0.8}
+              hitSlop={6}
+              accessibilityLabel="Share Algogo"
+            >
+              <Ionicons name="share-outline" size={20} color={colors.inkLight} />
+            </TouchableOpacity>
           </View>
         </Animated.View>
 
+        {/* Track switcher pill */}
+        <Animated.View entering={hasAnimated.current ? undefined : FadeInDown.delay(200)}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.trackPillRow}
+          >
+            {TRACKS.map((track) => {
+              const info = contentTypeInfo[track];
+              const active = track === activeTrack;
+              return (
+                <TouchableOpacity
+                  key={track}
+                  onPress={() => setActiveTrack(track)}
+                  activeOpacity={0.8}
+                  style={[
+                    styles.trackPill,
+                    active && { backgroundColor: info.color, borderColor: info.color },
+                  ]}
+                >
+                  <Ionicons
+                    name={info.icon as any}
+                    size={16}
+                    color={active ? colors.white : info.color}
+                  />
+                  <Text
+                    style={[
+                      styles.trackPillText,
+                      active && { color: colors.white },
+                    ]}
+                  >
+                    {TRACK_PILL_LABEL[track]}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </Animated.View>
+
         {/* Categories Section */}
-        <Animated.View entering={hasAnimated.current ? undefined : FadeInDown.delay(300)} style={styles.section}>
+        <Animated.View
+          key={activeTrack}
+          entering={FadeInDown.duration(280)}
+          style={styles.section}
+        >
           <View style={styles.sectionHeader}>
             <View style={[styles.sectionIconContainer, { backgroundColor: typeInfo.color }]}>
               <Ionicons name={typeInfo.icon as any} size={20} color={colors.white} />
@@ -512,6 +623,12 @@ export default function HomeScreen() {
         streak={user?.streak || 0}
         lastStudyDate={user?.lastStudyDate || null}
       />
+
+      {/* Rating prompt — fires once, ~30 days after first subscription */}
+      <RatingPromptModal
+        visible={ratingPromptVisible}
+        onClose={handleRatingClose}
+      />
     </SafeAreaView>
   );
 }
@@ -549,6 +666,16 @@ const styles = StyleSheet.create({
     borderColor: `${colors.accent}30`,
     gap: spacing.xs,
   },
+  shareBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   streakText: {
     ...typography.labelLarge,
     color: colors.accent,
@@ -585,6 +712,26 @@ const styles = StyleSheet.create({
   statLabel: {
     ...typography.labelSmall,
     color: colors.inkLight,
+  },
+  trackPillRow: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  trackPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.card,
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  trackPillText: {
+    ...typography.labelMedium,
+    color: colors.ink,
   },
   section: {
     paddingHorizontal: spacing.lg,

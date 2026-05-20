@@ -22,18 +22,23 @@ import Animated, {
   interpolate,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { WebView, WebViewMessageEvent } from 'react-native-webview';
+import Svg, { Line } from 'react-native-svg';
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { useStore } from '../store/useStore';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
+import { getProblem } from '../data/blind75';
+import { buildPracticeHtml } from '../practice/practiceHtml';
+import { ensurePracticeRuntime } from '../practice/stageAssets';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 const PRIVACY_URL = 'https://you-are-loved.github.io/algogo-app-privacy-policy/privacy-policy.html';
 
-type Step = 0 | 1 | 2 | 3 | 4 | 5;
-const TOTAL_STEPS = 6;
+type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+const TOTAL_STEPS = 9;
 
 export default function OnboardingScreen() {
   const [step, setStep] = useState<Step>(0);
@@ -103,7 +108,10 @@ export default function OnboardingScreen() {
         {step === 2 && <QuizStep />}
         {step === 3 && <VisualizationStep />}
         {step === 4 && <OfflineStep />}
-        {step === 5 && (
+        {step === 5 && <PracticeStep />}
+        {step === 6 && <SystemDesignTeaserStep />}
+        {step === 7 && <BehavioralStep />}
+        {step === 8 && (
           <PaywallStep
             product={product}
             isLoading={subLoading}
@@ -505,7 +513,384 @@ function PerkRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: s
 }
 
 // ============================================================================
-// STEP 5 — Trial paywall
+// STEP 5 — Practice (live Pyodide editor with Two Sum)
+// ============================================================================
+function PracticeStep() {
+  const problem = getProblem('two-sum');
+  const webRef = React.useRef<WebView>(null);
+  const [stagedDir, setStagedDir] = useState<string | null>(null);
+  const [runtimeReady, setRuntimeReady] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [resultText, setResultText] = useState<string | null>(null);
+  const [resultPass, setResultPass] = useState<boolean | null>(null);
+
+  const html = React.useMemo(
+    () =>
+      problem
+        ? buildPracticeHtml({ starter: problem.starter, fnName: problem.functionName })
+        : '',
+    [problem?.id]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const dir = await ensurePracticeRuntime();
+        if (!cancelled) setStagedDir(dir);
+      } catch {
+        // Onboarding shouldn't block on this; the next button still works.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const onMessage = (e: WebViewMessageEvent) => {
+    try {
+      const msg = JSON.parse(e.nativeEvent.data);
+      if (msg.type === 'ready') {
+        setRuntimeReady(true);
+      } else if (msg.type === 'result') {
+        const p = msg.payload;
+        const pass = p.passed === p.total && p.total > 0;
+        setResultPass(pass);
+        setResultText(
+          pass
+            ? `All ${p.total} tests passed in ${p.totalRuntimeMs} ms`
+            : `${p.passed} / ${p.total} tests passed`
+        );
+        setRunning(false);
+      } else if (msg.type === 'error') {
+        setResultPass(false);
+        setResultText('Something went wrong running your code.');
+        setRunning(false);
+      }
+    } catch {}
+  };
+
+  const handleRun = () => {
+    if (!problem || !runtimeReady || running) return;
+    setRunning(true);
+    setResultText(null);
+    setResultPass(null);
+    const tests = [
+      ...problem.examples.map((t) => ({ ...t, hidden: false })),
+      ...problem.hiddenTests.map((t) => ({ ...t, hidden: true })),
+    ];
+    webRef.current?.postMessage(
+      JSON.stringify({ type: 'run', fnName: problem.functionName, tests })
+    );
+  };
+
+  if (!problem) return null;
+
+  return (
+    <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
+      <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroIconWrap}>
+        <LinearGradient
+          colors={[colors.secondary, colors.primary]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroIcon}
+        >
+          <Ionicons name="terminal-outline" size={44} color={colors.white} />
+        </LinearGradient>
+      </Animated.View>
+
+      <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
+        Code, run, repeat
+      </Animated.Text>
+      <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
+        Try Two Sum right now — the Python runs on your device.
+      </Animated.Text>
+
+      <Animated.View
+        entering={FadeInDown.delay(400).duration(500)}
+        style={styles.practiceCard}
+      >
+        <View style={styles.practiceExampleRow}>
+          <Text style={styles.practiceExampleLabel}>Input</Text>
+          <Text style={styles.practiceExampleMono}>two_sum([2,7,11,15], 9)</Text>
+        </View>
+        <View style={styles.practiceExampleRow}>
+          <Text style={styles.practiceExampleLabel}>Output</Text>
+          <Text style={styles.practiceExampleMono}>[0, 1]</Text>
+        </View>
+
+        <View style={styles.practiceEditorWrap}>
+          {stagedDir ? (
+            <WebView
+              ref={webRef}
+              originWhitelist={['file://*']}
+              source={{ html, baseUrl: stagedDir }}
+              allowFileAccess
+              allowFileAccessFromFileURLs
+              allowUniversalAccessFromFileURLs
+              onMessage={onMessage}
+              javaScriptEnabled
+              domStorageEnabled
+              allowsBackForwardNavigationGestures={false}
+              scrollEnabled={false}
+              hideKeyboardAccessoryView
+              automaticallyAdjustContentInsets={false}
+              contentInsetAdjustmentBehavior="never"
+              injectedJavaScriptBeforeContentLoaded="window.isReactNativeWebView = true; true;"
+              style={styles.practiceWebview}
+            />
+          ) : (
+            <View style={styles.practiceEditorLoading}>
+              <ActivityIndicator color={colors.secondary} />
+            </View>
+          )}
+        </View>
+
+        <TouchableOpacity
+          onPress={handleRun}
+          disabled={!runtimeReady || running}
+          activeOpacity={0.85}
+          style={[
+            styles.practiceRunBtn,
+            (!runtimeReady || running) && styles.practiceRunBtnDisabled,
+          ]}
+        >
+          {running ? (
+            <ActivityIndicator color={colors.white} />
+          ) : (
+            <>
+              <Ionicons name="play" size={18} color={colors.white} />
+              <Text style={styles.practiceRunText}>
+                {runtimeReady ? 'Run code' : 'Loading Python…'}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        {resultText && (
+          <Animated.View
+            entering={FadeIn.duration(220)}
+            style={[
+              styles.practiceResult,
+              resultPass ? styles.practiceResultPass : styles.practiceResultFail,
+            ]}
+          >
+            <Ionicons
+              name={resultPass ? 'checkmark-circle' : 'alert-circle'}
+              size={16}
+              color={resultPass ? colors.primary : colors.accent}
+            />
+            <Text style={styles.practiceResultText}>{resultText}</Text>
+          </Animated.View>
+        )}
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
+// ============================================================================
+// STEP 6 — System Design teaser
+// ============================================================================
+function SystemDesignTeaserStep() {
+  // Static mockup of a small architecture diagram.
+  // Positions are in the local coordinate space of the canvas below.
+  const W = SCREEN_WIDTH - spacing.lg * 4;
+  const H = 200;
+  const nodes = [
+    { x: 28, y: 78, label: 'Client', icon: 'phone-portrait-outline', color: '#8B5CF6' },
+    { x: 0.5, y: 78, label: 'API', icon: 'server-outline', color: '#10B981' },
+    { x: 1.0, y: 22, label: 'Cache', icon: 'flash-outline', color: '#F43F5E' },
+    { x: 1.0, y: 134, label: 'Database', icon: 'cube-outline', color: '#2563EB' },
+  ];
+  const NODE_SIZE = 70;
+  const place = (n: { x: number; y: number }) => {
+    const x = n.x <= 1 ? n.x * (W - NODE_SIZE) : n.x;
+    const y = n.y;
+    return { left: x, top: y, cx: x + NODE_SIZE / 2, cy: y + NODE_SIZE / 2 };
+  };
+  const positions = nodes.map(place);
+  const lines: [number, number][] = [
+    [0, 1],
+    [1, 2],
+    [1, 3],
+  ];
+
+  return (
+    <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
+      <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroIconWrap}>
+        <LinearGradient
+          colors={[colors.primary, colors.secondary]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroIcon}
+        >
+          <Ionicons name="git-network-outline" size={44} color={colors.white} />
+        </LinearGradient>
+      </Animated.View>
+
+      <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
+        Sketch your way through system design
+      </Animated.Text>
+      <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
+        Drag in components, draw connections, and let us check the wiring.
+      </Animated.Text>
+
+      <Animated.View
+        entering={FadeInDown.delay(400).duration(500)}
+        style={[styles.sdCanvas, { width: W, height: H }]}
+      >
+        <Svg
+          width={W}
+          height={H}
+          style={StyleSheet.absoluteFill as any}
+          pointerEvents="none"
+        >
+          {lines.map(([a, b], i) => (
+            <Line
+              key={i}
+              x1={positions[a].cx}
+              y1={positions[a].cy}
+              x2={positions[b].cx}
+              y2={positions[b].cy}
+              stroke={colors.inkLighter}
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
+          ))}
+        </Svg>
+        {nodes.map((n, i) => (
+          <View
+            key={i}
+            style={[
+              styles.sdNode,
+              {
+                left: positions[i].left,
+                top: positions[i].top,
+                borderColor: n.color,
+                backgroundColor: `${n.color}1A`,
+              },
+            ]}
+          >
+            <Ionicons name={n.icon as any} size={18} color={n.color} />
+            <Text style={styles.sdNodeLabel}>{n.label}</Text>
+          </View>
+        ))}
+      </Animated.View>
+
+      <View style={styles.offlinePerks}>
+        <PerkRow icon="hand-left-outline" text="Tap a palette, drop nodes on the canvas" />
+        <PerkRow icon="checkmark-done-outline" text="Test diagram tells you exactly what's missing" />
+        <PerkRow icon="book-outline" text="Hints and a worked solution when you're stuck" />
+      </View>
+    </Animated.View>
+  );
+}
+
+// ============================================================================
+// STEP 7 — Behavioral practice
+// ============================================================================
+function BehavioralStep() {
+  return (
+    <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
+      <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroIconWrap}>
+        <LinearGradient
+          colors={[colors.accent, colors.accentLight]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroIcon}
+        >
+          <Ionicons name="chatbubbles-outline" size={44} color={colors.white} />
+        </LinearGradient>
+      </Animated.View>
+
+      <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
+        Polish the stories you'll actually tell
+      </Animated.Text>
+      <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
+        Ten classic behavioral prompts with a notes field per question. Edit
+        in the app — answers save as you type.
+      </Animated.Text>
+
+      <Animated.View
+        entering={FadeInDown.delay(400).duration(500)}
+        style={styles.behavioralStack}
+      >
+        <BehavioralPreviewCard
+          number={1}
+          prompt="Tell me about a challenging technical problem you solved recently."
+          meta="84 words saved"
+          checked
+          expanded
+          previewLines={[
+            'Last quarter our checkout latency spiked at peak hours…',
+            'I traced it to a missing index on the orders table…',
+            'Result: p95 dropped from 3.1s to 280ms.',
+          ]}
+        />
+        <BehavioralPreviewCard
+          number={2}
+          prompt="Describe a time you disagreed with a teammate."
+          meta="42 words saved"
+          checked
+        />
+        <BehavioralPreviewCard
+          number={3}
+          prompt="What's a project you're most proud of?"
+          meta="No answer yet"
+        />
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
+function BehavioralPreviewCard({
+  number,
+  prompt,
+  meta,
+  checked,
+  expanded,
+  previewLines,
+}: {
+  number: number;
+  prompt: string;
+  meta: string;
+  checked?: boolean;
+  expanded?: boolean;
+  previewLines?: string[];
+}) {
+  return (
+    <View style={styles.behavioralCard}>
+      <View style={styles.behavioralRow}>
+        <View style={styles.behavioralNumber}>
+          <Text style={styles.behavioralNumberText}>
+            {String(number).padStart(2, '0')}
+          </Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.behavioralPrompt} numberOfLines={2}>
+            {prompt}
+          </Text>
+          <Text style={styles.behavioralMeta}>{meta}</Text>
+        </View>
+        {checked && (
+          <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+        )}
+      </View>
+      {expanded && previewLines && (
+        <View style={styles.behavioralPreviewBody}>
+          {previewLines.map((l, i) => (
+            <Text key={i} style={styles.behavioralPreviewText}>
+              {l}
+            </Text>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ============================================================================
+// STEP 8 — Trial paywall
 // ============================================================================
 function PaywallStep({
   product,
@@ -1151,5 +1536,161 @@ const styles = StyleSheet.create({
     ...typography.labelSmall,
     color: colors.inkLighter,
     paddingHorizontal: 2,
+  },
+  // Step 5: practice
+  practiceCard: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginHorizontal: spacing.xs,
+    ...shadows.sm,
+  },
+  practiceExampleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  practiceExampleLabel: {
+    fontFamily: 'System',
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.inkLight,
+    width: 56,
+  },
+  practiceExampleMono: {
+    fontFamily: 'Menlo',
+    fontSize: 13,
+    color: colors.ink,
+    flex: 1,
+  },
+  practiceEditorWrap: {
+    height: 200,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    backgroundColor: '#1e1e2e',
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  practiceWebview: { backgroundColor: '#1e1e2e', flex: 1 },
+  practiceEditorLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  practiceRunBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    ...shadows.button(colors.primary),
+  },
+  practiceRunBtnDisabled: { opacity: 0.6 },
+  practiceRunText: {
+    ...typography.labelLarge,
+    color: colors.white,
+    fontSize: 15,
+  },
+  practiceResult: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    marginTop: spacing.sm,
+  },
+  practiceResultPass: { backgroundColor: `${colors.primary}15` },
+  practiceResultFail: { backgroundColor: `${colors.accent}15` },
+  practiceResultText: {
+    ...typography.labelMedium,
+    color: colors.ink,
+    flex: 1,
+  },
+  // Step 6: system design teaser
+  sdCanvas: {
+    alignSelf: 'center',
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    marginBottom: spacing.lg,
+    ...shadows.sm,
+  },
+  sdNode: {
+    position: 'absolute',
+    width: 70,
+    height: 70,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  sdNodeLabel: {
+    ...typography.labelSmall,
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  // Step 7: behavioral preview
+  behavioralStack: {
+    paddingHorizontal: spacing.xs,
+    gap: spacing.sm,
+  },
+  behavioralCard: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  behavioralRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  behavioralNumber: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  behavioralNumberText: {
+    ...typography.labelMedium,
+    color: colors.inkLight,
+  },
+  behavioralPrompt: {
+    ...typography.labelLarge,
+    color: colors.ink,
+    fontSize: 14,
+  },
+  behavioralMeta: {
+    ...typography.labelSmall,
+    color: colors.inkLight,
+    marginTop: 2,
+  },
+  behavioralPreviewBody: {
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.sm,
+    gap: 4,
+  },
+  behavioralPreviewText: {
+    ...typography.labelSmall,
+    color: colors.inkLight,
+    fontSize: 12,
+    lineHeight: 18,
   },
 });

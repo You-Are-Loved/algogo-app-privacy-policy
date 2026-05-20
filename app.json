@@ -3,7 +3,7 @@
     "name": "Algogo",
     "slug": "algogo-app",
     "owner": "nenu18",
-    "version": "1.0.4",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/logo-final.png",
     "userInterfaceStyle": "light",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.raidea.algogo",
-      "buildNumber": "38",
+      "buildNumber": "39",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -35,7 +35,8 @@
     },
     "plugins": [
       "expo-iap",
-      "expo-font"
+      "expo-font",
+      "expo-asset"
     ],
     "extra": {
       "eas": {

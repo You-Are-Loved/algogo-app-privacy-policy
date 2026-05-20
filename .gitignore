@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Practice runtime — Pyodide + CodeMirror bundle, regenerated on EAS Build
+# via the `eas-build-post-install` hook (scripts/build-practice-assets.js).
+/assets/practice/

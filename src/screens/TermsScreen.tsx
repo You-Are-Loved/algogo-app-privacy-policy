@@ -42,7 +42,7 @@ export default function TermsScreen() {
           onScroll={handleScroll}
           scrollEventThrottle={16}
         >
-          <Text style={styles.lastUpdated}>Last Updated: April 2026</Text>
+          <Text style={styles.lastUpdated}>Last Updated: May 2026</Text>
 
           <Text style={styles.sectionTitle}>1. Acceptance of Terms</Text>
           <Text style={styles.bodyText}>
@@ -71,7 +71,30 @@ export default function TermsScreen() {
             {'\u2022'} Users should verify information independently before relying on it
           </Text>
 
-          <Text style={styles.sectionTitle}>4. No Guarantee of Interview Success</Text>
+          <Text style={styles.sectionTitle}>4. Code Execution & Practice Sandbox</Text>
+          <Text style={styles.bodyText}>
+            <Text style={styles.bold}>IMPORTANT:</Text> The Practice feature lets you write, edit, and run Python code on your own device using an embedded WebAssembly runtime. By using this feature you acknowledge and agree that:
+          </Text>
+          <Text style={styles.bulletPoint}>
+            {'•'} You are solely responsible for any code you type, paste, or execute inside the App, and for any consequences thereof
+          </Text>
+          <Text style={styles.bulletPoint}>
+            {'•'} Code runs in a sandboxed WebView. We deliberately block standard network access from user code (fetch, XMLHttpRequest, WebSocket, etc.) but make no representation that the sandbox is impenetrable
+          </Text>
+          <Text style={styles.bulletPoint}>
+            {'•'} We do not store, transmit, or analyze the code you write. Your draft solutions and any saved behavioral notes are kept on your device only
+          </Text>
+          <Text style={styles.bulletPoint}>
+            {'•'} The results, timing, and output produced by your code are advisory; we make no warranty that grading is correct in every edge case
+          </Text>
+          <Text style={styles.bulletPoint}>
+            {'•'} You will not use the Practice feature to write or run code that is unlawful, infringes the rights of others, harms your device, or attempts to escape the sandbox
+          </Text>
+          <Text style={styles.bodyText}>
+            We expressly disclaim any liability arising from code you write, run, or share through the App, including any direct or indirect consequences on your device, accounts, or data.
+          </Text>
+
+          <Text style={styles.sectionTitle}>5. No Guarantee of Interview Success</Text>
           <Text style={styles.bodyText}>
             <Text style={styles.bold}>DISCLAIMER:</Text> Using this App does not guarantee success in any job interview, technical assessment, or hiring process. Interview outcomes depend on numerous factors beyond the scope of this App, including but not limited to:
           </Text>
@@ -91,7 +114,7 @@ export default function TermsScreen() {
             We expressly disclaim any liability for interview outcomes, job offers, or career decisions made based on use of this App.
           </Text>
 
-          <Text style={styles.sectionTitle}>5. Limitation of Liability</Text>
+          <Text style={styles.sectionTitle}>6. Limitation of Liability</Text>
           <Text style={styles.bodyText}>
             TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW:
           </Text>
@@ -108,7 +131,7 @@ export default function TermsScreen() {
             {'\u2022'} Our total liability shall not exceed the amount you paid for the App (if any)
           </Text>
 
-          <Text style={styles.sectionTitle}>6. Data Collection & Privacy</Text>
+          <Text style={styles.sectionTitle}>7. Data Collection & Privacy</Text>
           <Text style={styles.bodyText}>
             We respect your privacy. The App collects and stores the following data locally on your device:
           </Text>
@@ -125,17 +148,31 @@ export default function TermsScreen() {
             This data is stored locally on your device and is not transmitted to our servers.
           </Text>
 
-          <Text style={styles.sectionTitle}>7. Intellectual Property</Text>
+          <Text style={styles.sectionTitle}>8. Third-Party Software & Attributions</Text>
           <Text style={styles.bodyText}>
-            All content, design, and functionality of the App are protected by intellectual property laws. You may not copy, modify, distribute, or create derivative works without our express written permission.
+            The Practice feature is built on top of open-source software that we are required (and grateful) to attribute. The components below are not authored by us; they are used under their respective licenses and remain the property of their authors:
+          </Text>
+          <Text style={styles.bulletPoint}>
+            {'•'} <Text style={styles.bold}>Pyodide</Text> (a CPython distribution compiled to WebAssembly), used as the Python runtime. Licensed under the Mozilla Public License 2.0. Source: https://github.com/pyodide/pyodide. License: https://www.mozilla.org/MPL/2.0/.
+          </Text>
+          <Text style={styles.bulletPoint}>
+            {'•'} <Text style={styles.bold}>CodeMirror 6</Text> (text editor framework), used to render the in-app Python editor. Licensed under the MIT License. Source: https://github.com/codemirror/dev. Copyright (c) by Marijn Haverbeke and contributors.
+          </Text>
+          <Text style={styles.bodyText}>
+            We do not claim ownership of these components and we do not modify them in ways that would affect those licenses. If you redistribute or build upon the App's source, you must continue to honor the upstream license terms.
           </Text>
 
-          <Text style={styles.sectionTitle}>8. Changes to Terms</Text>
+          <Text style={styles.sectionTitle}>9. Intellectual Property</Text>
+          <Text style={styles.bodyText}>
+            Subject to Section 8, all original content, design, and functionality of the App are protected by intellectual property laws. You may not copy, modify, distribute, or create derivative works without our express written permission.
+          </Text>
+
+          <Text style={styles.sectionTitle}>10. Changes to Terms</Text>
           <Text style={styles.bodyText}>
             We reserve the right to modify these terms at any time. Continued use of the App after changes constitutes acceptance of the modified terms.
           </Text>
 
-          <Text style={styles.sectionTitle}>9. Contact</Text>
+          <Text style={styles.sectionTitle}>11. Contact</Text>
           <Text style={styles.bodyText}>
             If you have questions about these Terms or the App, please contact us through the App Store listing.
           </Text>

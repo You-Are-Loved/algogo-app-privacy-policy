@@ -195,18 +195,12 @@ const SlidingWindowViz = ({ catColors }: { catColors: { color: string; dark: str
 
 // Two Pointers Visualization
 const TwoPointersViz = ({ catColors }: { catColors: { color: string; dark: string } }) => {
-  const [step, setStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const array = [1, 2, 3, 4, 6, 8, 9];
-  const target = 10;
-
-  const steps = [
-    { left: 0, right: 6, sum: 10, found: true },
-  ];
-
-  const simulateSteps = [
-    { left: 0, right: 6 }, // 1+9=10, found!
-  ];
+  // Chosen so the algorithm has to step a few times in both directions before
+  // finding the pair. Walks: (1,18)→18>target, (1,14)→15>target, (1,11)→12<target,
+  // (3,11)→14>target, (3,8)→11<target, (5,8)→13 ✅
+  const array = [1, 3, 5, 8, 11, 14, 18];
+  const target = 13;
 
   const [left, setLeft] = useState(0);
   const [right, setRight] = useState(array.length - 1);

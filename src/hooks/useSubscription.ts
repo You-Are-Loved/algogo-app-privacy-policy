@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Your App Store product ID
 const PRODUCT_ID = 'removeads12';
 const SUBSCRIPTION_KEY = '@algogo_subscription';
+const SUBSCRIPTION_START_KEY = '@algogo_subscription_start';
 
 // Check if we're in Expo Go
 const isExpoGo = Constants.appOwnership === 'expo';
@@ -42,10 +43,17 @@ export function useSubscription() {
     loadSubscription();
   }, []);
 
-  // Save subscription status
+  // Save subscription status. Also stamp the first-subscribed timestamp so
+  // downstream UX (e.g. rating prompt) can wait a cool-down period.
   const saveSubscription = async (subscribed: boolean) => {
     try {
       await AsyncStorage.setItem(SUBSCRIPTION_KEY, subscribed ? 'true' : 'false');
+      if (subscribed) {
+        const existing = await AsyncStorage.getItem(SUBSCRIPTION_START_KEY);
+        if (!existing) {
+          await AsyncStorage.setItem(SUBSCRIPTION_START_KEY, String(Date.now()));
+        }
+      }
     } catch (e) {
       // Ignore
     }
@@ -195,13 +203,17 @@ export function useSubscription() {
             (purchase: any) => purchase.productId === PRODUCT_ID
           );
 
-          // Update subscription status based on Apple's response (source of truth)
-          // If no active subscription found, user's trial/subscription has expired
-          setState(prev => ({ ...prev, isSubscribed: hasActiveSubscription }));
-          saveSubscription(hasActiveSubscription);
+          // In dev, don't downgrade an existing locally-set sub flag to false
+          // when Apple returns no products (simulator has no Apple ID signed in).
+          if (__DEV__ && !hasActiveSubscription) {
+            console.log('[dev] Skipping Apple-side sub override; keeping local flag');
+          } else {
+            setState(prev => ({ ...prev, isSubscribed: hasActiveSubscription }));
+            saveSubscription(hasActiveSubscription);
 
-          if (!hasActiveSubscription) {
-            console.log('No active subscription found - trial/subscription may have expired');
+            if (!hasActiveSubscription) {
+              console.log('No active subscription found - trial/subscription may have expired');
+            }
           }
         } catch (e) {
           console.log('Get purchases error:', e);
