@@ -470,20 +470,6 @@ function VisualizationStep() {
 // STEP 4 — Works offline
 // ============================================================================
 function OfflineStep() {
-  const planeX = useSharedValue(-80);
-
-  useEffect(() => {
-    planeX.value = withRepeat(
-      withTiming(SCREEN_WIDTH + 80, { duration: 4500, easing: Easing.linear }),
-      -1,
-      false
-    );
-  }, []);
-
-  const planeStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: planeX.value }, { rotate: '-15deg' }],
-  }));
-
   return (
     <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
       <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroIconWrap}>
@@ -503,12 +489,6 @@ function OfflineStep() {
       <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
         The whole app works fully offline. No internet, no problem.
       </Animated.Text>
-
-      <View style={styles.offlineSky}>
-        <Animated.View style={[styles.offlinePlane, planeStyle]}>
-          <Ionicons name="airplane" size={40} color={colors.accent} />
-        </Animated.View>
-      </View>
 
       <View style={styles.offlinePerks}>
         <PerkRow icon="cloud-offline-outline" text="Study on the subway, on a flight, in the woods" />
@@ -648,6 +628,11 @@ function PracticeStep() {
 
   return (
     <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: spacing.md }}
+        showsVerticalScrollIndicator={false}
+      >
       <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroIconWrap}>
         <LinearGradient
           colors={[colors.secondary, colors.primary]}
@@ -753,17 +738,12 @@ function PracticeStep() {
         {result && (
           <Animated.View entering={FadeIn.duration(220)} style={styles.practiceResultsBlock}>
             <ResultSummaryPill result={result} />
-            <ScrollView
-              style={styles.practiceResultsScroll}
-              showsVerticalScrollIndicator={false}
-              nestedScrollEnabled
-            >
-              <ResultBreakdown result={result} problem={problem} />
-              <ConsoleOutput result={result} />
-            </ScrollView>
+            <ResultBreakdown result={result} problem={problem} />
+            <ConsoleOutput result={result} />
           </Animated.View>
         )}
       </Animated.View>
+      </ScrollView>
     </Animated.View>
   );
 }
