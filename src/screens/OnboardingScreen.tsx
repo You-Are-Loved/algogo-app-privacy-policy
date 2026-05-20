@@ -7,6 +7,9 @@ import {
   Dimensions,
   Linking,
   ActivityIndicator,
+  ScrollView,
+  Keyboard,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -513,6 +516,28 @@ function PerkRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: s
   );
 }
 
+// Shared code-symbol shortcuts for the onboarding mini-editor. Mirrors the
+// set in ProblemScreen so muscle memory carries between the two.
+const ONBOARD_KEY_SHORTCUTS: { label: string; insert: string; cursorOffset?: number }[] = [
+  { label: 'Tab', insert: '    ' },
+  { label: ':', insert: ':' },
+  { label: '( )', insert: '()', cursorOffset: 1 },
+  { label: '[ ]', insert: '[]', cursorOffset: 1 },
+  { label: '{ }', insert: '{}', cursorOffset: 1 },
+  { label: '"', insert: '""', cursorOffset: 1 },
+  { label: '=', insert: '=' },
+  { label: '==', insert: '==' },
+  { label: '->', insert: '->' },
+  { label: ',', insert: ', ' },
+  { label: 'def', insert: 'def ' },
+  { label: 'return', insert: 'return ' },
+  { label: 'for', insert: 'for ' },
+  { label: 'in', insert: ' in ' },
+  { label: 'if', insert: 'if ' },
+  { label: 'len()', insert: 'len()', cursorOffset: 4 },
+  { label: 'range()', insert: 'range()', cursorOffset: 6 },
+];
+
 // ============================================================================
 // STEP 5 — Practice (live Pyodide editor with Two Sum)
 // ============================================================================
@@ -525,6 +550,24 @@ function PracticeStep() {
   const [running, setRunning] = useState(false);
   const [resultText, setResultText] = useState<string | null>(null);
   const [resultPass, setResultPass] = useState<boolean | null>(null);
+  const [kbVisible, setKbVisible] = useState(false);
+
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const s = Keyboard.addListener(showEvt, () => setKbVisible(true));
+    const h = Keyboard.addListener(hideEvt, () => setKbVisible(false));
+    return () => {
+      s.remove();
+      h.remove();
+    };
+  }, []);
+
+  const insertSnippet = (text: string, cursorOffset?: number) => {
+    webRef.current?.postMessage(
+      JSON.stringify({ type: 'insert', text, cursorOffset }),
+    );
+  };
 
   const html = React.useMemo(
     () =>
@@ -653,6 +696,28 @@ function PracticeStep() {
             </View>
           )}
         </View>
+
+        {kbVisible && (
+          <View style={styles.onboardKbBar}>
+            <ScrollView
+              horizontal
+              keyboardShouldPersistTaps="always"
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.onboardKbBarInner}
+            >
+              {ONBOARD_KEY_SHORTCUTS.map((s) => (
+                <TouchableOpacity
+                  key={s.label}
+                  style={styles.onboardKbKey}
+                  activeOpacity={0.7}
+                  onPress={() => insertSnippet(s.insert, s.cursorOffset)}
+                >
+                  <Text style={styles.onboardKbKeyText}>{s.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         <TouchableOpacity
           onPress={handleRun}
@@ -1619,6 +1684,36 @@ const styles = StyleSheet.create({
     ...typography.labelMedium,
     color: colors.ink,
     flex: 1,
+  },
+  onboardKbBar: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  onboardKbBarInner: {
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
+    gap: spacing.xs,
+    flexDirection: 'row',
+  },
+  onboardKbKey: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    minWidth: 40,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  onboardKbKeyText: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.ink,
   },
   // Step 6: system design teaser
   sdCanvas: {
