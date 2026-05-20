@@ -73,18 +73,20 @@ function bundleCodeMirror() {
   console.log('Bundling CodeMirror via esbuild');
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cm-bundle-'));
   const entry = path.join(tmp, 'entry.js');
-  // IIFE that hangs everything off window.__cm__. We avoid ES module output
-  // because real iOS devices serve file:// .js with a non-JS MIME type and
-  // refuse to import() them. The IIFE is loaded via XHR + eval at runtime.
+  // IIFE that attaches everything to globalThis.__cm__. We assign manually
+  // (rather than relying on esbuild's --global-name return-value mechanism)
+  // because some build environments emit a residual `export {}` at the IIFE
+  // boundary that breaks eval() inside the WebView.
   fs.writeFileSync(
     entry,
-    `export * as state from '@codemirror/state';
-export * as view from '@codemirror/view';
-export * as commands from '@codemirror/commands';
-export * as langPython from '@codemirror/lang-python';
-export * as themeOneDark from '@codemirror/theme-one-dark';
-export * as language from '@codemirror/language';
-export * as autocomplete from '@codemirror/autocomplete';
+    `import * as state from '@codemirror/state';
+import * as view from '@codemirror/view';
+import * as commands from '@codemirror/commands';
+import * as langPython from '@codemirror/lang-python';
+import * as themeOneDark from '@codemirror/theme-one-dark';
+import * as language from '@codemirror/language';
+import * as autocomplete from '@codemirror/autocomplete';
+globalThis.__cm__ = { state, view, commands, langPython, themeOneDark, language, autocomplete };
 `,
   );
   // Pin the same versions the HTML used to import from esm.sh.
@@ -110,11 +112,27 @@ export * as autocomplete from '@codemirror/autocomplete';
   const esbuild = path.join(tmp, 'node_modules', '.bin', 'esbuild');
   console.log('  esbuild ...');
   execSync(
-    `"${esbuild}" "${entry}" --bundle --format=iife --global-name=__cm__ --target=es2020 --minify --outfile="${out}"`,
+    `"${esbuild}" "${entry}" --bundle --format=iife --target=es2020 --minify --outfile="${out}"`,
     { cwd: tmp, stdio: 'inherit' },
   );
   const size = fs.statSync(out).size;
   console.log(`  codemirror-bundle.bin ${(size / 1024).toFixed(0)} KB`);
+
+  // Integrity check: the bundle is XHR-fetched and eval()'d as a classic
+  // script in the WebView. Parse it the same way (new Function = classic
+  // script) so we catch any residual ES-module syntax that would throw
+  // "unexpected keyword export/import" on a real device.
+  const source = fs.readFileSync(out, 'utf8');
+  try {
+    // eslint-disable-next-line no-new-func
+    new Function(source);
+    console.log('  ✔ bundle parses as a classic script');
+  } catch (e) {
+    throw new Error(
+      `codemirror-bundle.bin does not parse as a classic script — refusing ` +
+      `to ship. Inspect ${out}. Underlying error: ${e.message}`,
+    );
+  }
 }
 
 (async () => {
