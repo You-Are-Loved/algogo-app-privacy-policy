@@ -1045,56 +1045,62 @@ function PaywallStep({
 
   return (
     <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
-      <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroIconWrap}>
-        <LinearGradient
-          colors={[colors.purple, colors.secondary]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.heroIcon}
-        >
-          <Ionicons name="sparkles" size={44} color={colors.white} />
-        </LinearGradient>
-      </Animated.View>
+      <ScrollView
+        style={styles.paywallScroll}
+        contentContainerStyle={styles.paywallScrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.paywallHeroWrap}>
+          <LinearGradient
+            colors={[colors.purple, colors.secondary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.paywallHeroIcon}
+          >
+            <Ionicons name="sparkles" size={36} color={colors.white} />
+          </LinearGradient>
+        </Animated.View>
 
-      <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
-        Try Algogo Pro free
-      </Animated.Text>
-      <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
-        7 days free, then {price}/month. Cancel anytime.
-      </Animated.Text>
+        <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
+          Try Algogo Pro free
+        </Animated.Text>
+        <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
+          7 days free, then {price}/month. Cancel anytime.
+        </Animated.Text>
 
-      <Animated.View entering={FadeInDown.delay(400).duration(400)} style={styles.paywallFeatures}>
-        <PaywallFeature icon="lock-open-outline" text="Unlock all 50+ categories" />
-        <PaywallFeature icon="copy-outline" text="1,500+ flashcards across 6 tracks" />
-        <PaywallFeature icon="analytics-outline" text="Live algorithm visualizations" />
-        <PaywallFeature icon="code-slash-outline" text="75 algorithm problems on device" />
-        <PaywallFeature icon="git-network-outline" text="System-design diagrams that grade themselves" />
-        <PaywallFeature icon="chatbubbles-outline" text="Behavioral prompts with notes that save as you type" />
-        <PaywallFeature icon="cloud-offline-outline" text="Works fully offline" />
-      </Animated.View>
+        <Animated.View entering={FadeInDown.delay(400).duration(400)} style={styles.paywallFeatures}>
+          <PaywallFeature icon="lock-open-outline" text="Unlock all 50+ categories" />
+          <PaywallFeature icon="copy-outline" text="1,500+ flashcards across 6 tracks" />
+          <PaywallFeature icon="analytics-outline" text="Live algorithm visualizations" />
+          <PaywallFeature icon="code-slash-outline" text="75 algorithm problems on device" />
+          <PaywallFeature icon="git-network-outline" text="System-design diagrams that grade themselves" />
+          <PaywallFeature icon="chatbubbles-outline" text="Behavioral prompts with notes that save as you type" />
+          <PaywallFeature icon="cloud-offline-outline" text="Works fully offline" />
+        </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(500).duration(400)} style={styles.timeline}>
-        <TimelineRow
-          icon="lock-open-outline"
-          color={colors.primary}
-          title="Today"
-          subtitle="Get full access — try everything free"
-        />
-        <View style={styles.timelineLine} />
-        <TimelineRow
-          icon="notifications-outline"
-          color={colors.secondary}
-          title="Day 6"
-          subtitle="We'll remind you the trial is ending"
-        />
-        <View style={styles.timelineLine} />
-        <TimelineRow
-          icon="card-outline"
-          color={colors.accent}
-          title="Day 7"
-          subtitle={`${price}/mo charged unless you cancel`}
-        />
-      </Animated.View>
+        <Animated.View entering={FadeInDown.delay(500).duration(400)} style={styles.timeline}>
+          <TimelineRow
+            icon="lock-open-outline"
+            color={colors.primary}
+            title="Today"
+            subtitle="Get full access — try everything free"
+          />
+          <View style={styles.timelineLine} />
+          <TimelineRow
+            icon="notifications-outline"
+            color={colors.secondary}
+            title="Day 6"
+            subtitle="We'll remind you the trial is ending"
+          />
+          <View style={styles.timelineLine} />
+          <TimelineRow
+            icon="card-outline"
+            color={colors.accent}
+            title="Day 7"
+            subtitle={`${price}/mo charged unless you cancel`}
+          />
+        </Animated.View>
+      </ScrollView>
 
       <Animated.View entering={FadeInUp.delay(600).duration(400)} style={styles.paywallCtas}>
         <TouchableOpacity
@@ -1569,6 +1575,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   // Step 5: paywall
+  paywallScroll: {
+    flex: 1,
+  },
+  paywallScrollContent: {
+    paddingBottom: spacing.md,
+  },
+  paywallHeroWrap: {
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  paywallHeroIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.md,
+  },
   paywallFeatures: {
     backgroundColor: colors.card,
     borderRadius: borderRadius.lg,
@@ -1635,7 +1660,10 @@ const styles = StyleSheet.create({
     marginLeft: 17,
   },
   paywallCtas: {
-    marginTop: 'auto',
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
   },
   primaryCta: {
     backgroundColor: colors.primary,
