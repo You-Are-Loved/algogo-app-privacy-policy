@@ -545,13 +545,15 @@ function PracticeStep() {
   const [runtimeReady, setRuntimeReady] = useState(false);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<ExecResult | null>(null);
-  const [kbVisible, setKbVisible] = useState(false);
+  const [kbHeight, setKbHeight] = useState(0);
 
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const s = Keyboard.addListener(showEvt, () => setKbVisible(true));
-    const h = Keyboard.addListener(hideEvt, () => setKbVisible(false));
+    const s = Keyboard.addListener(showEvt, (e: any) =>
+      setKbHeight(e?.endCoordinates?.height || 0),
+    );
+    const h = Keyboard.addListener(hideEvt, () => setKbHeight(0));
     return () => {
       s.remove();
       h.remove();
@@ -632,6 +634,8 @@ function PracticeStep() {
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: spacing.md }}
         showsVerticalScrollIndicator={false}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
       >
       <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroIconWrap}>
         <LinearGradient
@@ -692,28 +696,6 @@ function PracticeStep() {
           )}
         </View>
 
-        {kbVisible && (
-          <View style={styles.onboardKbBar}>
-            <ScrollView
-              horizontal
-              keyboardShouldPersistTaps="always"
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.onboardKbBarInner}
-            >
-              {ONBOARD_KEY_SHORTCUTS.map((s) => (
-                <TouchableOpacity
-                  key={s.label}
-                  style={styles.onboardKbKey}
-                  activeOpacity={0.7}
-                  onPress={() => insertSnippet(s.insert, s.cursorOffset)}
-                >
-                  <Text style={styles.onboardKbKeyText}>{s.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
         <TouchableOpacity
           onPress={handleRun}
           disabled={!runtimeReady || running}
@@ -744,6 +726,34 @@ function PracticeStep() {
         )}
       </Animated.View>
       </ScrollView>
+
+      {kbHeight > 0 && (
+        <View
+          style={[
+            styles.onboardKbBar,
+            styles.onboardKbBarFloating,
+            { bottom: kbHeight },
+          ]}
+        >
+          <ScrollView
+            horizontal
+            keyboardShouldPersistTaps="always"
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.onboardKbBarInner}
+          >
+            {ONBOARD_KEY_SHORTCUTS.map((s) => (
+              <TouchableOpacity
+                key={s.label}
+                style={styles.onboardKbKey}
+                activeOpacity={0.7}
+                onPress={() => insertSnippet(s.insert, s.cursorOffset)}
+              >
+                <Text style={styles.onboardKbKeyText}>{s.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
     </Animated.View>
   );
 }
@@ -1769,6 +1779,19 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  onboardKbBarFloating: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    marginTop: 0,
+    borderRadius: 0,
+    borderLeftWidth: 0,
+    borderRightWidth: 0,
+    borderBottomWidth: 0,
+    backgroundColor: colors.card,
+    zIndex: 10,
+    elevation: 10,
   },
   onboardKbBarInner: {
     paddingHorizontal: spacing.xs,
