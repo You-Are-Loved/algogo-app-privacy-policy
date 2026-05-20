@@ -3,7 +3,7 @@
     "name": "Algogo",
     "slug": "algogo-app",
     "owner": "nenu18",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "orientation": "portrait",
     "icon": "./assets/logo-final.png",
     "userInterfaceStyle": "light",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.raidea.algogo",
-      "buildNumber": "49",
+      "buildNumber": "50",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
