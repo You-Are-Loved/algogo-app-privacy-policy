@@ -41,11 +41,11 @@ export default function UpgradeModal({
   showSkip = false,
 }: UpgradeModalProps) {
   const { purchase, restore, products, isLoading } = useSubscriptionContext();
-  const [plan, setPlan] = useState<Plan>('annual');
+  const [plan, setPlan] = useState<Plan>('monthly');
 
-  // Reset to the recommended plan whenever the modal is reopened.
+  // Reset to the default plan whenever the modal is reopened.
   useEffect(() => {
-    if (visible) setPlan('annual');
+    if (visible) setPlan('monthly');
   }, [visible]);
 
   const handlePurchase = async () => {

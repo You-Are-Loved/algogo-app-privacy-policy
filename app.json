@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.raidea.algogo",
-      "buildNumber": "55",
+      "buildNumber": "56",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
