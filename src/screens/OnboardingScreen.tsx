@@ -5,11 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  Linking,
-  ActivityIndicator,
   ScrollView,
   Keyboard,
   Platform,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +16,7 @@ import Animated, {
   FadeIn,
   FadeInDown,
   FadeInUp,
+  ZoomIn,
   useSharedValue,
   useAnimatedStyle,
   withTiming,
@@ -24,15 +24,15 @@ import Animated, {
   Easing,
   interpolate,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import * as FileSystem from 'expo-file-system/legacy';
 import Svg, { Line } from 'react-native-svg';
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { useStore } from '../store/useStore';
-import { useSubscriptionContext } from '../context/SubscriptionContext';
 import { getProblem } from '../data/blind75';
+import { contentStats, roundedPlus } from '../data/stats';
+import UpgradeModal from '../components/UpgradeModal';
 import { buildPracticeHtml } from '../practice/practiceHtml';
 import { ensurePracticeRuntime } from '../practice/stageAssets';
 import {
@@ -50,24 +50,24 @@ import {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const IS_SMALL_SCREEN = SCREEN_HEIGHT < 750; // iPhone SE territory
+const SD_CANVAS_HEIGHT = IS_SMALL_SCREEN ? 160 : 220;
 
-const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
-const PRIVACY_URL = 'https://you-are-loved.github.io/algogo-app-privacy-policy/privacy-policy.html';
-
-type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
-const TOTAL_STEPS = 9;
+type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+const TOTAL_STEPS = 8;
 
 export default function OnboardingScreen() {
   const [step, setStep] = useState<Step>(0);
+  const [paywallVisible, setPaywallVisible] = useState(false);
   const completeOnboarding = useStore((s) => s.completeOnboarding);
-  const { purchase, restore, product, isLoading: subLoading } = useSubscriptionContext();
 
   const goNext = () => {
     if (step < TOTAL_STEPS - 1) {
       setStep((step + 1) as Step);
     } else {
-      completeOnboarding();
+      // Last informational slide → open the full-screen paywall.
+      setPaywallVisible(true);
     }
   };
 
@@ -75,29 +75,16 @@ export default function OnboardingScreen() {
     if (step > 0) setStep((step - 1) as Step);
   };
 
-  const handleStartTrial = async () => {
-    const result = await purchase();
-    if (result.success) {
-      completeOnboarding();
-    }
-  };
-
-  const handleSkipTrial = () => {
+  const closePaywall = () => {
+    setPaywallVisible(false);
     completeOnboarding();
-  };
-
-  const handleRestore = async () => {
-    const result = await restore();
-    if (result.success && result.isSubscribed) {
-      completeOnboarding();
-    }
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Top bar: progress + back */}
       <View style={styles.topBar}>
-        {step > 0 && step < TOTAL_STEPS - 1 ? (
+        {step > 0 ? (
           <TouchableOpacity onPress={goBack} style={styles.topBtn}>
             <Ionicons name="chevron-back" size={24} color={colors.inkLight} />
           </TouchableOpacity>
@@ -129,26 +116,21 @@ export default function OnboardingScreen() {
         {step === 5 && <SystemDesignTeaserStep />}
         {step === 6 && <BehavioralStep />}
         {step === 7 && <OfflineStep />}
-        {step === 8 && (
-          <PaywallStep
-            product={product}
-            isLoading={subLoading}
-            onStartTrial={handleStartTrial}
-            onSkip={handleSkipTrial}
-            onRestore={handleRestore}
-          />
-        )}
       </View>
 
-      {/* Bottom CTA (hidden on paywall — paywall has its own buttons) */}
-      {step < TOTAL_STEPS - 1 && (
-        <View style={styles.bottomBar}>
-          <TouchableOpacity style={styles.continueBtn} onPress={goNext} activeOpacity={0.85}>
-            <Text style={styles.continueBtnText}>Continue</Text>
-            <Ionicons name="arrow-forward" size={20} color={colors.white} />
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* Bottom CTA */}
+      <View style={styles.bottomBar}>
+        <TouchableOpacity style={styles.continueBtn} onPress={goNext} activeOpacity={0.85}>
+          <Text style={styles.continueBtnText}>Continue</Text>
+          <Ionicons name="arrow-forward" size={20} color={colors.white} />
+        </TouchableOpacity>
+      </View>
+
+      <UpgradeModal
+        visible={paywallVisible}
+        onClose={closePaywall}
+        showSkip
+      />
     </SafeAreaView>
   );
 }
@@ -172,22 +154,20 @@ const TRACKS: {
 function ScopeStep() {
   return (
     <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
-      <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroIconWrap}>
-        <LinearGradient
-          colors={[colors.primary, colors.secondary]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+      <View style={styles.heroIconWrap}>
+        <Animated.View
+          entering={ZoomIn.delay(80).springify().damping(14).mass(0.6)}
           style={styles.heroIcon}
         >
-          <Ionicons name="rocket" size={48} color={colors.white} />
-        </LinearGradient>
-      </Animated.View>
+          <Ionicons name="rocket-outline" size={42} color={colors.primary} />
+        </Animated.View>
+      </View>
 
       <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
         Master your tech interviews
       </Animated.Text>
       <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
-        50+ topics across six engineering tracks — no fluff
+        {roundedPlus(contentStats.categories, 10)} topics across {contentStats.tracks} engineering tracks — no fluff
       </Animated.Text>
 
       <View style={styles.tracksGrid}>
@@ -206,11 +186,11 @@ function ScopeStep() {
       </View>
 
       <Animated.View entering={FadeInUp.delay(900).duration(500)} style={styles.statsRow}>
-        <Stat value="50+" label="Categories" />
+        <Stat value={roundedPlus(contentStats.categories, 10)} label="Categories" />
         <View style={styles.statDivider} />
-        <Stat value="1,500+" label="Flashcards" />
+        <Stat value={roundedPlus(contentStats.flashcards, 100)} label="Flashcards" />
         <View style={styles.statDivider} />
-        <Stat value="500+" label="Quiz qs" />
+        <Stat value={roundedPlus(contentStats.quizQuestions, 50)} label="Quiz qs" />
       </Animated.View>
     </Animated.View>
   );
@@ -460,7 +440,7 @@ function VisualizationStep() {
 
       <Animated.View entering={FadeInUp.delay(400).duration(400)} style={styles.featureLine}>
         <Ionicons name="play-circle-outline" size={16} color={colors.inkLight} />
-        <Text style={styles.featureLineText}>20+ algorithms with live visualizations</Text>
+        <Text style={styles.featureLineText}>{contentStats.algorithmPatterns} algorithms with live visualizations</Text>
       </Animated.View>
     </Animated.View>
   );
@@ -472,16 +452,14 @@ function VisualizationStep() {
 function OfflineStep() {
   return (
     <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
-      <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroIconWrap}>
-        <LinearGradient
-          colors={[colors.accent, colors.accentLight]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+      <View style={styles.heroIconWrap}>
+        <Animated.View
+          entering={ZoomIn.delay(80).springify().damping(14).mass(0.6)}
           style={styles.heroIcon}
         >
-          <Ionicons name="airplane" size={48} color={colors.white} />
-        </LinearGradient>
-      </Animated.View>
+          <Ionicons name="airplane-outline" size={42} color={colors.accent} />
+        </Animated.View>
+      </View>
 
       <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
         Your library, anywhere
@@ -540,23 +518,21 @@ const ONBOARD_KEY_SHORTCUTS: { label: string; insert: string; cursorOffset?: num
 function PracticeStep() {
   return (
     <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
-      <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroIconWrap}>
-        <LinearGradient
-          colors={[colors.secondary, colors.primary]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+      <View style={styles.heroIconWrap}>
+        <Animated.View
+          entering={ZoomIn.delay(80).springify().damping(14).mass(0.6)}
           style={styles.heroIcon}
         >
-          <Ionicons name="terminal-outline" size={44} color={colors.white} />
-        </LinearGradient>
-      </Animated.View>
+          <Ionicons name="terminal-outline" size={40} color={colors.secondary} />
+        </Animated.View>
+      </View>
 
       <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
         Code, run, repeat
       </Animated.Text>
       <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
-        75 algorithm problems with a real Python runtime — every solve happens
-        right on your device.
+        {contentStats.algorithmProblems} algorithm problems with a real Python runtime. Every solve
+        happens right on your device.
       </Animated.Text>
 
       <Animated.View
@@ -648,7 +624,7 @@ function SystemDesignTeaserStep() {
   ]);
   const [edges, setEdges] = useState<DemoEdgeState[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [canvasSize, setCanvasSize] = useState({ w: 0, h: 220 });
+  const [canvasSize, setCanvasSize] = useState({ w: 0, h: SD_CANVAS_HEIGHT });
   const nextIdRef = React.useRef(3);
 
   const moveNode = React.useCallback(
@@ -699,16 +675,14 @@ function SystemDesignTeaserStep() {
 
   return (
     <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
-      <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroIconWrap}>
-        <LinearGradient
-          colors={[colors.primary, colors.secondary]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+      <View style={styles.heroIconWrap}>
+        <Animated.View
+          entering={ZoomIn.delay(80).springify().damping(14).mass(0.6)}
           style={styles.heroIcon}
         >
-          <Ionicons name="git-network-outline" size={44} color={colors.white} />
-        </LinearGradient>
-      </Animated.View>
+          <Ionicons name="git-network-outline" size={40} color={colors.primary} />
+        </Animated.View>
+      </View>
 
       <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
         Sketch your way through system design
@@ -721,7 +695,7 @@ function SystemDesignTeaserStep() {
 
       <Animated.View
         entering={FadeInDown.delay(400).duration(500)}
-        style={[styles.sdCanvas, { height: 220, width: SCREEN_WIDTH - spacing.lg * 2, alignSelf: 'center' }]}
+        style={[styles.sdCanvas, { height: SD_CANVAS_HEIGHT, width: SCREEN_WIDTH - spacing.lg * 2, alignSelf: 'center' }]}
         onLayout={(e) => {
           const { width, height } = e.nativeEvent.layout;
           setCanvasSize({ w: width, h: height });
@@ -841,162 +815,50 @@ function DemoDraggableNode({
 // ============================================================================
 function BehavioralStep() {
   const firstQuestion = behavioralQuestions[0];
-  return (
-    <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
-      <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroIconWrap}>
-        <LinearGradient
-          colors={[colors.accent, colors.accentLight]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.heroIcon}
-        >
-          <Ionicons name="chatbubbles-outline" size={44} color={colors.white} />
-        </LinearGradient>
-      </Animated.View>
-
-      <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
-        Polish the stories you'll actually tell
-      </Animated.Text>
-      <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
-        Tap the prompt below and start drafting. Anything you type saves to
-        your device automatically.
-      </Animated.Text>
-
-      <Animated.View
-        entering={FadeInDown.delay(400).duration(500)}
-        style={styles.behavioralStack}
-      >
-        <BehavioralCard question={firstQuestion} />
-      </Animated.View>
-    </Animated.View>
-  );
-}
-
-// ============================================================================
-// STEP 8 — Trial paywall
-// ============================================================================
-function PaywallStep({
-  product,
-  isLoading,
-  onStartTrial,
-  onSkip,
-  onRestore,
-}: {
-  product: any;
-  isLoading: boolean;
-  onStartTrial: () => void;
-  onSkip: () => void;
-  onRestore: () => void;
-}) {
-  const price = product?.price || '$0.99';
+  // Tall phones: plain View. Small phones (SE): ScrollView so the textarea
+  // and "Saves as you type" hint clear the Continue button.
+  const Container: any = IS_SMALL_SCREEN ? ScrollView : View;
+  const containerProps = IS_SMALL_SCREEN
+    ? {
+        style: { flex: 1 },
+        contentContainerStyle: { paddingBottom: spacing.md },
+        showsVerticalScrollIndicator: false,
+        keyboardShouldPersistTaps: 'handled' as const,
+      }
+    : { style: { flex: 1 } };
 
   return (
     <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
-      <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.heroIconWrap}>
-        <LinearGradient
-          colors={[colors.purple, colors.secondary]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.heroIcon}
-        >
-          <Ionicons name="sparkles" size={44} color={colors.white} />
-        </LinearGradient>
-      </Animated.View>
+      {/* Tap-outside-input dismisses the keyboard. The TextInput inside
+          BehavioralCard captures its own taps so this only fires on chrome. */}
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <Container {...containerProps}>
+          <View style={styles.heroIconWrap}>
+            <Animated.View
+              entering={ZoomIn.delay(80).springify().damping(14).mass(0.6)}
+              style={styles.heroIcon}
+            >
+              <Ionicons name="chatbubbles-outline" size={40} color={colors.accent} />
+            </Animated.View>
+          </View>
 
-      <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
-        Try Algogo Pro free
-      </Animated.Text>
-      <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
-        7 days free, then {price}/month. Cancel anytime.
-      </Animated.Text>
+          <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
+            Polish the stories you'll actually tell
+          </Animated.Text>
+          <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
+            Tap the prompt below and start drafting. Anything you type saves to
+            your device automatically.
+          </Animated.Text>
 
-      <Animated.View entering={FadeInDown.delay(400).duration(400)} style={styles.paywallFeatures}>
-        <PaywallFeature icon="lock-open-outline" text="Unlock all 50+ categories" />
-        <PaywallFeature icon="copy-outline" text="1,500+ flashcards across 6 tracks" />
-        <PaywallFeature icon="analytics-outline" text="Live algorithm visualizations" />
-        <PaywallFeature icon="code-slash-outline" text="75 algorithm problems on device" />
-        <PaywallFeature icon="git-network-outline" text="System-design diagrams that grade themselves" />
-        <PaywallFeature icon="chatbubbles-outline" text="Behavioral prompts with notes that save as you type" />
-        <PaywallFeature icon="cloud-offline-outline" text="Works fully offline" />
-      </Animated.View>
-
-      <Animated.View entering={FadeInUp.delay(600).duration(400)} style={styles.paywallCtas}>
-        <TouchableOpacity
-          style={[styles.primaryCta, isLoading && { opacity: 0.6 }]}
-          onPress={onStartTrial}
-          disabled={isLoading}
-          activeOpacity={0.85}
-        >
-          {isLoading ? (
-            <ActivityIndicator color={colors.white} />
-          ) : (
-            <>
-              <Ionicons name="sparkles" size={20} color={colors.white} />
-              <Text style={styles.primaryCtaText}>Start 7-day free trial</Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={onSkip} activeOpacity={0.7}>
-          <Text style={styles.secondaryCtaText}>Continue with free version</Text>
-        </TouchableOpacity>
-
-        <View style={styles.legalRow}>
-          <TouchableOpacity onPress={onRestore} disabled={isLoading}>
-            <Text style={styles.legalLink}>Restore Purchase</Text>
-          </TouchableOpacity>
-          <Text style={styles.legalDot}>·</Text>
-          <TouchableOpacity onPress={() => Linking.openURL(TERMS_URL)}>
-            <Text style={styles.legalLink}>Terms</Text>
-          </TouchableOpacity>
-          <Text style={styles.legalDot}>·</Text>
-          <TouchableOpacity onPress={() => Linking.openURL(PRIVACY_URL)}>
-            <Text style={styles.legalLink}>Privacy</Text>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
+          <Animated.View
+            entering={FadeInDown.delay(400).duration(500)}
+            style={styles.behavioralStack}
+          >
+            <BehavioralCard question={firstQuestion} />
+          </Animated.View>
+        </Container>
+      </TouchableWithoutFeedback>
     </Animated.View>
-  );
-}
-
-function PaywallFeature({
-  icon,
-  text,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  text: string;
-}) {
-  return (
-    <View style={styles.paywallFeatureRow}>
-      <View style={styles.paywallFeatureIcon}>
-        <Ionicons name={icon} size={18} color={colors.primary} />
-      </View>
-      <Text style={styles.paywallFeatureText}>{text}</Text>
-    </View>
-  );
-}
-
-function TimelineRow({
-  icon,
-  color,
-  title,
-  subtitle,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <View style={styles.timelineRow}>
-      <View style={[styles.timelineDot, { backgroundColor: `${color}20` }]}>
-        <Ionicons name={icon} size={18} color={color} />
-      </View>
-      <View style={styles.timelineCol}>
-        <Text style={styles.timelineTitle}>{title}</Text>
-        <Text style={styles.timelineSubtitle}>{subtitle}</Text>
-      </View>
-    </View>
   );
 }
 
@@ -1048,16 +910,19 @@ const styles = StyleSheet.create({
   },
   heroIconWrap: {
     alignItems: 'center',
-    marginTop: spacing.xl,
-    marginBottom: spacing.lg,
+    marginTop: IS_SMALL_SCREEN ? spacing.sm : spacing.xl,
+    marginBottom: IS_SMALL_SCREEN ? spacing.sm : spacing.lg,
   },
   heroIcon: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: IS_SMALL_SCREEN ? 72 : 96,
+    height: IS_SMALL_SCREEN ? 72 : 96,
+    borderRadius: IS_SMALL_SCREEN ? 36 : 48,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.lg,
+    backgroundColor: colors.paper,
+    borderWidth: 1.5,
+    borderColor: colors.borderDark,
+    ...shadows.sm,
   },
   title: {
     ...typography.displaySmall,
@@ -1069,7 +934,7 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: colors.inkLight,
     textAlign: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: IS_SMALL_SCREEN ? spacing.md : spacing.xl,
     paddingHorizontal: spacing.lg,
   },
   // Bottom CTA
@@ -1153,8 +1018,8 @@ const styles = StyleSheet.create({
   // Mode header (cards / quiz / viz)
   modeHeader: {
     alignItems: 'center',
-    marginBottom: spacing.lg,
-    marginTop: spacing.md,
+    marginBottom: IS_SMALL_SCREEN ? spacing.sm : spacing.lg,
+    marginTop: IS_SMALL_SCREEN ? spacing.xs : spacing.md,
   },
   modeBadge: {
     flexDirection: 'row',
@@ -1240,8 +1105,8 @@ const styles = StyleSheet.create({
   quizQuestionCard: {
     backgroundColor: colors.card,
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
+    padding: IS_SMALL_SCREEN ? spacing.md : spacing.lg,
+    marginBottom: IS_SMALL_SCREEN ? spacing.sm : spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
     ...shadows.sm,
@@ -1252,13 +1117,13 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   quizOptions: {
-    gap: spacing.sm,
-    marginBottom: spacing.md,
+    gap: IS_SMALL_SCREEN ? spacing.xs : spacing.sm,
+    marginBottom: IS_SMALL_SCREEN ? spacing.xs : spacing.md,
   },
   quizOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
+    padding: IS_SMALL_SCREEN ? spacing.sm : spacing.md,
     borderRadius: borderRadius.md,
     borderWidth: 2,
     gap: spacing.md,
@@ -1393,24 +1258,37 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   // Step 5: paywall
-  paywallScroll: {
+  paywallContent: {
     flex: 1,
   },
-  paywallScrollContent: {
-    paddingBottom: spacing.md,
+  paywallContentInner: {
+    paddingBottom: spacing.xs,
   },
   paywallHeroWrap: {
     alignItems: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
   },
   paywallHeroIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.md,
+    ...shadows.sm,
+  },
+  paywallTitle: {
+    ...typography.displaySmall,
+    color: colors.ink,
+    textAlign: 'center',
+    marginBottom: spacing.xs,
+  },
+  paywallSubtitle: {
+    ...typography.bodyMedium,
+    color: colors.inkLight,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.lg,
   },
   paywallFeatures: {
     backgroundColor: colors.card,
@@ -1427,9 +1305,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   paywallFeatureIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: `${colors.primary}15`,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1478,46 +1356,49 @@ const styles = StyleSheet.create({
     marginLeft: 17,
   },
   paywallCtas: {
-    marginTop: 'auto',
+    marginTop: spacing.md,
   },
   primaryCta: {
     backgroundColor: colors.primary,
-    paddingVertical: spacing.lg,
+    paddingVertical: 20,
     borderRadius: borderRadius.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
     ...shadows.md,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   primaryCtaText: {
     ...typography.labelLarge,
     color: colors.white,
-    fontSize: 16,
+    fontSize: 17,
   },
   secondaryCtaText: {
-    ...typography.labelMedium,
+    ...typography.labelLarge,
     color: colors.inkLight,
     textAlign: 'center',
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
+    fontSize: 14,
   },
   legalRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
     gap: spacing.xs,
   },
   legalLink: {
-    ...typography.labelSmall,
+    ...typography.labelMedium,
     color: colors.inkLight,
     textDecorationLine: 'underline',
+    fontSize: 12,
   },
   legalDot: {
-    ...typography.labelSmall,
+    ...typography.labelMedium,
     color: colors.inkLighter,
     paddingHorizontal: 2,
+    fontSize: 12,
   },
   // Step 5: practice
   practiceCard: {

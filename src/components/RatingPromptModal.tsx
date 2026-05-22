@@ -87,7 +87,7 @@ export default function RatingPromptModal({ visible, onClose }: Props) {
                 </View>
                 <Text style={styles.title}>Enjoying Algogo?</Text>
                 <Text style={styles.subtitle}>
-                  You've been with us a month — how's the app treating you?
+                  You've been with us for a few days — how's the app treating you?
                 </Text>
                 <View style={styles.starRow}>
                   {[1, 2, 3, 4, 5].map((n) => {
@@ -147,7 +147,7 @@ export default function RatingPromptModal({ visible, onClose }: Props) {
                 <Text style={styles.title}>Thanks for the feedback</Text>
                 <Text style={styles.subtitle}>
                   We're a tiny team and we read everything. If something's off,
-                  email us at sahen.rai@gmail.com — we want to fix it.
+                  email us at ceo@raidea.dev — we want to fix it.
                 </Text>
                 <TouchableOpacity
                   onPress={close}
@@ -199,6 +199,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFEED9',
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'center',
     marginBottom: spacing.md,
   },
   emoji: { fontSize: 32 },

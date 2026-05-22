@@ -6,6 +6,8 @@ import { categories } from '../data/categories';
 
 export const CURRENT_TERMS_VERSION = 3;
 
+export type ThemeMode = 'light' | 'dark';
+
 interface AppState {
   user: UserProgress | null;
   isAuthenticated: boolean;
@@ -13,11 +15,13 @@ interface AppState {
   hasAcceptedTerms: boolean;
   acceptedTermsVersion: number;
   hasSeenOnboarding: boolean;
+  themeMode: ThemeMode;
 
   setUser: (user: UserProgress | null) => void;
   setLoading: (loading: boolean) => void;
   acceptTerms: () => void;
   completeOnboarding: () => void;
+  toggleTheme: () => void;
 
   completeLearn: (categoryId: string) => void;
   viewLearnSection: (categoryId: string, sectionId: string) => void;
@@ -62,11 +66,13 @@ export const useStore = create<AppState>()(
       hasAcceptedTerms: false,
       acceptedTermsVersion: 0,
       hasSeenOnboarding: false,
+      themeMode: 'light',
 
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       setLoading: (isLoading) => set({ isLoading }),
       acceptTerms: () => set({ hasAcceptedTerms: true, acceptedTermsVersion: CURRENT_TERMS_VERSION }),
       completeOnboarding: () => set({ hasSeenOnboarding: true }),
+      toggleTheme: () => set((s) => ({ themeMode: s.themeMode === 'light' ? 'dark' : 'light' })),
 
       initGuestUser: () => {
         const guestUser: UserProgress = {
@@ -266,7 +272,7 @@ export const useStore = create<AppState>()(
     {
       name: 'algogo-storage',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ user: state.user, hasAcceptedTerms: state.hasAcceptedTerms, acceptedTermsVersion: state.acceptedTermsVersion, hasSeenOnboarding: state.hasSeenOnboarding }),
+      partialize: (state) => ({ user: state.user, hasAcceptedTerms: state.hasAcceptedTerms, acceptedTermsVersion: state.acceptedTermsVersion, hasSeenOnboarding: state.hasSeenOnboarding, themeMode: state.themeMode }),
     }
   )
 );

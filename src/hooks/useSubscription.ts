@@ -3,27 +3,101 @@ import { Platform, Alert } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Your App Store product ID
-const PRODUCT_ID = 'removeads12';
+// App Store product IDs.
+const MONTHLY_PRODUCT_ID = 'removeads12';
+const ANNUAL_PRODUCT_ID = 'annualsub';
+const PRO_PRODUCT_IDS = [MONTHLY_PRODUCT_ID, ANNUAL_PRODUCT_ID];
+
 const SUBSCRIPTION_KEY = '@algogo_subscription';
 const SUBSCRIPTION_START_KEY = '@algogo_subscription_start';
 
 // Check if we're in Expo Go
 const isExpoGo = Constants.appOwnership === 'expo';
 
+export type Plan = 'monthly' | 'annual';
+
+export type IntroOfferMode = 'free-trial' | 'pay-as-you-go' | 'pay-up-front';
+export type PeriodUnit = 'day' | 'week' | 'month' | 'year';
+
+export interface IntroOffer {
+  mode: IntroOfferMode;
+  periodCount: number;       // e.g. 1 (one week)
+  periodUnit: PeriodUnit;    // "week", "month", etc.
+  display: string;           // "$0.00" for free trial, "$0.99" for discounted intro
+  amount: number;
+}
+
+export interface ProductInfo {
+  id: string;
+  display: string;     // Locale-formatted price string e.g. "$2.99"
+  amount: number;      // Raw numeric price for math, rounded to cents
+  currency: string;
+  title: string;
+  description: string;
+  introOffer: IntroOffer | null;
+}
+
 export interface SubscriptionState {
   isSubscribed: boolean;
   isLoading: boolean;
-  product: any | null;
+  products: {
+    monthly: ProductInfo | null;
+    annual: ProductInfo | null;
+  };
   error: string | null;
   connected: boolean;
+}
+
+/**
+ * expo-iap 3.x returns subscription products with `displayPrice` (locale-formatted)
+ * and `price` (raw Number, sometimes "1.9999999998" due to float artifacts). We round
+ * price to cents for any math (e.g. discount calc) and prefer displayPrice for UI.
+ */
+function parseIntroOffer(p: any): IntroOffer | null {
+  // expo-iap surfaces the App Store Connect intro offer config as flat
+  // `introductoryPrice*IOS` fields. When no offer is configured the
+  // paymentMode comes back as "empty".
+  const mode = p.introductoryPricePaymentModeIOS;
+  if (!mode || mode === 'empty') return null;
+
+  const periodCount = Number.parseInt(p.introductoryPriceNumberOfPeriodsIOS ?? '', 10);
+  const periodUnit = p.introductoryPriceSubscriptionPeriodIOS as PeriodUnit;
+  if (!periodCount || !periodUnit) return null;
+
+  const amount = Number.parseFloat(p.introductoryPriceAsAmountIOS ?? '0') || 0;
+  const display = p.introductoryPriceIOS || `$${amount.toFixed(2)}`;
+
+  if (mode !== 'free-trial' && mode !== 'pay-as-you-go' && mode !== 'pay-up-front') {
+    return null;
+  }
+
+  return { mode, periodCount, periodUnit, display, amount };
+}
+
+function normalizeProduct(p: any): ProductInfo {
+  const rawAmount = typeof p.price === 'number'
+    ? Math.round(p.price * 100) / 100
+    : Number.parseFloat(p.price ?? '0') || 0;
+  const display =
+    p.displayPrice ||
+    p.localizedPrice ||
+    (rawAmount > 0 ? `$${rawAmount.toFixed(2)}` : '$0.00');
+  return {
+    id: p.id || p.productId || p.sku || '',
+    display,
+    amount: rawAmount,
+    currency: p.currency || p.currencyCode || 'USD',
+    title: p.title || 'Algogo Pro',
+    description: p.description || 'Unlock all categories',
+    introOffer: parseIntroOffer(p),
+  };
 }
 
 export function useSubscription() {
   const [state, setState] = useState<SubscriptionState>({
     isSubscribed: false,
     isLoading: true,
-    product: null,
+    products: { monthly: null, annual: null },
     error: null,
     connected: false,
   });
@@ -67,7 +141,6 @@ export function useSubscription() {
       return;
     }
 
-    let iapHook: any = null;
     let cleanup: (() => void) | undefined;
 
     const init = async () => {
@@ -95,7 +168,7 @@ export function useSubscription() {
         // Set up purchase listener
         const purchaseListener = ExpoIAP.purchaseUpdatedListener(async (purchase: any) => {
           console.log('Purchase updated:', purchase);
-          if (purchase.productId === PRODUCT_ID) {
+          if (PRO_PRODUCT_IDS.includes(purchase.productId)) {
             // Always finish the transaction first
             await finishTransactionSafely(purchase);
 
@@ -142,31 +215,23 @@ export function useSubscription() {
         // Fetch subscription products
         try {
           const products = await ExpoIAP.fetchProducts({
-            skus: [PRODUCT_ID],
+            skus: PRO_PRODUCT_IDS,
             type: 'subs',
           });
 
           console.log('Fetched products:', products);
 
           if (products && products.length > 0) {
-            const p = products[0];
-            // expo-iap 3.x: displayPrice is the locale-formatted string ("$1.99").
-            // localizedPrice is sometimes null on subscriptions; p.price is a raw
-            // Number whose float representation can read "1.9999999998".
-            const displayPrice =
-              p.displayPrice ||
-              p.localizedPrice ||
-              (typeof p.price === 'number' ? `$${p.price.toFixed(2)}` : p.price) ||
-              '$1.99';
-            setState(prev => ({
-              ...prev,
-              product: {
-                price: displayPrice,
-                title: p.title || 'Algogo Pro',
-                description: p.description || 'Unlock all categories',
-              },
-              isLoading: false,
-            }));
+            const next: { monthly: ProductInfo | null; annual: ProductInfo | null } = {
+              monthly: null,
+              annual: null,
+            };
+            for (const p of products) {
+              const info = normalizeProduct(p);
+              if (info.id === MONTHLY_PRODUCT_ID) next.monthly = info;
+              else if (info.id === ANNUAL_PRODUCT_ID) next.annual = info;
+            }
+            setState(prev => ({ ...prev, products: next, isLoading: false }));
           } else {
             setState(prev => ({ ...prev, isLoading: false }));
           }
@@ -184,8 +249,8 @@ export function useSubscription() {
             console.log('Finishing pending transaction:', purchase.transactionId);
             await finishTransactionSafely(purchase);
 
-            // If it's our product, grant access
-            if (purchase.productId === PRODUCT_ID) {
+            // If it's one of our products, grant access
+            if (PRO_PRODUCT_IDS.includes(purchase.productId)) {
               setState(prev => ({ ...prev, isSubscribed: true }));
               saveSubscription(true);
             }
@@ -200,7 +265,7 @@ export function useSubscription() {
           console.log('Available purchases:', purchases);
 
           const hasActiveSubscription = purchases?.some(
-            (purchase: any) => purchase.productId === PRODUCT_ID
+            (purchase: any) => PRO_PRODUCT_IDS.includes(purchase.productId)
           );
 
           // In dev, don't downgrade an existing locally-set sub flag to false
@@ -235,13 +300,15 @@ export function useSubscription() {
     };
   }, []);
 
-  // Purchase subscription
-  const purchase = useCallback(async () => {
+  // Purchase subscription. Pass 'annual' or 'monthly' to pick a plan.
+  const purchase = useCallback(async (plan: Plan = 'annual') => {
     // If IAP not available, show error
     if (isExpoGo || Platform.OS !== 'ios') {
       Alert.alert('Not Available', 'In-app purchases are only available on iOS devices.');
       return { success: false, error: 'IAP not available' };
     }
+
+    const sku = plan === 'annual' ? ANNUAL_PRODUCT_ID : MONTHLY_PRODUCT_ID;
 
     try {
       const ExpoIAP = require('expo-iap');
@@ -251,8 +318,8 @@ export function useSubscription() {
       // Request purchase using the correct format from docs
       await ExpoIAP.requestPurchase({
         request: {
-          apple: { sku: PRODUCT_ID },
-          google: { skus: [PRODUCT_ID] },
+          apple: { sku },
+          google: { skus: [sku] },
         },
         type: 'subs',
       });
@@ -307,25 +374,25 @@ export function useSubscription() {
       const purchases = await ExpoIAP.getAvailablePurchases();
       console.log('Restored purchases:', purchases);
 
-      const hasRemoveAds = purchases?.some(
-        (purchase: any) => purchase.productId === PRODUCT_ID
+      const hasPro = purchases?.some(
+        (purchase: any) => PRO_PRODUCT_IDS.includes(purchase.productId)
       );
 
       setState(prev => ({
         ...prev,
-        isSubscribed: hasRemoveAds,
+        isSubscribed: hasPro,
         isLoading: false,
       }));
 
-      saveSubscription(hasRemoveAds);
+      saveSubscription(hasPro);
 
-      if (hasRemoveAds) {
+      if (hasPro) {
         Alert.alert('Restored!', 'Your purchase has been restored.');
       } else {
         Alert.alert('No Purchases', 'No previous purchases found.');
       }
 
-      return { success: true, isSubscribed: hasRemoveAds };
+      return { success: true, isSubscribed: hasPro };
     } catch (error: any) {
       setState(prev => ({ ...prev, isLoading: false }));
       Alert.alert('Restore Failed', error?.message || 'Unable to restore purchases');
@@ -345,6 +412,51 @@ export function useSubscription() {
     purchase,
     restore,
     toggleDevSubscription,
-    productId: PRODUCT_ID,
+    monthlyProductId: MONTHLY_PRODUCT_ID,
+    annualProductId: ANNUAL_PRODUCT_ID,
   };
+}
+
+/**
+ * Round-to-percent savings of an annual sub vs paying the monthly price 12×.
+ * Returns null only when a price is missing — caller can render the number
+ * directly. Clamped to 0 so "annual costs more than monthly×12" doesn't
+ * surface a negative discount (happens when the monthly price hasn't caught
+ * up to a recently-raised tier).
+ */
+export function computeAnnualDiscount(
+  monthlyAmount?: number,
+  annualAmount?: number
+): number | null {
+  if (!monthlyAmount || !annualAmount) return null;
+  if (monthlyAmount <= 0 || annualAmount <= 0) return null;
+  const yearlyAtMonthly = monthlyAmount * 12;
+  return Math.max(0, Math.round((1 - annualAmount / yearlyAtMonthly) * 100));
+}
+
+/**
+ * Format a numeric monthly-equivalent of an annual price in the same currency
+ * format as the StoreKit display string. Falls back to "$x.xx" if we can't
+ * infer the leading symbol.
+ */
+export function formatMonthlyEquivalent(annual: ProductInfo | null): string | null {
+  if (!annual || annual.amount <= 0) return null;
+  const monthly = annual.amount / 12;
+  // Try to extract leading non-digit symbol(s) from the display string ("$", "€", "£", "CA$").
+  const match = annual.display.match(/^([^\d]+)/);
+  const symbol = match?.[1] ?? '$';
+  return `${symbol}${monthly.toFixed(2)}`;
+}
+
+/**
+ * Human-readable intro duration, e.g. "7-day", "3-month". Apple lets devs
+ * pick a "1 week" intro length — normalize to "7-day" since that's the
+ * convention users see in App Store screenshots.
+ */
+export function formatIntroDuration(offer: IntroOffer): string {
+  const { periodCount, periodUnit } = offer;
+  if (periodUnit === 'week') {
+    return `${periodCount * 7}-day`;
+  }
+  return `${periodCount}-${periodUnit}`;
 }

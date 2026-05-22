@@ -360,7 +360,15 @@ struct Counter {
     { id: 'sf12', front: 'What does mutating mean in a struct method?', back: 'The mutating keyword allows a struct method to modify the instance\'s properties. Required because structs are value types.' },
     { id: 'sf13', front: 'What is an implicitly unwrapped optional?', back: 'An optional declared with ! that is automatically unwrapped when accessed. Crashes if nil. Used for values that start nil but are set before use (IBOutlets).' },
     { id: 'sf14', front: 'What is optional chaining?', back: 'Using ?. to access properties/methods on an optional. Returns nil if any part of the chain is nil instead of crashing. Example: person?.address?.city' },
-    { id: 'sf15', front: 'What is the @escaping attribute?', back: 'Marks a closure parameter that will be stored or called after the function returns. Required for async callbacks, stored closures, etc.' }
+    { id: 'sf15', front: 'What is the @escaping attribute?', back: 'Marks a closure parameter that will be stored or called after the function returns. Required for async callbacks, stored closures, etc.' },
+    { id: 'sf16', front: 'What does `final` do on a class or method?', back: 'Forbids further subclassing or overriding. Lets the compiler use static dispatch instead of dynamic dispatch, often a small performance win.' },
+    { id: 'sf17', front: 'What is an `inout` parameter?', back: 'Lets a function modify its caller\'s variable in place. The caller passes it with &, e.g. swap(&a, &b). Conceptually a value copied in then copied back out.' },
+    { id: 'sf18', front: 'When do you need a `where` clause on a generic?', back: 'When you want to constrain associated types or combine multiple constraints. Example: `extension Array where Element: Numeric` only applies to arrays of numbers.' },
+    { id: 'sf19', front: 'What is type erasure?', back: 'Hiding a protocol with associated types behind a concrete wrapper so you can use it as a value type. Standard wrappers include AnyView, AnyPublisher, AnySequence.' },
+    { id: 'sf20', front: 'What is Result<Success, Failure>?', back: 'An enum with .success(value) and .failure(error) cases. Lets you store an outcome as a value, pass it across boundaries, and `switch` on it cleanly.' },
+    { id: 'sf21', front: 'What does `defer` do?', back: 'Schedules a block to run when the enclosing scope exits, regardless of how (return, throw, break). Useful for paired setup/teardown like locking, file handles, or cleanup.' },
+    { id: 'sf22', front: 'What is a KeyPath?', back: 'A reference to a property\'s location on a type, written `\\Type.property`. Lets you read or write a property generically — used by KVO, SwiftUI, sort(by:), and reduce(into:).' },
+    { id: 'sf23', front: 'What\'s the difference between `Self` and `self`?', back: '`self` (lowercase) is the current instance. `Self` (capital) is the type of the current instance — handy in protocol requirements that need to refer to the conforming type.' }
   ],
 
   quizQuestions: [
@@ -815,7 +823,15 @@ class MainViewController: UIViewController, SettingsViewControllerDelegate {
     { id: 'uk12', front: 'What is a container view controller?', back: 'A view controller that manages child view controllers. Examples: UINavigationController, UITabBarController, UISplitViewController.' },
     { id: 'uk13', front: 'When is viewDidLayoutSubviews called?', back: 'After the view controller\'s view has laid out its subviews. Frame values are accurate here, unlike viewDidLoad.' },
     { id: 'uk14', front: 'What is UIStackView used for?', back: 'Simplified Auto Layout for linear arrangements. It manages constraints for arranged subviews based on axis, distribution, and spacing.' },
-    { id: 'uk15', front: 'What happens in deinit?', back: 'Called when the view controller is being deallocated. Use for cleanup like removing observers or invalidating timers.' }
+    { id: 'uk15', front: 'What happens in deinit?', back: 'Called when the view controller is being deallocated. Use for cleanup like removing observers or invalidating timers.' },
+    { id: 'uk16', front: 'What is intrinsicContentSize?', back: 'A view\'s natural size based on its content — a label\'s text, an image\'s pixels. Auto Layout falls back to it when constraints don\'t fully specify width or height.' },
+    { id: 'uk17', front: 'What do content hugging and compression resistance priorities do?', back: 'Hugging resists growing beyond intrinsic size; compression resistance resists shrinking below it. When two neighbours fight for space, the one with higher priority wins.' },
+    { id: 'uk18', front: 'When would you use UIStackView?', back: 'When you have a row or column of views that should lay themselves out automatically. It writes the leading/trailing/spacing constraints for you and reacts to hidden subviews.' },
+    { id: 'uk19', front: 'What\'s the difference between frame and bounds?', back: 'frame is the view\'s rect in its superview\'s coordinate space. bounds is in its own coordinate space; bounds.origin scrolls the content. Rotation only affects frame.' },
+    { id: 'uk20', front: 'How do you implement view-controller containment?', back: 'addChild(_:), addSubview, then call didMove(toParent:) on the child. Reverse with willMove(toParent: nil), removeFromSuperview, removeFromParent. Lets one VC host another.' },
+    { id: 'uk21', front: 'What does safeAreaInsets give you?', back: 'The portion of the view obscured by system UI — status bar, notch, home indicator. Pin content to safeAreaLayoutGuide so it never clips behind that hardware.' },
+    { id: 'uk22', front: 'When would you choose UICollectionView over UITableView?', back: 'Anything beyond a single vertical column — grids, horizontal scrollers, self-sizing items in a flow, custom layouts. UICollectionViewCompositionalLayout makes this much easier.' },
+    { id: 'uk23', front: 'What is the responder chain?', back: 'The ordered sequence of objects that get a chance to handle a UI event. It starts at the first responder and walks up: responder → next responder → view → superview → window → app.' }
   ],
 
   quizQuestions: [
@@ -1353,7 +1369,15 @@ struct SplitView: View {
     { id: 'sui12', front: 'What is the .task modifier?', back: 'Runs an async task when the view appears and cancels it when the view disappears. Replaces onAppear for async work.' },
     { id: 'sui13', front: 'What is presentationDetents?', back: 'iOS 16+ modifier for sheets that allows setting height stops like .medium, .large, or custom heights.' },
     { id: 'sui14', front: 'What is @ViewBuilder?', back: 'Enables functions to return multiple views as a single result. Used for building view hierarchies in custom containers.' },
-    { id: 'sui15', front: 'What is the difference between List and ForEach?', back: 'List is a scrollable container with platform styling. ForEach is just a loop that generates views. ForEach can be used inside any container.' }
+    { id: 'sui15', front: 'What is the difference between List and ForEach?', back: 'List is a scrollable container with platform styling. ForEach is just a loop that generates views. ForEach can be used inside any container.' },
+    { id: 'sui16', front: 'What\'s the difference between @StateObject and @ObservedObject?', back: '@StateObject creates and *owns* the object — exactly one instance for the lifetime of the view. @ObservedObject receives one passed in and doesn\'t own it; the parent must keep it alive.' },
+    { id: 'sui17', front: 'What does @EnvironmentObject do?', back: 'Injects an ObservableObject through the view hierarchy without passing it as a prop. Provided once with .environmentObject(...) and read by any descendant with @EnvironmentObject.' },
+    { id: 'sui18', front: 'What does @ViewBuilder enable?', back: 'Lets a function or closure return multiple views as a single opaque type. It\'s why you can put `if`, `switch`, and `ForEach` inside `body` and custom containers.' },
+    { id: 'sui19', front: 'What is a ViewModifier?', back: 'A reusable wrapper that applies a transformation to a view. Used via .modifier(...) or as a custom .someStyle() extension method on View.' },
+    { id: 'sui20', front: 'When would you reach for PreferenceKey?', back: 'When a child view needs to send data *up* the hierarchy — the opposite direction of environment. Common case: measure a child\'s size and have the parent react.' },
+    { id: 'sui21', front: 'What does GeometryReader give you?', back: 'A view that exposes the size and frame its parent gave it via a GeometryProxy. Use it sparingly — it disables natural flex sizing for everything inside it.' },
+    { id: 'sui22', front: 'What\'s the difference between .task and .onAppear?', back: '.task runs an async closure tied to the view\'s lifecycle and cancels on disappear — ideal for fetches. .onAppear runs synchronous code each time the view appears and never cancels.' },
+    { id: 'sui23', front: 'How do you hide a view but keep its space?', back: '.opacity(0) or .hidden() — invisible but still occupies layout space. To remove from the layout entirely, conditionally include it: `if condition { TheView() }`.' }
   ],
 
   quizQuestions: [
@@ -1843,7 +1867,15 @@ class ViewModel {
     { id: 'cc12', front: 'What QoS should you use for user-initiated work?', back: '.userInitiated - high priority for work the user is waiting for. Use .userInteractive for UI updates.' },
     { id: 'cc13', front: 'How do you run async code from synchronous context?', back: 'Create a Task { } block. The task runs asynchronously and inherits the current actor context.' },
     { id: 'cc14', front: 'What is Task.detached for?', back: 'Creates an unstructured task that doesn\'t inherit the current actor context. Runs independently.' },
-    { id: 'cc15', front: 'Why should you never sync to main from main?', back: 'Causes deadlock. The main queue waits for sync work, but sync work needs the main queue (which is blocked).' }
+    { id: 'cc15', front: 'Why should you never sync to main from main?', back: 'Causes deadlock. The main queue waits for sync work, but sync work needs the main queue (which is blocked).' },
+    { id: 'cc16', front: 'What is structured concurrency?', back: 'async/await with task lifetimes tied to scopes. Child tasks are awaited or cancelled when the parent scope exits — using async let or TaskGroup. No leaked work.' },
+    { id: 'cc17', front: 'What does @MainActor do?', back: 'Marks a type, property, or function as required to run on the main thread. The compiler inserts the hops for you and refuses to let off-main code touch it without an `await`.' },
+    { id: 'cc18', front: 'When would you use Task.detached?', back: 'When you specifically need a Task that *doesn\'t* inherit the current context (priority, actor, task-locals). Use sparingly — it escapes structured concurrency.' },
+    { id: 'cc19', front: 'What problem does an `actor` solve?', back: 'Mutual exclusion on shared state. Only one task at a time runs inside the actor\'s methods, so reads and writes can\'t race without you reaching for a lock.' },
+    { id: 'cc20', front: 'What is a Sendable type?', back: 'A type that\'s safe to pass between concurrency domains. Value types of Sendable fields are Sendable automatically. Reference types need to be either final + immutable or internally synchronised.' },
+    { id: 'cc21', front: 'How do you cancel a Task?', back: 'Call task.cancel(). The task itself must observe by checking Task.isCancelled or calling try Task.checkCancellation(). Cancellation is cooperative — the task decides how to bail.' },
+    { id: 'cc22', front: 'What does `async let` do?', back: 'Starts an async expression eagerly and lets you keep executing other code in parallel. You await its result later — perfect for fetching independent things at the same time.' },
+    { id: 'cc23', front: 'How does an actor differ from a serial queue?', back: 'A serial queue serialises *closure execution*. An actor serialises *access to its state* via the language. Actors integrate with structured concurrency; queues do not.' }
   ],
 
   quizQuestions: [
@@ -2402,7 +2434,15 @@ class AuthCoordinator: Coordinator {
     { id: 'ar12', front: 'What is Property Injection?', back: 'Setting dependencies via properties after initialization. Less preferred than constructor injection as dependencies aren\'t explicit in the init.' },
     { id: 'ar13', front: 'What makes ViewModels testable?', back: 'No UIKit dependencies, pure logic, injectable dependencies. You can test input/output without a view.' },
     { id: 'ar14', front: 'What is the benefit of the Coordinator pattern?', back: 'View controllers don\'t know about each other. They\'re reusable and navigation logic is centralized.' },
-    { id: 'ar15', front: 'What is an Entity in Clean Architecture?', back: 'Core business objects with business rules. They\'re independent of frameworks and the outermost layers.' }
+    { id: 'ar15', front: 'What is an Entity in Clean Architecture?', back: 'Core business objects with business rules. They\'re independent of frameworks and the outermost layers.' },
+    { id: 'ar16', front: 'How does MVVM differ from MVC?', back: 'MVVM adds a ViewModel between the View and the Model. The View binds to observable properties on the ViewModel, so the View has no business logic and the ViewModel has no UI dependencies — easier to test.' },
+    { id: 'ar17', front: 'What does VIPER add over MVVM?', back: 'Two extra roles: an Interactor (business logic and data) and a Router (navigation). Each screen has more files but each file has a sharper responsibility — common in large UIKit codebases.' },
+    { id: 'ar18', front: 'What is dependency injection?', back: 'Passing collaborators in from outside instead of constructing them inside. Lets tests substitute fakes and decouples your type from the concrete implementations it talks to.' },
+    { id: 'ar19', front: 'What is the coordinator pattern for?', back: 'Pulling navigation logic out of view controllers. The VC says "user tapped buy"; the coordinator decides what screen comes next. Makes deep links and flows much easier to test.' },
+    { id: 'ar20', front: 'When would you reach for The Composable Architecture (TCA)?', back: 'When you want a unidirectional store, reducer-style updates, and explicit effects in a feature you\'ll grow over time. The learning curve and boilerplate aren\'t worth it for a tiny screen.' },
+    { id: 'ar21', front: 'Why prefer protocol-based dependencies?', back: 'A class that takes `NetworkClient` (a protocol) can be tested with a fake. The same class that takes `URLSession` directly can only be tested with the real network or heavyweight URLProtocol stubs.' },
+    { id: 'ar22', front: 'What problem does the Repository pattern solve?', back: 'Hides where data comes from (network, cache, local DB) behind a single interface. The rest of the app doesn\'t know or care about the storage details.' },
+    { id: 'ar23', front: 'When is "no architecture" the right answer?', back: 'Prototypes, demos, and screens that will never grow. Patterns trade up-front complexity for testability and clear seams — not always worth the cost on a 50-line throwaway.' }
   ],
 
   quizQuestions: [
@@ -2916,7 +2956,15 @@ class APIClient: APIClientProtocol {
     { id: 'dn12', front: 'What is the thread rule for Core Data contexts?', back: 'Each context is tied to a thread/queue. Use perform or performAndWait to safely execute code on the context\'s queue.' },
     { id: 'dn13', front: 'What is URLSessionDataTask vs DownloadTask?', back: 'DataTask loads data into memory (for APIs). DownloadTask saves to file system (for large files, supports resume).' },
     { id: 'dn14', front: 'How do you save data securely in Keychain?', back: 'Use Security framework with SecItemAdd/SecItemCopyMatching. Store as kSecClassGenericPassword with account key.' },
-    { id: 'dn15', front: 'What is an NSPredicate in Core Data?', back: 'A filter for fetch requests. Example: NSPredicate(format: "age > %d AND name CONTAINS %@", 18, "John")' }
+    { id: 'dn15', front: 'What is an NSPredicate in Core Data?', back: 'A filter for fetch requests. Example: NSPredicate(format: "age > %d AND name CONTAINS %@", 18, "John")' },
+    { id: 'dn16', front: 'What is URLProtocol used for?', back: 'Custom request handling — stubbing in tests, transparent caching, custom URL schemes. Register a subclass with a URLSessionConfiguration and you intercept matching requests.' },
+    { id: 'dn17', front: 'How does Codable handle snake_case JSON?', back: 'Set JSONDecoder().keyDecodingStrategy = .convertFromSnakeCase. For mixed cases or renames, define an explicit CodingKeys enum on the struct.' },
+    { id: 'dn18', front: 'When would you use downloadTask over dataTask?', back: 'For large responses you don\'t want to hold in memory. downloadTask streams to a temporary file on disk; dataTask buffers the whole body in memory.' },
+    { id: 'dn19', front: 'What is an NSManagedObjectContext?', back: 'A scratchpad where you fetch, insert, edit, and delete Core Data objects. Changes only hit the persistent store when you call save() on it.' },
+    { id: 'dn20', front: 'When might you skip Core Data?', back: 'When migrations, threading rules, or the API\'s ceremony slow you down. Realm or SwiftData are simpler for many cases; raw SQLite gives full SQL control if you need it.' },
+    { id: 'dn21', front: 'How does URLSession honour cache headers?', back: 'URLCache reads Cache-Control / ETag / Last-Modified automatically. Tune behaviour by configuring URLSessionConfiguration.urlCache and the request\'s cachePolicy.' },
+    { id: 'dn22', front: 'How do you handle a 401 globally?', back: 'Wrap URLSession in a client (or use a URLSessionDelegate) that intercepts responses. On 401, refresh the token and retry the original request once before bubbling the error up.' },
+    { id: 'dn23', front: 'What is App Transport Security?', back: 'iOS forbids plaintext HTTP and weak TLS by default. Exceptions require explicit entries under NSAppTransportSecurity in Info.plist — App Review pushes back on broad exemptions.' }
   ],
 
   quizQuestions: [
@@ -3476,7 +3524,15 @@ class CheckoutViewModelTests: XCTestCase {
     { id: 'lt12', front: 'What is XCUIApplication?', back: 'UI testing class that launches and controls the app. Use it to find elements, perform actions, and verify state.' },
     { id: 'lt13', front: 'What does waitForExistence(timeout:) do?', back: 'Waits up to timeout seconds for an element to exist. Returns true if found, false if timeout. Use for async UI updates.' },
     { id: 'lt14', front: 'What is the Arrange-Act-Assert pattern?', back: 'Test structure: Arrange (setup), Act (execute), Assert (verify). Makes tests clear and readable.' },
-    { id: 'lt15', front: 'How do you mock a protocol dependency?', back: 'Create a class conforming to the protocol that records calls and returns preset values. Inject it instead of the real implementation.' }
+    { id: 'lt15', front: 'How do you mock a protocol dependency?', back: 'Create a class conforming to the protocol that records calls and returns preset values. Inject it instead of the real implementation.' },
+    { id: 'lt16', front: 'What does SceneDelegate handle that AppDelegate doesn\'t?', back: 'Scene-level lifecycle for multi-window: foreground, background, disconnect of an individual scene. AppDelegate still owns process-level events like launch, push registration, and URL opens.' },
+    { id: 'lt17', front: 'When does applicationDidBecomeActive fire?', back: 'Every time the app moves from inactive to active in the foreground — first launch, returning from background, dismissing a system prompt (Face ID, alert), or coming back from a phone call.' },
+    { id: 'lt18', front: 'How do you run periodic background work?', back: 'Register a BGAppRefreshTask identifier in Info.plist, schedule with BGTaskScheduler, and handle the task by submitting a new request before completion. The system grants short, opportunistic windows.' },
+    { id: 'lt19', front: 'How does Swift Testing differ from XCTest?', back: 'Swift Testing uses #expect macros, struct-based suites, trait-driven configuration, and parallel execution by default. XCTest is still required for UI tests and remains supported.' },
+    { id: 'lt20', front: 'What is Xcode\'s UI test recording good for?', back: 'A first-draft sketch. Xcode generates XCUIElement queries while you tap through the app. The recording usually needs hand-edits — use accessibility identifiers and trim brittle parts.' },
+    { id: 'lt21', front: 'How do you mock URLSession in unit tests?', back: 'Register a URLProtocol stub on a custom URLSessionConfiguration, then pass that into a test URLSession. Your stub returns canned responses without touching the network.' },
+    { id: 'lt22', front: 'What does measure { } do in XCTest?', back: 'Runs the block several times, records timing, and compares against the saved baseline. The test fails if performance regresses beyond an allowed deviation.' },
+    { id: 'lt23', front: 'How do you stabilise a flaky UI test?', back: 'Wait on expectations (waitForExpectations, expectation(for:evaluatedWith:handler:)) instead of fixed sleeps. Disable animations in setup. Address views by accessibilityIdentifier, not visible text.' }
   ],
 
   quizQuestions: [

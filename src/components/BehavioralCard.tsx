@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -44,7 +45,14 @@ export default function BehavioralCard({ question, locked, onLockTap }: Props) {
     };
   }, [question.id]);
 
-  const onChange = (next: string) => {
+  const onChange = (raw: string) => {
+    // Pressing return on the soft keyboard dismisses it (and we strip the
+    // newline so we don't bake stray \n's into the saved answer).
+    let next = raw;
+    if (raw.endsWith('\n') && raw.length > answer.length) {
+      next = raw.slice(0, -1);
+      Keyboard.dismiss();
+    }
     setAnswer(next);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {

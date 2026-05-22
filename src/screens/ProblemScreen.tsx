@@ -82,6 +82,7 @@ export default function ProblemScreen() {
   const [runtimeReady, setRuntimeReady] = useState(false);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<ExecResult | null>(null);
+  const [resultsVisible, setResultsVisible] = useState(false);
   const [explanationVisible, setExplanationVisible] = useState(false);
   const [pageUri, setPageUri] = useState<string | null>(null);
   const [stagedDir, setStagedDir] = useState<string | null>(null);
@@ -173,6 +174,7 @@ export default function ProblemScreen() {
       else if (msg.type === 'result') {
         setResult(msg.payload);
         setRunning(false);
+        setResultsVisible(true);
       } else if (msg.type === 'error') {
         setResult({
           passed: 0,
@@ -181,6 +183,7 @@ export default function ProblemScreen() {
           totalRuntimeMs: 0,
         });
         setRunning(false);
+        setResultsVisible(true);
       }
     } catch {}
   };
@@ -312,23 +315,6 @@ export default function ProblemScreen() {
             </View>
           </View>
 
-          {/* Results */}
-          {result && (
-            <View style={styles.resultsSection}>
-              <View style={styles.resultsHeader}>
-                <Text style={styles.sectionLabel}>RESULTS</Text>
-                {result.totalRuntimeMs > 0 && (
-                  <View style={styles.runtimeTag}>
-                    <Ionicons name="speedometer-outline" size={14} color={colors.secondary} />
-                    <Text style={styles.runtimeTagText}>{result.totalRuntimeMs} ms</Text>
-                  </View>
-                )}
-              </View>
-              <ResultSummary result={result} />
-              <ResultBreakdown result={result} problem={problem} />
-              <ConsoleOutput result={result} />
-            </View>
-          )}
         </ScrollView>
 
         {/* Code-symbol toolbar — sits just above the keyboard when typing */}
@@ -378,6 +364,45 @@ export default function ProblemScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={resultsVisible && result !== null}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setResultsVisible(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setResultsVisible(false)}
+        >
+          <Pressable style={styles.modalSheet} onPress={() => {}}>
+            <View style={styles.modalGrabber} />
+            <View style={styles.modalHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>Results</Text>
+                {result && (
+                  <Text style={styles.modalSubtitle}>
+                    {result.passed} / {result.total} passed
+                    {result.totalRuntimeMs > 0 ? ` · ${result.totalRuntimeMs} ms` : ''}
+                  </Text>
+                )}
+              </View>
+              <TouchableOpacity onPress={() => setResultsVisible(false)} hitSlop={8}>
+                <Ionicons name="close" size={24} color={colors.inkLight} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={{ maxHeight: 520 }}
+              contentContainerStyle={{ paddingBottom: spacing.lg }}
+              showsVerticalScrollIndicator={false}
+            >
+              {result && <ResultSummary result={result} />}
+              {result && <ResultBreakdown result={result} problem={problem} />}
+              {result && <ConsoleOutput result={result} />}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal
         visible={explanationVisible}

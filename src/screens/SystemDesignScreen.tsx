@@ -207,15 +207,19 @@ function SystemDesignEditor({
           <Text style={styles.promptText}>{problem.prompt}</Text>
         </View>
 
-        {/* Selection helper */}
-        {selectedId && (
-          <View style={styles.helpBanner}>
-            <Ionicons name="git-network-outline" size={14} color={colors.secondary} />
-            <Text style={styles.helpBannerText}>
-              Tap another node to connect, or tap this one again to cancel.
-            </Text>
-          </View>
-        )}
+        {/* Contextual helper — switches copy based on whether a node is selected */}
+        <View style={styles.helpBanner}>
+          <Ionicons
+            name={selectedId ? 'git-network-outline' : 'information-circle-outline'}
+            size={14}
+            color={colors.secondary}
+          />
+          <Text style={styles.helpBannerText}>
+            {selectedId
+              ? 'Tap another node to connect, or tap this one again to cancel.'
+              : 'Long-press a node to delete it.'}
+          </Text>
+        </View>
 
         {/* Canvas */}
         <View

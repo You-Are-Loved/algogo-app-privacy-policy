@@ -8,6 +8,8 @@ import {
   Dimensions,
   Modal,
   Share,
+  Linking,
+  Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -101,8 +103,15 @@ function ProgressModal({ visible, onClose, progress, categories, getCategoryProg
   }).length;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <BlurView intensity={30} style={styles.progressModalOverlay}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
+    >
+      <BlurView intensity={24} tint="light" style={styles.progressModalOverlay}>
         <TouchableOpacity style={styles.progressModalOverlay} activeOpacity={1} onPress={onClose}>
           <Animated.View style={[styles.progressModalContent, containerStyle]}>
             <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
@@ -157,109 +166,6 @@ function ProgressModal({ visible, onClose, progress, categories, getCategoryProg
 
                 <TouchableOpacity style={styles.progressCloseButton} onPress={onClose}>
                   <Text style={styles.progressCloseText}>Got it</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
-        </TouchableOpacity>
-      </BlurView>
-    </Modal>
-  );
-}
-
-interface StreakModalProps {
-  visible: boolean;
-  onClose: () => void;
-  streak: number;
-  lastStudyDate: string | null;
-}
-
-function StreakModal({ visible, onClose, streak, lastStudyDate }: StreakModalProps) {
-  const scale = useSharedValue(0.8);
-  const opacity = useSharedValue(0);
-  const flameScale = useSharedValue(1);
-
-  useEffect(() => {
-    if (visible) {
-      opacity.value = withTiming(1, { duration: 200 });
-      scale.value = withSpring(1, { damping: 15, stiffness: 150 });
-      // Pulsing flame animation
-      flameScale.value = withSequence(
-        withTiming(1.2, { duration: 300 }),
-        withTiming(1, { duration: 300 }),
-        withTiming(1.15, { duration: 250 }),
-        withTiming(1, { duration: 250 })
-      );
-    } else {
-      scale.value = 0.8;
-      opacity.value = 0;
-      flameScale.value = 1;
-    }
-  }, [visible]);
-
-  const containerStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-  }));
-
-  const flameStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: flameScale.value }],
-  }));
-
-  const getStreakMessage = () => {
-    if (streak === 0) return "Start learning to build your streak!";
-    if (streak === 1) return "Great start! Keep it going tomorrow!";
-    if (streak < 7) return "You're building momentum!";
-    if (streak < 30) return "Impressive dedication!";
-    if (streak < 100) return "You're on fire!";
-    return "Legendary learner!";
-  };
-
-  const today = new Date().toDateString();
-  const lastStudy = lastStudyDate ? new Date(lastStudyDate).toDateString() : null;
-  const studiedToday = lastStudy === today;
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <BlurView intensity={30} style={styles.progressModalOverlay}>
-        <TouchableOpacity style={styles.progressModalOverlay} activeOpacity={1} onPress={onClose}>
-          <Animated.View style={[styles.progressModalContent, containerStyle]}>
-            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-              <View style={styles.progressModalInner}>
-                <Text style={styles.progressModalTitle}>Your Streak</Text>
-
-                <Animated.View style={[styles.streakFlameContainer, flameStyle]}>
-                  <Ionicons name="flame" size={80} color={colors.accent} />
-                </Animated.View>
-
-                <Text style={styles.streakNumber}>{streak}</Text>
-                <Text style={styles.streakDaysLabel}>
-                  {streak === 1 ? 'day' : 'days'} in a row
-                </Text>
-
-                <Text style={styles.streakMessage}>{getStreakMessage()}</Text>
-
-                <View style={styles.streakStatusContainer}>
-                  <View style={[
-                    styles.streakStatusBadge,
-                    { backgroundColor: studiedToday ? `${colors.primary}15` : `${colors.accent}15` }
-                  ]}>
-                    <Ionicons
-                      name={studiedToday ? 'checkmark-circle' : 'time-outline'}
-                      size={20}
-                      color={studiedToday ? colors.primary : colors.accent}
-                    />
-                    <Text style={[
-                      styles.streakStatusText,
-                      { color: studiedToday ? colors.primary : colors.accent }
-                    ]}>
-                      {studiedToday ? "You've studied today!" : "Study today to keep your streak!"}
-                    </Text>
-                  </View>
-                </View>
-
-                <TouchableOpacity style={styles.progressCloseButton} onPress={onClose}>
-                  <Text style={styles.progressCloseText}>Keep Going</Text>
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
@@ -346,14 +252,42 @@ export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<HomeRouteProp>();
   const { user, initGuestUser, getCategoryProgress } = useStore();
-  const { isSubscribed, purchase, restore, product, isLoading: subLoading } = useSubscriptionContext();
+  const { isSubscribed, purchase, restore, isLoading: subLoading } = useSubscriptionContext();
+
+  // Tiny "dance" on the streak flame when tapped — wiggle + a small lift.
+  const flameWiggle = useSharedValue(0);
+  const flameDanceStyle = useAnimatedStyle(() => ({
+    transform: [
+      { rotate: `${flameWiggle.value}deg` },
+      { scale: 1 + Math.abs(flameWiggle.value) / 90 },
+    ],
+  }));
+  const danceFlame = useCallback(() => {
+    flameWiggle.value = withSequence(
+      withTiming(-14, { duration: 90, easing: Easing.out(Easing.quad) }),
+      withTiming(14, { duration: 110, easing: Easing.inOut(Easing.quad) }),
+      withTiming(-9, { duration: 90, easing: Easing.inOut(Easing.quad) }),
+      withTiming(6, { duration: 90, easing: Easing.inOut(Easing.quad) }),
+      withTiming(0, { duration: 110, easing: Easing.out(Easing.quad) }),
+    );
+  }, [flameWiggle]);
+
+  const handleEmailCEO = useCallback(async () => {
+    const url = 'mailto:ceo@raidea.dev?subject=Algogo%20feedback';
+    try {
+      const can = await Linking.canOpenURL(url);
+      if (!can) throw new Error('No mail client');
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Mail not available', 'Send feedback to ceo@raidea.dev');
+    }
+  }, []);
   const [activeTrack, setActiveTrack] = useState<ContentType>(
     route.params?.contentType || 'algorithms'
   );
   const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [progressModalVisible, setProgressModalVisible] = useState(false);
-  const [streakModalVisible, setStreakModalVisible] = useState(false);
   const [ratingPromptVisible, setRatingPromptVisible] = useState(false);
 
   // Track if initial animation has played to prevent re-animation on tab switch
@@ -362,7 +296,7 @@ export default function HomeScreen() {
     hasAnimated.current = true;
   }, []);
 
-  // Show the rating prompt once, after the user has been subscribed for 30+
+  // Show the rating prompt once, after the user has been subscribed for 3+
   // days and we haven't already asked.
   useEffect(() => {
     if (!isSubscribed) return;
@@ -375,8 +309,8 @@ export default function HomeScreen() {
         if (!startStr) return;
         const startedAt = parseInt(startStr, 10);
         if (!Number.isFinite(startedAt)) return;
-        const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
-        if (Date.now() - startedAt < THIRTY_DAYS) return;
+        const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
+        if (Date.now() - startedAt < THREE_DAYS) return;
         if (cancelled) return;
         // Defer slightly so it doesn't fight with the page-enter animations.
         setTimeout(() => {
@@ -517,14 +451,26 @@ export default function HomeScreen() {
           <View style={styles.headerRight}>
             <TouchableOpacity
               style={styles.streakBadge}
-              onPress={() => setStreakModalVisible(true)}
-              activeOpacity={0.8}
+              onPress={danceFlame}
+              activeOpacity={0.85}
+              accessibilityLabel="Streak counter"
             >
-              <Ionicons name="flame" size={20} color={colors.accent} />
+              <Animated.View style={flameDanceStyle}>
+                <Ionicons name="flame" size={20} color={colors.accent} />
+              </Animated.View>
               <Text style={styles.streakText}>{user?.streak || 0}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.shareBtn}
+              style={styles.paperIconBtn}
+              onPress={handleEmailCEO}
+              activeOpacity={0.8}
+              hitSlop={6}
+              accessibilityLabel="Email the team"
+            >
+              <Ionicons name="mail-outline" size={20} color={colors.inkLight} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.paperIconBtn}
               onPress={handleShareApp}
               activeOpacity={0.8}
               hitSlop={6}
@@ -616,15 +562,7 @@ export default function HomeScreen() {
         getCategoryProgress={getCategoryProgress}
       />
 
-      {/* Streak Modal */}
-      <StreakModal
-        visible={streakModalVisible}
-        onClose={() => setStreakModalVisible(false)}
-        streak={user?.streak || 0}
-        lastStudyDate={user?.lastStudyDate || null}
-      />
-
-      {/* Rating prompt — fires once, ~30 days after first subscription */}
+      {/* Rating prompt — fires once, ~3 days after first subscription */}
       <RatingPromptModal
         visible={ratingPromptVisible}
         onClose={handleRatingClose}
@@ -666,13 +604,13 @@ const styles = StyleSheet.create({
     borderColor: `${colors.accent}30`,
     gap: spacing.xs,
   },
-  shareBtn: {
+  paperIconBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.card,
+    backgroundColor: colors.paper,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -882,19 +820,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(60, 60, 60, 0.18)',
   },
   progressModalContent: {
     width: width - spacing.xl * 2,
     maxWidth: 340,
   },
   progressModalInner: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.paper,
     borderRadius: borderRadius.xl,
     padding: spacing.xl,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.border,
+    borderWidth: 1.5,
+    borderColor: colors.borderDark,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 12,
   },
   progressModalTitle: {
     ...typography.displaySmall,

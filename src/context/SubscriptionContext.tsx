@@ -1,11 +1,16 @@
 import React, { createContext, useContext, ReactNode } from 'react';
-import { useSubscription, SubscriptionState } from '../hooks/useSubscription';
+import {
+  useSubscription,
+  SubscriptionState,
+  Plan,
+} from '../hooks/useSubscription';
 
 interface SubscriptionContextType extends SubscriptionState {
-  purchase: () => Promise<{ success: boolean; error?: string; mock?: boolean }>;
+  purchase: (plan?: Plan) => Promise<{ success: boolean; error?: string; cancelled?: boolean }>;
   restore: () => Promise<{ success: boolean; error?: string; isSubscribed?: boolean }>;
   toggleDevSubscription: () => void;
-  productId: string;
+  monthlyProductId: string;
+  annualProductId: string;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | null>(null);
