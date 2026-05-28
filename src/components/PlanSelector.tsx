@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: borderRadius.lg,
     borderWidth: 2,
-    paddingVertical: spacing.md,
+    paddingVertical: 10,
     paddingHorizontal: spacing.md,
     gap: spacing.md,
   },
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     ...typography.labelLarge,
     color: colors.ink,
     fontSize: 15,
-    marginBottom: 2,
+    marginBottom: 0,
   },
   badge: {
     flexDirection: 'row',

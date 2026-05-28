@@ -69,6 +69,9 @@ const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   'swap-horizontal-outline': 'swap-horizontal-outline',
   'chatbubbles-outline': 'chatbubbles-outline',
   'shield-checkmark-outline': 'shield-checkmark-outline',
+  'git-merge-outline': 'git-merge-outline',
+  'bar-chart-outline': 'bar-chart-outline',
+  'analytics-outline': 'analytics-outline',
 };
 
 type TabType = 'learn' | 'visualize' | 'cards' | 'quiz';

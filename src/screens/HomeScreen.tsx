@@ -237,7 +237,7 @@ const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   'mail-outline': 'mail-outline',
 };
 
-const TRACKS: ContentType[] = ['algorithms', 'system-design', 'ios', 'android', 'web', 'backend'];
+const TRACKS: ContentType[] = ['algorithms', 'system-design', 'ios', 'android', 'web', 'backend', 'sql'];
 
 const TRACK_PILL_LABEL: Record<ContentType, string> = {
   'algorithms': 'Algorithms',
@@ -246,6 +246,7 @@ const TRACK_PILL_LABEL: Record<ContentType, string> = {
   'android': 'Android',
   'web': 'Web',
   'backend': 'Backend',
+  'sql': 'SQL',
 };
 
 export default function HomeScreen() {

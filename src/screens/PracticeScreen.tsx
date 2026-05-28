@@ -17,6 +17,7 @@ import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { blind75, Difficulty } from '../data/blind75';
 import { behavioralQuestions } from '../data/behavioral';
 import { systemDesignProblems } from '../data/systemDesign';
+import { bugFixProblems, BugFixLanguage } from '../data/bugFixes';
 import { PracticeStackParamList } from '../navigation';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
 import UpgradeModal from '../components/UpgradeModal';
@@ -30,7 +31,19 @@ const DIFF_COLORS: Record<Difficulty, string> = {
   Hard: colors.error,
 };
 
-type Category = 'algorithms' | 'system-design' | 'behavioral';
+const LANG_COLORS: Record<BugFixLanguage, string> = {
+  python: '#3776AB',
+  javascript: '#F7DF1E',
+  java: '#ED8B00',
+};
+const LANG_LABELS: Record<BugFixLanguage, string> = {
+  python: 'Py',
+  javascript: 'JS',
+  java: 'Java',
+};
+
+type Category = 'algorithms' | 'system-design' | 'behavioral' | 'bug-fix';
+type LangFilter = 'all' | BugFixLanguage;
 
 // First N of each category are free; the rest gate behind Pro.
 const FREE_LIMIT = 2;
@@ -38,6 +51,14 @@ const CATEGORIES: { key: Category; label: string; icon: keyof typeof Ionicons.gl
   { key: 'algorithms', label: 'Algorithms', icon: 'code-slash-outline' },
   { key: 'system-design', label: 'System Design', icon: 'server-outline' },
   { key: 'behavioral', label: 'Behavioral', icon: 'chatbubbles-outline' },
+  { key: 'bug-fix', label: 'Bug Fix', icon: 'bug-outline' },
+];
+
+const LANG_FILTERS: { key: LangFilter; label: string }[] = [
+  { key: 'all', label: 'All langs' },
+  { key: 'python', label: 'Python' },
+  { key: 'javascript', label: 'JavaScript' },
+  { key: 'java', label: 'Java' },
 ];
 
 export default function PracticeScreen() {
@@ -46,11 +67,21 @@ export default function PracticeScreen() {
   const [upgradeVisible, setUpgradeVisible] = useState(false);
   const [category, setCategory] = useState<Category>('algorithms');
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [langFilter, setLangFilter] = useState<LangFilter>('all');
+  const [langPickerVisible, setLangPickerVisible] = useState(false);
 
   const activeCategory = CATEGORIES.find((c) => c.key === category)!;
+  const activeLang = LANG_FILTERS.find((l) => l.key === langFilter)!;
   const problems = useMemo(
     () => (category === 'algorithms' ? blind75 : []),
     [category],
+  );
+  const visibleBugFixes = useMemo(
+    () =>
+      langFilter === 'all'
+        ? bugFixProblems
+        : bugFixProblems.filter((p) => p.language === langFilter),
+    [langFilter],
   );
 
   const handleProblemPress = (problemId: string, number: number) => {
@@ -69,20 +100,48 @@ export default function PracticeScreen() {
     navigation.navigate('SystemDesign', { problemId });
   };
 
+  const handleBugFixPress = (problemId: string, number: number) => {
+    if (!isSubscribed && number > FREE_LIMIT) {
+      setUpgradeVisible(true);
+      return;
+    }
+    navigation.navigate('BugFix', { problemId });
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Practice</Text>
-        <TouchableOpacity
-          style={styles.dropdown}
-          onPress={() => setPickerVisible(true)}
-          activeOpacity={0.8}
-        >
-          <Ionicons name={activeCategory.icon} size={16} color={colors.inkLight} />
-          <Text style={styles.dropdownLabel}>{activeCategory.label}</Text>
-          <Ionicons name="chevron-down" size={16} color={colors.inkLight} />
-        </TouchableOpacity>
+        <View style={styles.dropdownRow}>
+          <TouchableOpacity
+            style={styles.dropdown}
+            onPress={() => setPickerVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name={activeCategory.icon} size={16} color={colors.inkLight} />
+            <Text style={styles.dropdownLabel}>{activeCategory.label}</Text>
+            <Ionicons name="chevron-down" size={16} color={colors.inkLight} />
+          </TouchableOpacity>
+          {category === 'bug-fix' && (
+            <TouchableOpacity
+              style={styles.dropdown}
+              onPress={() => setLangPickerVisible(true)}
+              activeOpacity={0.8}
+            >
+              {activeLang.key !== 'all' && (
+                <View
+                  style={[
+                    styles.langDot,
+                    { backgroundColor: LANG_COLORS[activeLang.key as BugFixLanguage] },
+                  ]}
+                />
+              )}
+              <Text style={styles.dropdownLabel}>{activeLang.label}</Text>
+              <Ionicons name="chevron-down" size={16} color={colors.inkLight} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {category === 'algorithms' ? (
@@ -188,6 +247,70 @@ export default function PracticeScreen() {
           }}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
+      ) : category === 'bug-fix' ? (
+        <FlatList
+          data={visibleBugFixes}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => {
+            const locked = !isSubscribed && item.number > FREE_LIMIT;
+            const langColor = LANG_COLORS[item.language];
+            return (
+              <TouchableOpacity
+                style={styles.problemRow}
+                activeOpacity={0.7}
+                onPress={() => handleBugFixPress(item.id, item.number)}
+              >
+                <View
+                  style={[
+                    styles.langIconWrap,
+                    { backgroundColor: `${langColor}22` },
+                  ]}
+                >
+                  <Ionicons name="bug-outline" size={18} color={langColor} />
+                </View>
+                <View style={styles.titleCol}>
+                  <Text style={styles.problemTitle} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <Text style={styles.problemTopic}>{item.topic}</Text>
+                </View>
+                <View
+                  style={[
+                    styles.langBadge,
+                    { backgroundColor: `${langColor}22` },
+                  ]}
+                >
+                  <Text style={[styles.langBadgeText, { color: langColor }]}>
+                    {LANG_LABELS[item.language]}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.diffBadge,
+                    { backgroundColor: `${DIFF_COLORS[item.difficulty]}22` },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.diffBadgeText,
+                      { color: DIFF_COLORS[item.difficulty] },
+                    ]}
+                  >
+                    {item.difficulty}
+                  </Text>
+                </View>
+                {locked ? (
+                  <Ionicons name="lock-closed" size={16} color={colors.inkLighter} />
+                ) : (
+                  <Ionicons name="chevron-forward" size={18} color={colors.inkLighter} />
+                )}
+              </TouchableOpacity>
+            );
+          }}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+        />
       ) : (
         <View style={styles.empty}>
           <Ionicons name="construct-outline" size={32} color={colors.inkLighter} />
@@ -245,6 +368,49 @@ export default function PracticeScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <Modal
+        visible={langPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLangPickerVisible(false)}
+      >
+        <Pressable
+          style={styles.pickerBackdrop}
+          onPress={() => setLangPickerVisible(false)}
+        >
+          <Pressable style={styles.pickerSheet} onPress={() => {}}>
+            <View style={styles.pickerGrabber} />
+            <Text style={styles.pickerTitle}>Language</Text>
+            {LANG_FILTERS.map((l) => {
+              const active = l.key === langFilter;
+              const dotColor =
+                l.key === 'all' ? colors.inkLighter : LANG_COLORS[l.key as BugFixLanguage];
+              return (
+                <TouchableOpacity
+                  key={l.key}
+                  style={[styles.pickerRow, active && styles.pickerRowActive]}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setLangFilter(l.key);
+                    setLangPickerVisible(false);
+                  }}
+                >
+                  <View style={[styles.langDotLarge, { backgroundColor: dotColor }]} />
+                  <Text
+                    style={[styles.pickerRowText, active && styles.pickerRowTextActive]}
+                  >
+                    {l.label}
+                  </Text>
+                  {active && (
+                    <Ionicons name="checkmark" size={18} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -260,6 +426,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerTitle: { ...typography.displaySmall, color: colors.ink },
+  dropdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    flexShrink: 1,
+  },
   dropdown: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -270,6 +442,16 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  langDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  langDotLarge: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
   },
   dropdownLabel: {
     ...typography.labelMedium,
@@ -349,6 +531,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   numberText: { ...typography.labelMedium, color: colors.inkLight },
+  langIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   titleCol: { flex: 1 },
   problemTitle: { ...typography.labelLarge, color: colors.ink },
   problemTopic: { ...typography.labelSmall, color: colors.inkLight, marginTop: 1 },
@@ -358,6 +547,12 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   diffBadgeText: { ...typography.labelSmall, fontWeight: '700' },
+  langBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.full,
+  },
+  langBadgeText: { ...typography.labelSmall, fontWeight: '700' },
   empty: { alignItems: 'center', paddingVertical: spacing['3xl'] },
   emptyText: {
     ...typography.bodyMedium,

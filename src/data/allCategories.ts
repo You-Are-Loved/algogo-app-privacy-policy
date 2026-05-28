@@ -6,9 +6,10 @@ import { iosCategories } from './iosCategories';
 import { androidCategories } from './androidCategories';
 import { webCategories } from './webCategories';
 import { backendCategories } from './backendCategories';
+import { sqlCategories } from './sqlCategories';
 
 // Content type definition
-export type ContentType = 'algorithms' | 'system-design' | 'ios' | 'android' | 'web' | 'backend';
+export type ContentType = 'algorithms' | 'system-design' | 'ios' | 'android' | 'web' | 'backend' | 'sql';
 
 // Get all categories for a specific content type
 export const getCategoriesByType = (type: ContentType): Category[] => {
@@ -25,6 +26,8 @@ export const getCategoriesByType = (type: ContentType): Category[] => {
       return webCategories as Category[];
     case 'backend':
       return backendCategories as Category[];
+    case 'sql':
+      return sqlCategories as Category[];
     default:
       return [];
   }
@@ -39,6 +42,7 @@ export const getAllCategories = (): Category[] => {
     ...(androidCategories as Category[]),
     ...(webCategories as Category[]),
     ...(backendCategories as Category[]),
+    ...(sqlCategories as Category[]),
   ];
 };
 
@@ -68,6 +72,10 @@ export const getCategoryBySlug = (slug: string): Category | undefined => {
   category = (backendCategories as Category[]).find(cat => cat.slug === slug);
   if (category) return category;
 
+  // Check SQL
+  category = (sqlCategories as Category[]).find(cat => cat.slug === slug);
+  if (category) return category;
+
   return undefined;
 };
 
@@ -91,6 +99,9 @@ export const getCategoryById = (id: string): Category | undefined => {
   category = (backendCategories as Category[]).find(cat => cat.id === id);
   if (category) return category;
 
+  category = (sqlCategories as Category[]).find(cat => cat.id === id);
+  if (category) return category;
+
   return undefined;
 };
 
@@ -102,6 +113,7 @@ export const getContentTypeFromCategoryId = (id: string): ContentType | null => 
   if ((androidCategories as Category[]).find(cat => cat.id === id)) return 'android';
   if ((webCategories as Category[]).find(cat => cat.id === id)) return 'web';
   if ((backendCategories as Category[]).find(cat => cat.id === id)) return 'backend';
+  if ((sqlCategories as Category[]).find(cat => cat.id === id)) return 'sql';
   return null;
 };
 
@@ -175,5 +187,11 @@ export const contentTypeInfo = {
     subtitle: '7 server-side topics',
     icon: 'server-outline',
     color: '#2196F3', // blue
+  },
+  sql: {
+    title: 'SQL',
+    subtitle: '7 essential SQL topics',
+    icon: 'server-outline',
+    color: '#336791', // postgres blue
   },
 };

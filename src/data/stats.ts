@@ -5,6 +5,7 @@ import type { Ionicons } from '@expo/vector-icons';
 import { blind75 } from './blind75';
 import { systemDesignProblems } from './systemDesign';
 import { behavioralQuestions } from './behavioral';
+import { bugFixProblems } from './bugFixes';
 import { categories as algorithmCategoryList } from './categories';
 import { getAllCategories } from './allCategories';
 
@@ -24,9 +25,10 @@ export const contentStats = {
   algorithmProblems: blind75.length,
   systemDesignProblems: systemDesignProblems.length,
   behavioralPrompts: behavioralQuestions.length,
+  bugFixProblems: bugFixProblems.length,
   // Content groups surfaced as top-level tabs (Algorithms, System Design,
-  // iOS, Android, Web, Backend). Hardcoded because they're hand-curated.
-  tracks: 6,
+  // iOS, Android, Web, Backend, SQL). Hardcoded because they're hand-curated.
+  tracks: 7,
 };
 
 export interface PaywallFeature {
@@ -69,6 +71,10 @@ export function getPaywallFeatures(): PaywallFeature[] {
     {
       icon: 'chatbubbles-outline',
       text: `${s.behavioralPrompts} behavioral prompts with notes that save`,
+    },
+    {
+      icon: 'bug-outline',
+      text: `${s.bugFixProblems} bug-fix challenges across Python, JS, and Java`,
     },
     {
       icon: 'analytics-outline',

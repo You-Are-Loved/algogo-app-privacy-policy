@@ -17,6 +17,8 @@ export type ExecResult = {
     expected?: any;
     actual?: any;
     stdout?: string;
+    /** Used by rule-based grading (Java bug-fix) to label what was checked. */
+    label?: string;
   }[];
   totalRuntimeMs: number;
 };
@@ -120,6 +122,35 @@ export function ResultBreakdown({
           </Text>
         </View>
       )}
+    </View>
+  );
+}
+
+// Rule-based result rendering for bug-fix problems (Java today; any language
+// later if we want to grade by static rules rather than execution).
+export function RuleResultBreakdown({ result }: { result: ExecResult }) {
+  if (result.cases.length === 1 && result.cases[0].error && !result.cases[0].label) {
+    return (
+      <View style={styles.errorBlock}>
+        <Text style={styles.errorTitle}>Error</Text>
+        <Text style={styles.errorMono}>{result.cases[0].error}</Text>
+      </View>
+    );
+  }
+  return (
+    <View>
+      {result.cases.map((c, i) => (
+        <View key={i} style={styles.caseRow}>
+          <Ionicons
+            name={c.pass ? 'checkmark-circle' : 'close-circle'}
+            size={18}
+            color={c.pass ? colors.primary : colors.error}
+          />
+          <Text style={styles.caseLabel}>
+            {c.label || `Rule ${i + 1}`}
+          </Text>
+        </View>
+      ))}
     </View>
   );
 }

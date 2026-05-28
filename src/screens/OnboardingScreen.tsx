@@ -52,10 +52,10 @@ import { runOnJS } from 'react-native-reanimated';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IS_SMALL_SCREEN = SCREEN_HEIGHT < 750; // iPhone SE territory
-const SD_CANVAS_HEIGHT = IS_SMALL_SCREEN ? 160 : 220;
+const SD_CANVAS_HEIGHT = IS_SMALL_SCREEN ? 160 : 190;
 
-type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
-const TOTAL_STEPS = 8;
+type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+const TOTAL_STEPS = 9;
 
 export default function OnboardingScreen() {
   const [step, setStep] = useState<Step>(0);
@@ -113,9 +113,10 @@ export default function OnboardingScreen() {
         {step === 2 && <QuizStep />}
         {step === 3 && <VisualizationStep />}
         {step === 4 && <PracticeStep />}
-        {step === 5 && <SystemDesignTeaserStep />}
-        {step === 6 && <BehavioralStep />}
-        {step === 7 && <OfflineStep />}
+        {step === 5 && <BugFixStep />}
+        {step === 6 && <SystemDesignTeaserStep />}
+        {step === 7 && <BehavioralStep />}
+        {step === 8 && <OfflineStep />}
       </View>
 
       {/* Bottom CTA */}
@@ -363,8 +364,7 @@ function QuizStep() {
           />
           <Text style={styles.quizExplanationText}>
             <Text style={{ fontWeight: '700' }}>{isCorrect ? 'Correct! ' : 'Stack is the answer. '}</Text>
-            Stacks use Last-In-First-Out — items pushed last are popped first. Used in undo, function
-            calls, and expression evaluation.
+            Stacks use Last-In-First-Out — items pushed last are popped first.
           </Text>
         </Animated.View>
       )}
@@ -473,7 +473,6 @@ function OfflineStep() {
         <PerkRow icon="code-slash-outline" text="Run Python solutions to algorithm problems with no wifi" />
         <PerkRow icon="git-network-outline" text="Sketch and test system-design diagrams offline" />
         <PerkRow icon="chatbubbles-outline" text="Write and edit behavioral answers anywhere" />
-        <PerkRow icon="lock-closed-outline" text="Everything stays on your device" />
       </View>
     </Animated.View>
   );
@@ -608,7 +607,111 @@ function PracticeStep() {
 }
 
 // ============================================================================
-// STEP 6 — System Design (interactive mini editor)
+// STEP 6 — Bug Fix (mock editor with a marked bug + diff-style fix)
+// ============================================================================
+const BUGFIX_LANG_PILLS: { label: string; color: string }[] = [
+  { label: 'Python', color: '#3776AB' },
+  { label: 'JavaScript', color: '#F7DF1E' },
+  { label: 'Java', color: '#ED8B00' },
+];
+
+function BugFixStep() {
+  return (
+    <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
+      <View style={styles.heroIconWrap}>
+        <Animated.View
+          entering={ZoomIn.delay(80).springify().damping(14).mass(0.6)}
+          style={[styles.heroIcon, { backgroundColor: `${colors.error}18` }]}
+        >
+          <Ionicons name="bug-outline" size={40} color={colors.error} />
+        </Animated.View>
+      </View>
+
+      <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
+        Spot the bug, fix the line
+      </Animated.Text>
+      <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
+        {contentStats.bugFixProblems} broken snippets across Python, JavaScript, and Java.
+        Tap, fix, run the tests — all on-device.
+      </Animated.Text>
+
+      <Animated.View
+        entering={FadeInDown.delay(400).duration(500)}
+        style={styles.practiceCard}
+      >
+        <View style={styles.bugFixPillRow}>
+          {BUGFIX_LANG_PILLS.map((p) => (
+            <View
+              key={p.label}
+              style={[styles.bugFixPill, { backgroundColor: `${p.color}22` }]}
+            >
+              <View style={[styles.bugFixPillDot, { backgroundColor: p.color }]} />
+              <Text style={[styles.bugFixPillText, { color: p.color }]}>{p.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        <Text style={styles.bugFixSectionLabel}>BUGGY</Text>
+        <View style={styles.practiceMockEditor}>
+          <View style={styles.practiceMockLine}>
+            <Text style={styles.practiceMockLineNo}>1</Text>
+            <Text style={styles.practiceMockCode}>
+              <Text style={styles.practiceMockKeyword}>def </Text>
+              <Text style={styles.practiceMockFn}>average</Text>
+              <Text style={styles.practiceMockPlain}>(nums):</Text>
+            </Text>
+          </View>
+          <View style={styles.practiceMockLine}>
+            <Text style={styles.practiceMockLineNo}>2</Text>
+            <Text style={styles.practiceMockCode}>
+              <Text style={styles.practiceMockKeyword}>    if not </Text>
+              <Text style={styles.practiceMockPlain}>nums: </Text>
+              <Text style={styles.practiceMockKeyword}>return </Text>
+              <Text style={styles.practiceMockPlain}>0.0</Text>
+            </Text>
+          </View>
+          <View style={[styles.practiceMockLine, styles.bugFixBuggyLine]}>
+            <Text style={[styles.practiceMockLineNo, styles.bugFixBuggyLineNo]}>3</Text>
+            <Text style={styles.practiceMockCode}>
+              <Text style={styles.practiceMockKeyword}>    return </Text>
+              <Text style={styles.practiceMockPlain}>sum(nums) </Text>
+              <Text style={styles.bugFixBadToken}>//</Text>
+              <Text style={styles.practiceMockPlain}> len(nums)</Text>
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.bugFixDiffRow}>
+          <View style={styles.bugFixDiffBadge}>
+            <Ionicons name="arrow-down" size={12} color={colors.primary} />
+            <Text style={styles.bugFixDiffBadgeText}>YOUR FIX</Text>
+          </View>
+        </View>
+        <View style={[styles.practiceMockEditor, styles.bugFixFixedEditor]}>
+          <View style={[styles.practiceMockLine, styles.bugFixFixedLine]}>
+            <Text style={[styles.practiceMockLineNo, styles.bugFixFixedLineNo]}>3</Text>
+            <Text style={styles.practiceMockCode}>
+              <Text style={styles.practiceMockKeyword}>    return </Text>
+              <Text style={styles.practiceMockPlain}>sum(nums) </Text>
+              <Text style={styles.bugFixGoodToken}>/</Text>
+              <Text style={styles.practiceMockPlain}> len(nums)</Text>
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.practiceMockResult}>
+          <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+          <Text style={styles.practiceMockResultText}>
+            All 5 tests passed · 1 ms
+          </Text>
+        </View>
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
+// ============================================================================
+// STEP 7 — System Design (interactive mini editor)
 // ============================================================================
 type DemoNodeState = { id: string; type: ComponentType; x: number; y: number };
 type DemoEdgeState = { from: string; to: string };
@@ -685,12 +788,10 @@ function SystemDesignTeaserStep() {
       </View>
 
       <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
-        Sketch your way through system design
+        Sketch system design
       </Animated.Text>
       <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
-        Drag a node. Tap two nodes to draw a wire. Add more from the palette.{'\n'}
-        Inside the app you'll get real problems with a Test button that
-        checks your wiring against the spec.
+        Drag nodes, tap two to wire them. A Test button grades your design.
       </Animated.Text>
 
       <Animated.View
@@ -815,24 +916,18 @@ function DemoDraggableNode({
 // ============================================================================
 function BehavioralStep() {
   const firstQuestion = behavioralQuestions[0];
-  // Tall phones: plain View. Small phones (SE): ScrollView so the textarea
-  // and "Saves as you type" hint clear the Continue button.
-  const Container: any = IS_SMALL_SCREEN ? ScrollView : View;
-  const containerProps = IS_SMALL_SCREEN
-    ? {
-        style: { flex: 1 },
-        contentContainerStyle: { paddingBottom: spacing.md },
-        showsVerticalScrollIndicator: false,
-        keyboardShouldPersistTaps: 'handled' as const,
-      }
-    : { style: { flex: 1 } };
 
   return (
     <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
       {/* Tap-outside-input dismisses the keyboard. The TextInput inside
           BehavioralCard captures its own taps so this only fires on chrome. */}
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <Container {...containerProps}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: spacing.md }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.heroIconWrap}>
             <Animated.View
               entering={ZoomIn.delay(80).springify().damping(14).mass(0.6)}
@@ -843,11 +938,10 @@ function BehavioralStep() {
           </View>
 
           <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
-            Polish the stories you'll actually tell
+            Polish your stories
           </Animated.Text>
           <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
-            Tap the prompt below and start drafting. Anything you type saves to
-            your device automatically.
+            Tap the prompt, start drafting. Your answer saves as you type.
           </Animated.Text>
 
           <Animated.View
@@ -856,7 +950,7 @@ function BehavioralStep() {
           >
             <BehavioralCard question={firstQuestion} />
           </Animated.View>
-        </Container>
+        </ScrollView>
       </TouchableWithoutFeedback>
     </Animated.View>
   );
@@ -1084,7 +1178,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    marginTop: 'auto',
+    marginTop: spacing.md,
   },
   flipHintText: {
     ...typography.labelSmall,
@@ -1524,6 +1618,97 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '700',
   },
+  // Step 6: bug-fix slide
+  bugFixPillRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  bugFixPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.full,
+  },
+  bugFixPillDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  bugFixPillText: {
+    ...typography.labelSmall,
+    fontWeight: '700',
+    fontSize: 11,
+  },
+  bugFixSectionLabel: {
+    ...typography.labelSmall,
+    color: colors.inkLighter,
+    letterSpacing: 1.4,
+    fontSize: 10,
+    marginTop: spacing.xs,
+  },
+  bugFixBuggyLine: {
+    backgroundColor: `${colors.error}22`,
+    borderRadius: 4,
+    marginHorizontal: -spacing.xs,
+    paddingHorizontal: spacing.xs,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.error,
+  },
+  bugFixBuggyLineNo: {
+    color: colors.errorLight,
+    fontWeight: '700',
+  },
+  bugFixBadToken: {
+    color: '#ff8a8a',
+    fontWeight: '700',
+    textDecorationLine: 'line-through',
+  },
+  bugFixDiffRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  bugFixDiffBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    backgroundColor: `${colors.primary}18`,
+    borderRadius: borderRadius.full,
+  },
+  bugFixDiffBadgeText: {
+    ...typography.labelSmall,
+    color: colors.primary,
+    letterSpacing: 1.2,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  bugFixFixedEditor: {
+    marginTop: 0,
+    paddingVertical: spacing.xs,
+  },
+  bugFixFixedLine: {
+    backgroundColor: `${colors.primary}1F`,
+    borderRadius: 4,
+    marginHorizontal: -spacing.xs,
+    paddingHorizontal: spacing.xs,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  bugFixFixedLineNo: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  bugFixGoodToken: {
+    color: '#a8f0b0',
+    fontWeight: '700',
+  },
   onboardKbBar: {
     marginTop: spacing.sm,
     backgroundColor: colors.background,
@@ -1600,6 +1785,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     justifyContent: 'center',
     marginTop: spacing.md,
+    marginBottom: spacing.sm,
     paddingHorizontal: spacing.xs,
   },
   sdDemoPaletteBtn: {

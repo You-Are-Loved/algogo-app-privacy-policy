@@ -246,6 +246,14 @@ export const categoryColors: Record<string, { color: string; dark: string }> = {
   'caching': { color: '#E91E63', dark: '#C2185B' },
   'message-queues': { color: '#00BCD4', dark: '#0097A7' },
   'devops-basics': { color: '#607D8B', dark: '#455A64' },
+  // SQL categories
+  'sql-fundamentals':        { color: '#336791', dark: '#1F4D6D' },
+  'sql-joins':               { color: '#0F766E', dark: '#0B564E' },
+  'sql-aggregations':        { color: '#7C3AED', dark: '#5B21B6' },
+  'sql-subqueries-ctes':     { color: '#0EA5E9', dark: '#0369A1' },
+  'sql-window-functions':    { color: '#DB2777', dark: '#9D174D' },
+  'sql-indexes-performance': { color: '#D97706', dark: '#92400E' },
+  'sql-transactions':        { color: '#DC2626', dark: '#991B1B' },
 };
 
 // Common styles

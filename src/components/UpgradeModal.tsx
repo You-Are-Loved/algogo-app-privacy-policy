@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,18 +10,14 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
-import {
-  Plan,
-  computeAnnualDiscount,
-  formatIntroDuration,
-} from '../hooks/useSubscription';
-import PlanSelector from './PlanSelector';
+import { formatIntroDuration } from '../hooks/useSubscription';
+import { getPaywallFeatures, PaywallFeature } from '../data/stats';
 
 const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 const PRIVACY_URL = 'https://you-are-loved.github.io/algogo-app-privacy-policy/privacy-policy.html';
@@ -30,7 +26,7 @@ interface UpgradeModalProps {
   visible: boolean;
   onClose: () => void;
   categoryName?: string;
-  /** Show "Continue with preview" — true when used as the onboarding finale. */
+  /** Show "Continue with free version" — true when used as the onboarding finale. */
   showSkip?: boolean;
 }
 
@@ -41,49 +37,43 @@ export default function UpgradeModal({
   showSkip = false,
 }: UpgradeModalProps) {
   const { purchase, restore, products, isLoading } = useSubscriptionContext();
-  const [plan, setPlan] = useState<Plan>('monthly');
+  const [purchasing, setPurchasing] = useState(false);
+  const insets = useSafeAreaInsets();
+  // iPhone Pro Dynamic Island extends below the standard safe-area top inset
+  // a touch, so we pad an extra ~16pt on top of insets.top for clearance.
+  const heroTopPadding = insets.top + spacing.lg;
 
-  // Reset to the default plan whenever the modal is reopened.
-  useEffect(() => {
-    if (visible) setPlan('monthly');
-  }, [visible]);
+  // Monthly-only paywall — the annual SKU still exists in expo-iap for
+  // grandfathered subscribers + Restore, just not exposed in the UI.
+  const product = products.monthly;
+  const priceLabel = product?.display ?? '$2.99';
+  const trial =
+    product?.introOffer?.mode === 'free-trial' ? product.introOffer : null;
+  const trialDuration = trial ? formatIntroDuration(trial) : null;
+
+  const features = React.useMemo(() => getPaywallFeatures(), []);
 
   const handlePurchase = async () => {
-    const result = await purchase(plan);
-    if (result.success) {
-      onClose();
-    }
+    setPurchasing(true);
+    const result = await purchase('monthly');
+    setPurchasing(false);
+    if (result.success) onClose();
   };
 
   const handleRestore = async () => {
     const result = await restore();
-    if (result.success && result.isSubscribed) {
-      onClose();
-    }
+    if (result.success && result.isSubscribed) onClose();
   };
 
-  const discount = computeAnnualDiscount(
-    products.monthly?.amount,
-    products.annual?.amount,
-  );
-  const isAnnual = plan === 'annual';
-  const activeProduct = isAnnual ? products.annual : products.monthly;
-  const activePrice = activeProduct?.display ?? (isAnnual ? '$24.99' : '$2.99');
-  const period = isAnnual ? 'year' : 'month';
-  const trial =
-    activeProduct?.introOffer?.mode === 'free-trial' ? activeProduct.introOffer : null;
-
   const ctaLabel = trial
-    ? `Start ${formatIntroDuration(trial)} free trial`
-    : isAnnual && discount
-      ? `Continue — Save ${discount}%`
-      : 'Continue';
+    ? `Start ${trialDuration} free trial`
+    : `Subscribe · ${priceLabel}/mo`;
 
-  const termsLine = trial
-    ? `${formatIntroDuration(trial)} free, then ${activePrice}/${period} · auto-renews, cancel anytime in Settings.`
-    : isAnnual && discount
-      ? `${activePrice}/${period} · ${discount}% off vs monthly · auto-renews, cancel anytime in Settings.`
-      : `${activePrice}/${period} · auto-renews, cancel anytime in Settings.`;
+  const subtitleLine = trial
+    ? `${trialDuration === '7-day' ? '7 days' : trialDuration} free, then ${priceLabel}/month. Cancel anytime.`
+    : `${priceLabel}/month. Cancel anytime.`;
+
+  const busy = isLoading || purchasing;
 
   return (
     <Modal
@@ -92,49 +82,57 @@ export default function UpgradeModal({
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: heroTopPadding }]}
           bounces={false}
         >
-          {/* Hero */}
-          <View style={styles.header}>
+          <Animated.View
+            entering={FadeInDown.delay(100).duration(500)}
+            style={styles.heroIconWrap}
+          >
             <Image
               source={require('../../assets/logo-final.png')}
-              style={styles.iconContainer}
+              style={styles.heroIcon}
               resizeMode="cover"
             />
-            <Text style={styles.title}>Unlock Algogo Pro</Text>
-            {categoryName ? (
-              <Text style={styles.subtitle}>
-                "{categoryName}" is a Pro topic
-              </Text>
-            ) : (
-              <Text style={styles.subtitle}>
-                Every track, every problem, fully offline
-              </Text>
-            )}
-          </View>
+          </Animated.View>
 
-          {/* Plan picker */}
-          <PlanSelector
-            monthly={products.monthly}
-            annual={products.annual}
-            selected={plan}
-            onSelect={setPlan}
-          />
+          <Animated.Text
+            entering={FadeInDown.delay(200).duration(500)}
+            style={styles.title}
+          >
+            {trial ? 'Try Algogo Pro free' : 'Unlock Algogo Pro'}
+          </Animated.Text>
+          <Animated.Text
+            entering={FadeInDown.delay(300).duration(500)}
+            style={styles.subtitle}
+          >
+            {categoryName ? `"${categoryName}" is a Pro topic · ${subtitleLine}` : subtitleLine}
+          </Animated.Text>
+
+          <Animated.View
+            entering={FadeInDown.delay(400).duration(400)}
+            style={styles.paywallFeatures}
+          >
+            {features.map((f, i) => (
+              <PaywallFeatureRow key={i} icon={f.icon} text={f.text} />
+            ))}
+          </Animated.View>
         </ScrollView>
 
-        {/* Footer with CTAs */}
-        <View style={styles.footer}>
+        <Animated.View
+          entering={FadeInUp.delay(500).duration(400)}
+          style={styles.bottomBar}
+        >
           <TouchableOpacity
-            style={[styles.purchaseButton, isLoading && { opacity: 0.6 }]}
+            style={[styles.primaryCta, busy && { opacity: 0.6 }]}
             onPress={handlePurchase}
-            disabled={isLoading}
+            disabled={busy}
             activeOpacity={0.85}
           >
-            {isLoading ? (
+            {busy ? (
               <ActivityIndicator color={colors.white} />
             ) : (
               <>
@@ -142,7 +140,7 @@ export default function UpgradeModal({
                 <Animated.Text
                   key={ctaLabel}
                   entering={FadeIn.duration(180)}
-                  style={styles.purchaseButtonText}
+                  style={styles.primaryCtaText}
                 >
                   {ctaLabel}
                 </Animated.Text>
@@ -151,29 +149,44 @@ export default function UpgradeModal({
           </TouchableOpacity>
 
           <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-            <Text style={styles.skipText}>
-              {showSkip ? 'Preview the app' : 'Cancel'}
+            <Text style={styles.secondaryCtaText}>
+              {showSkip ? 'Continue with free version' : 'Not now'}
             </Text>
           </TouchableOpacity>
 
-          <Text style={styles.terms}>{termsLine}</Text>
-
-          <View style={styles.legalLinks}>
-            <TouchableOpacity onPress={handleRestore} disabled={isLoading}>
-              <Text style={styles.legalLink}>Restore</Text>
+          <View style={styles.legalRow}>
+            <TouchableOpacity onPress={handleRestore} disabled={busy}>
+              <Text style={styles.legalLink}>Restore Purchase</Text>
             </TouchableOpacity>
-            <Text style={styles.legalDivider}>·</Text>
+            <Text style={styles.legalDot}>·</Text>
             <TouchableOpacity onPress={() => Linking.openURL(TERMS_URL)}>
               <Text style={styles.legalLink}>Terms</Text>
             </TouchableOpacity>
-            <Text style={styles.legalDivider}>·</Text>
+            <Text style={styles.legalDot}>·</Text>
             <TouchableOpacity onPress={() => Linking.openURL(PRIVACY_URL)}>
               <Text style={styles.legalLink}>Privacy</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
       </SafeAreaView>
     </Modal>
+  );
+}
+
+function PaywallFeatureRow({
+  icon,
+  text,
+}: {
+  icon: PaywallFeature['icon'];
+  text: string;
+}) {
+  return (
+    <View style={styles.paywallFeatureRow}>
+      <View style={styles.paywallFeatureIcon}>
+        <Ionicons name={icon} size={18} color={colors.primary} />
+      </View>
+      <Text style={styles.paywallFeatureText}>{text}</Text>
+    </View>
   );
 }
 
@@ -184,60 +197,89 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    // paddingTop is set inline from useSafeAreaInsets() so it tracks the
+    // device's real top inset (notch / Dynamic Island) plus a small gap.
     paddingBottom: spacing.md,
   },
-  header: {
+
+  // Hero
+  heroIconWrap: {
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
-  iconContainer: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
+  heroIcon: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
-    ...shadows.md,
+    ...shadows.lg,
   },
   title: {
     ...typography.displaySmall,
     color: colors.ink,
     textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   subtitle: {
     ...typography.bodyMedium,
     color: colors.inkLight,
     textAlign: 'center',
-    marginTop: spacing.xs,
+    marginBottom: spacing.lg,
     paddingHorizontal: spacing.md,
   },
-  footer: {
+
+  // Feature list
+  paywallFeatures: {
+    gap: spacing.sm,
+  },
+  paywallFeatureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: 6,
+  },
+  paywallFeatureIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: `${colors.primary}1A`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paywallFeatureText: {
+    ...typography.bodyMedium,
+    color: colors.ink,
+    flex: 1,
+    fontSize: 14,
+  },
+
+  // Bottom CTA bar
+  bottomBar: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.background,
   },
-  purchaseButton: {
+  primaryCta: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
-    paddingVertical: 20,
+    paddingVertical: spacing.lg,
     borderRadius: borderRadius.lg,
     gap: spacing.sm,
     ...shadows.md,
   },
-  purchaseButtonText: {
+  primaryCtaText: {
     ...typography.labelLarge,
     color: colors.white,
-    fontSize: 17,
+    fontSize: 16,
   },
-  skipText: {
+  secondaryCtaText: {
     ...typography.labelLarge,
     color: colors.inkLight,
     textAlign: 'center',
@@ -245,15 +287,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     fontSize: 14,
   },
-  terms: {
-    ...typography.labelSmall,
-    color: colors.inkLighter,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-    lineHeight: 16,
-    paddingHorizontal: spacing.sm,
-  },
-  legalLinks: {
+  legalRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -266,7 +300,7 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     fontSize: 12,
   },
-  legalDivider: {
+  legalDot: {
     ...typography.labelMedium,
     color: colors.inkLighter,
     fontSize: 12,

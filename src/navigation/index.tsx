@@ -11,6 +11,7 @@ import OnboardingScreen from '../screens/OnboardingScreen';
 import PracticeScreen from '../screens/PracticeScreen';
 import ProblemScreen from '../screens/ProblemScreen';
 import SystemDesignScreen from '../screens/SystemDesignScreen';
+import BugFixScreen from '../screens/BugFixScreen';
 
 import { useStore, CURRENT_TERMS_VERSION } from '../store/useStore';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
@@ -27,6 +28,7 @@ export type PracticeStackParamList = {
   PracticeList: undefined;
   Problem: { problemId: string };
   SystemDesign: { problemId: string };
+  BugFix: { problemId: string };
 };
 
 export type RootStackParamList = {
@@ -70,6 +72,11 @@ function PracticeStackNavigator() {
       <PracticeStackNav.Screen
         name="SystemDesign"
         component={SystemDesignScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <PracticeStackNav.Screen
+        name="BugFix"
+        component={BugFixScreen}
         options={{ animation: 'slide_from_right' }}
       />
     </PracticeStackNav.Navigator>
