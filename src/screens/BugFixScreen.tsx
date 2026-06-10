@@ -88,10 +88,21 @@ const KEY_SHORTCUTS: { label: string; insert: string; cursorOffset?: number }[] 
   { label: 'break', insert: 'break;' },
 ];
 
-export default function BugFixScreen() {
-  const navigation = useNavigation();
-  const { params } = useRoute<RouteP>();
-  const problem = getBugFixProblem(params.problemId);
+interface BugFixProblemViewProps {
+  problem: BugFixProblem;
+  /** When true, hides the back button + bug explanation (used inside a test). */
+  embedded?: boolean;
+  /** Fired whenever a run/check completes, with the latest pass tally. */
+  onResult?: (r: { passed: number; total: number }) => void;
+  onBack?: () => void;
+}
+
+export function BugFixProblemView({
+  problem,
+  embedded,
+  onResult,
+  onBack,
+}: BugFixProblemViewProps) {
   const webRef = useRef<WebView>(null);
 
   const [runtimeReady, setRuntimeReady] = useState(false);
@@ -103,14 +114,6 @@ export default function BugFixScreen() {
   const [stagedDir, setStagedDir] = useState<string | null>(null);
   const [stageError, setStageError] = useState<string | null>(null);
   const [kbHeight, setKbHeight] = useState(0);
-
-  if (!problem) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.notFoundText}>Problem not found</Text>
-      </SafeAreaView>
-    );
-  }
 
   // Python uses the Pyodide page; JS/Java use the lightweight host.
   const html = useMemo(() => {
@@ -213,6 +216,7 @@ export default function BugFixScreen() {
         setResult(msg.payload);
         setRunning(false);
         setResultsVisible(true);
+        onResult?.({ passed: msg.payload.passed, total: msg.payload.total });
       } else if (msg.type === 'submit') {
         // Java path — grade in TS.
         if (problem.language === 'java' && problem.rules) {
@@ -220,6 +224,7 @@ export default function BugFixScreen() {
           setResult(graded);
           setRunning(false);
           setResultsVisible(true);
+          onResult?.({ passed: graded.passed, total: graded.total });
         }
       } else if (msg.type === 'error') {
         setResult({
@@ -232,6 +237,7 @@ export default function BugFixScreen() {
         });
         setRunning(false);
         setResultsVisible(true);
+        onResult?.({ passed: 0, total: 0 });
       }
     } catch {}
   };
@@ -242,19 +248,18 @@ export default function BugFixScreen() {
     problem.language === 'python' ? 'Loading Python…' : 'Loading editor…';
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backBtn}
-          >
-            <Ionicons name="chevron-back" size={24} color={colors.ink} />
-          </TouchableOpacity>
+          {onBack && (
+            <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+              <Ionicons name="chevron-back" size={24} color={colors.ink} />
+            </TouchableOpacity>
+          )}
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle} numberOfLines={1}>
               {problem.title}
@@ -283,13 +288,15 @@ export default function BugFixScreen() {
               <Text style={styles.topicText}>{problem.topic}</Text>
             </View>
           </View>
-          <TouchableOpacity
-            onPress={() => setExplanationVisible(true)}
-            style={styles.headerBtn}
-            hitSlop={8}
-          >
-            <Ionicons name="bulb-outline" size={20} color={colors.inkLight} />
-          </TouchableOpacity>
+          {!embedded && (
+            <TouchableOpacity
+              onPress={() => setExplanationVisible(true)}
+              style={styles.headerBtn}
+              hitSlop={8}
+            >
+              <Ionicons name="bulb-outline" size={20} color={colors.inkLight} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={handleReset}
             style={styles.headerBtn}
@@ -566,6 +573,26 @@ export default function BugFixScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+    </View>
+  );
+}
+
+export default function BugFixScreen() {
+  const navigation = useNavigation();
+  const { params } = useRoute<RouteP>();
+  const problem = getBugFixProblem(params.problemId);
+
+  if (!problem) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.notFoundText}>Problem not found</Text>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <BugFixProblemView problem={problem} onBack={() => navigation.goBack()} />
     </SafeAreaView>
   );
 }

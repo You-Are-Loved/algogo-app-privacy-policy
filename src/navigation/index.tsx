@@ -1,5 +1,8 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  getFocusedRouteNameFromRoute,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,11 +15,16 @@ import PracticeScreen from '../screens/PracticeScreen';
 import ProblemScreen from '../screens/ProblemScreen';
 import SystemDesignScreen from '../screens/SystemDesignScreen';
 import BugFixScreen from '../screens/BugFixScreen';
+import TestHomeScreen from '../screens/TestHomeScreen';
+import TestBuilderScreen from '../screens/TestBuilderScreen';
+import TestSessionScreen from '../screens/TestSessionScreen';
+import TestResultsScreen from '../screens/TestResultsScreen';
 
 import { useStore, CURRENT_TERMS_VERSION } from '../store/useStore';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
 import { colors } from '../theme';
 import { ContentType } from '../data/allCategories';
+import { ItemOutcome } from '../data/testMode';
 
 // Stack param lists
 export type TabStackParamList = {
@@ -31,6 +39,13 @@ export type PracticeStackParamList = {
   BugFix: { problemId: string };
 };
 
+export type TestStackParamList = {
+  TestHome: undefined;
+  TestBuilder: { templateId?: string; duplicateFrom?: string } | undefined;
+  TestSession: { templateId: string };
+  TestResults: { outcomes: ItemOutcome[]; templateName: string };
+};
+
 export type RootStackParamList = {
   Terms: undefined;
   Onboarding: undefined;
@@ -40,12 +55,14 @@ export type RootStackParamList = {
 export type TabParamList = {
   StudyTab: undefined;
   PracticeTab: undefined;
+  TestTab: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 const StudyStack = createNativeStackNavigator<TabStackParamList>();
 const PracticeStackNav = createNativeStackNavigator<PracticeStackParamList>();
+const TestStackNav = createNativeStackNavigator<TestStackParamList>();
 
 function StudyStackNavigator() {
   return (
@@ -83,19 +100,44 @@ function PracticeStackNavigator() {
   );
 }
 
+function TestStackNavigator() {
+  return (
+    <TestStackNav.Navigator screenOptions={{ headerShown: false }}>
+      <TestStackNav.Screen name="TestHome" component={TestHomeScreen} />
+      <TestStackNav.Screen
+        name="TestBuilder"
+        component={TestBuilderScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <TestStackNav.Screen
+        name="TestSession"
+        component={TestSessionScreen}
+        options={{ animation: 'slide_from_bottom', gestureEnabled: false }}
+      />
+      <TestStackNav.Screen
+        name="TestResults"
+        component={TestResultsScreen}
+        options={{ animation: 'slide_from_right', gestureEnabled: false }}
+      />
+    </TestStackNav.Navigator>
+  );
+}
+
+const TAB_BAR_STYLE = {
+  backgroundColor: colors.card,
+  borderTopColor: colors.border,
+  borderTopWidth: 1,
+  paddingTop: 8,
+  paddingBottom: 8,
+  height: 85,
+} as const;
+
 function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopColor: colors.border,
-          borderTopWidth: 1,
-          paddingTop: 8,
-          paddingBottom: 8,
-          height: 85,
-        },
+        tabBarStyle: TAB_BAR_STYLE,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.inkLight,
         tabBarLabelStyle: {
@@ -123,6 +165,25 @@ function MainTabs() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="code-slash-outline" size={size} color={color} />
           ),
+        }}
+      />
+      <Tab.Screen
+        name="TestTab"
+        component={TestStackNavigator}
+        options={({ route }) => {
+          // Hide the tab bar while an interview is running — it's immersive
+          // and a stray tab switch would wreck the timed session.
+          const focused = getFocusedRouteNameFromRoute(route) ?? 'TestHome';
+          return {
+            tabBarLabel: 'Interview',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="stopwatch-outline" size={size} color={color} />
+            ),
+            tabBarStyle:
+              focused === 'TestSession'
+                ? { display: 'none' as const }
+                : TAB_BAR_STYLE,
+          };
         }}
       />
     </Tab.Navigator>

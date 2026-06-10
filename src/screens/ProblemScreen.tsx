@@ -73,10 +73,21 @@ const KEY_SHORTCUTS: { label: string; insert: string; cursorOffset?: number }[] 
 type RouteP = RouteProp<PracticeStackParamList, 'Problem'>;
 
 
-export default function ProblemScreen() {
-  const navigation = useNavigation();
-  const { params } = useRoute<RouteP>();
-  const problem = getProblem(params.problemId);
+interface AlgorithmProblemViewProps {
+  problem: Blind75Problem;
+  /** When true, hides the back button + solution hint (used inside a test). */
+  embedded?: boolean;
+  /** Fired whenever a run completes, with the latest test-case tally. */
+  onResult?: (r: { passed: number; total: number }) => void;
+  onBack?: () => void;
+}
+
+export function AlgorithmProblemView({
+  problem,
+  embedded,
+  onResult,
+  onBack,
+}: AlgorithmProblemViewProps) {
   const webRef = useRef<WebView>(null);
 
   const [runtimeReady, setRuntimeReady] = useState(false);
@@ -88,14 +99,6 @@ export default function ProblemScreen() {
   const [stagedDir, setStagedDir] = useState<string | null>(null);
   const [stageError, setStageError] = useState<string | null>(null);
   const [kbHeight, setKbHeight] = useState(0);
-
-  if (!problem) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.notFoundText}>Problem not found</Text>
-      </SafeAreaView>
-    );
-  }
 
   const html = useMemo(
     () => buildPracticeHtml({ starter: problem.starter, fnName: problem.functionName }),
@@ -175,6 +178,7 @@ export default function ProblemScreen() {
         setResult(msg.payload);
         setRunning(false);
         setResultsVisible(true);
+        onResult?.({ passed: msg.payload.passed, total: msg.payload.total });
       } else if (msg.type === 'error') {
         setResult({
           passed: 0,
@@ -184,6 +188,7 @@ export default function ProblemScreen() {
         });
         setRunning(false);
         setResultsVisible(true);
+        onResult?.({ passed: 0, total: 0 });
       }
     } catch {}
   };
@@ -191,16 +196,18 @@ export default function ProblemScreen() {
   const diffColor = DIFF_COLORS[problem.difficulty];
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={24} color={colors.ink} />
-          </TouchableOpacity>
+          {onBack && (
+            <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+              <Ionicons name="chevron-back" size={24} color={colors.ink} />
+            </TouchableOpacity>
+          )}
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle} numberOfLines={1}>
               {problem.title}
@@ -214,7 +221,7 @@ export default function ProblemScreen() {
               <Text style={styles.topicText}>{problem.topic}</Text>
             </View>
           </View>
-          {problem.explanation && (
+          {!embedded && problem.explanation && (
             <TouchableOpacity
               onPress={() => setExplanationVisible(true)}
               style={styles.headerBtn}
@@ -437,6 +444,26 @@ export default function ProblemScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+    </View>
+  );
+}
+
+export default function ProblemScreen() {
+  const navigation = useNavigation();
+  const { params } = useRoute<RouteP>();
+  const problem = getProblem(params.problemId);
+
+  if (!problem) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.notFoundText}>Problem not found</Text>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <AlgorithmProblemView problem={problem} onBack={() => navigation.goBack()} />
     </SafeAreaView>
   );
 }

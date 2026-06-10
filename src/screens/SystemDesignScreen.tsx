@@ -69,16 +69,28 @@ export default function SystemDesignScreen() {
     );
   }
 
-  return <SystemDesignEditor problem={problem} onBack={() => navigation.goBack()} />;
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <SystemDesignProblemView problem={problem} onBack={() => navigation.goBack()} />
+    </SafeAreaView>
+  );
 }
 
-function SystemDesignEditor({
-  problem,
-  onBack,
-}: {
+interface SystemDesignProblemViewProps {
   problem: SystemDesignProblem;
-  onBack: () => void;
-}) {
+  /** When true, hides hints + the worked solution (used inside a test). */
+  embedded?: boolean;
+  /** Fired on "Test diagram" with matched / required requirement counts. */
+  onResult?: (r: { passed: number; total: number }) => void;
+  onBack?: () => void;
+}
+
+export function SystemDesignProblemView({
+  problem,
+  embedded,
+  onResult,
+  onBack,
+}: SystemDesignProblemViewProps) {
   const [nodes, setNodes] = useState<NodeState[]>([]);
   const [edges, setEdges] = useState<EdgeState[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -164,6 +176,11 @@ function SystemDesignEditor({
       missingComponents,
       missingConnections,
     });
+    const requiredTotal =
+      problem.requiredComponents.length + problem.requiredConnections.length;
+    const matched =
+      requiredTotal - missingComponents.length - missingConnections.length;
+    onResult?.({ passed: matched, total: requiredTotal });
   };
 
   const handleHint = () => {
@@ -172,34 +189,40 @@ function SystemDesignEditor({
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={onBack} style={styles.headerBtn} hitSlop={8}>
-            <Ionicons name="chevron-back" size={24} color={colors.ink} />
-          </TouchableOpacity>
+          {onBack && (
+            <TouchableOpacity onPress={onBack} style={styles.headerBtn} hitSlop={8}>
+              <Ionicons name="chevron-back" size={24} color={colors.ink} />
+            </TouchableOpacity>
+          )}
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle} numberOfLines={1}>
               {problem.title}
             </Text>
             <Text style={styles.headerTopic}>{problem.topic}</Text>
           </View>
-          <TouchableOpacity
-            onPress={handleHint}
-            style={styles.headerBtn}
-            hitSlop={8}
-            accessibilityLabel="Hint"
-          >
-            <Ionicons name="bulb-outline" size={20} color={colors.inkLight} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setSolutionOpen(true)}
-            style={styles.headerBtn}
-            hitSlop={8}
-            accessibilityLabel="Solution"
-          >
-            <Ionicons name="book-outline" size={20} color={colors.inkLight} />
-          </TouchableOpacity>
+          {!embedded && (
+            <>
+              <TouchableOpacity
+                onPress={handleHint}
+                style={styles.headerBtn}
+                hitSlop={8}
+                accessibilityLabel="Hint"
+              >
+                <Ionicons name="bulb-outline" size={20} color={colors.inkLight} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setSolutionOpen(true)}
+                style={styles.headerBtn}
+                hitSlop={8}
+                accessibilityLabel="Solution"
+              >
+                <Ionicons name="book-outline" size={20} color={colors.inkLight} />
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         {/* Prompt strip */}
@@ -343,7 +366,7 @@ function SystemDesignEditor({
           problem={problem}
           onClose={() => setSolutionOpen(false)}
         />
-      </SafeAreaView>
+      </View>
     </GestureHandlerRootView>
   );
 }
