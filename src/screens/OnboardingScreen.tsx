@@ -54,8 +54,8 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IS_SMALL_SCREEN = SCREEN_HEIGHT < 750; // iPhone SE territory
 const SD_CANVAS_HEIGHT = IS_SMALL_SCREEN ? 160 : 190;
 
-type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
-const TOTAL_STEPS = 9;
+type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+const TOTAL_STEPS = 10;
 
 export default function OnboardingScreen() {
   const [step, setStep] = useState<Step>(0);
@@ -117,6 +117,7 @@ export default function OnboardingScreen() {
         {step === 6 && <SystemDesignTeaserStep />}
         {step === 7 && <BehavioralStep />}
         {step === 8 && <OfflineStep />}
+        {step === 9 && <MockInterviewStep />}
       </View>
 
       {/* Bottom CTA */}
@@ -953,6 +954,290 @@ function BehavioralStep() {
         </ScrollView>
       </TouchableWithoutFeedback>
     </Animated.View>
+  );
+}
+
+// ============================================================================
+// STEP 9 — Mock Interview (advertising slide, not interactive)
+// ============================================================================
+// The faux session cycles through one round of each section kind so the card
+// "plays" a whole interview on loop.
+const MI_STAGES: {
+  q: number;
+  kind: string;
+  color: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  tag: string;
+  tagColor: string;
+  seconds: number;
+  body: 'code' | 'diagram' | 'bugfix' | 'behavioral';
+  result: string;
+}[] = [
+  {
+    q: 2,
+    kind: 'LeetCode',
+    color: '#8B5CF6',
+    icon: 'code-slash-outline',
+    title: 'Two Sum',
+    tag: 'Medium',
+    tagColor: colors.accentDark,
+    seconds: 11 * 60 + 42,
+    body: 'code',
+    result: 'All 6 tests passed',
+  },
+  {
+    q: 3,
+    kind: 'System Design',
+    color: '#636E72',
+    icon: 'git-network-outline',
+    title: 'Design a URL Shortener',
+    tag: 'Diagram',
+    tagColor: colors.secondaryDark,
+    seconds: 24 * 60 + 58,
+    body: 'diagram',
+    result: 'All components connected',
+  },
+  {
+    q: 4,
+    kind: 'Bug Fix',
+    color: '#EF4444',
+    icon: 'bug-outline',
+    title: 'Fix: Average of a List',
+    tag: 'Python',
+    tagColor: '#3776AB',
+    seconds: 9 * 60 + 51,
+    body: 'bugfix',
+    result: 'Bug fixed — 5 / 5 tests',
+  },
+  {
+    q: 5,
+    kind: 'Behavioral',
+    color: '#1CB0F6',
+    icon: 'chatbubbles-outline',
+    title: 'A challenge you overcame',
+    tag: 'STAR',
+    tagColor: colors.secondaryDark,
+    seconds: 4 * 60 + 43,
+    body: 'behavioral',
+    result: 'Answer saved',
+  },
+];
+
+const MI_STAGE_MS = 3600;
+
+function MockInterviewStep() {
+  const [stageIdx, setStageIdx] = useState(0);
+  const stage = MI_STAGES[stageIdx];
+
+  // Cycle through the interview rounds.
+  useEffect(() => {
+    const t = setInterval(
+      () => setStageIdx((i) => (i + 1) % MI_STAGES.length),
+      MI_STAGE_MS,
+    );
+    return () => clearInterval(t);
+  }, []);
+
+  // Per-question countdown — resets to the new budget on every round.
+  const [secondsLeft, setSecondsLeft] = useState(MI_STAGES[0].seconds);
+  useEffect(() => {
+    setSecondsLeft(MI_STAGES[stageIdx].seconds);
+    const t = setInterval(() => setSecondsLeft((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [stageIdx]);
+  const mm = Math.floor(secondsLeft / 60);
+  const ss = (secondsLeft % 60).toString().padStart(2, '0');
+
+  // Session progress bar eases forward as the rounds advance — no spring,
+  // a bouncy progress bar reads as glitchy.
+  const fill = useSharedValue(MI_STAGES[0].q / 6);
+  useEffect(() => {
+    fill.value = withTiming(MI_STAGES[stageIdx].q / 6, {
+      duration: 450,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [stageIdx]);
+  const fillStyle = useAnimatedStyle(() => ({
+    width: `${fill.value * 100}%`,
+  }));
+
+  return (
+    <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
+      <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.modeHeader}>
+        <View style={[styles.modeBadge, { backgroundColor: `${colors.purple}20` }]}>
+          <Ionicons name="stopwatch-outline" size={16} color={colors.purpleDark} />
+          <Text style={[styles.modeBadgeText, { color: colors.purpleDark }]}>
+            Mock Interview
+          </Text>
+        </View>
+        <Text style={styles.title}>Rehearse the real thing</Text>
+        <Text style={styles.subtitle}>
+          Mix coding, system design, bug fixes, and behavioral from our massive
+          question bank — build a custom interview or pick a preset.
+        </Text>
+      </Animated.View>
+
+      {/* Faux session card — plays one round per section kind on loop */}
+      <Animated.View entering={FadeInDown.delay(250).duration(500)} style={styles.miCard}>
+        <View style={styles.miHeader}>
+          <Animated.Text
+            key={`q-${stageIdx}`}
+            entering={FadeIn.duration(300)}
+            style={styles.miProgressText}
+          >
+            Question {stage.q} of 6
+          </Animated.Text>
+          <View style={[styles.miTimerChip, { backgroundColor: `${stage.color}1C` }]}>
+            <Ionicons name="time-outline" size={13} color={stage.color} />
+            <Text style={[styles.miTimerText, { color: stage.color }]}>
+              {mm}:{ss}
+            </Text>
+          </View>
+          <View style={styles.miNextPill}>
+            <Text style={styles.miNextPillText}>Next</Text>
+            <Ionicons name="arrow-forward" size={11} color={colors.white} />
+          </View>
+        </View>
+        <View style={styles.miBarTrack}>
+          <Animated.View
+            style={[styles.miBarFill, { backgroundColor: stage.color }, fillStyle]}
+          />
+        </View>
+
+        <Animated.View key={`stage-${stageIdx}`} entering={FadeIn.duration(350)}>
+          <View style={styles.miProblemRow}>
+            <View style={[styles.miKindChip, { backgroundColor: `${stage.color}16` }]}>
+              <Ionicons name={stage.icon} size={12} color={stage.color} />
+              <Text style={[styles.miKindChipText, { color: stage.color }]}>
+                {stage.kind}
+              </Text>
+            </View>
+            <View style={[styles.bugFixPill, { backgroundColor: `${stage.tagColor}1E` }]}>
+              <Text style={[styles.bugFixPillText, { color: stage.tagColor }]}>
+                {stage.tag}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.miProblemTitle} numberOfLines={1}>
+            {stage.title}
+          </Text>
+
+          {stage.body === 'code' && <MiCodeBody />}
+          {stage.body === 'diagram' && <MiDiagramBody />}
+          {stage.body === 'bugfix' && <MiBugFixBody />}
+          {stage.body === 'behavioral' && <MiBehavioralBody />}
+
+          {/* Fixed-height slot so the toast doesn't shift the layout */}
+          <View style={styles.miResultSlot}>
+            <Animated.View
+              entering={FadeInUp.delay(1300).duration(400)}
+              style={styles.practiceMockResult}
+            >
+              <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+              <Text style={styles.practiceMockResultText}>{stage.result}</Text>
+            </Animated.View>
+          </View>
+        </Animated.View>
+      </Animated.View>
+
+    </Animated.View>
+  );
+}
+
+function MiCodeBody() {
+  return (
+    <View style={[styles.practiceMockEditor, styles.miBody]}>
+      <View style={styles.practiceMockLine}>
+        <Text style={styles.practiceMockLineNo}>1</Text>
+        <Text style={styles.practiceMockCode}>
+          <Text style={styles.practiceMockKeyword}>def </Text>
+          <Text style={styles.practiceMockFn}>two_sum</Text>
+          <Text style={styles.practiceMockPlain}>(nums, target):</Text>
+        </Text>
+      </View>
+      <View style={styles.practiceMockLine}>
+        <Text style={styles.practiceMockLineNo}>2</Text>
+        <Text style={styles.practiceMockCode}>
+          <Text style={styles.practiceMockPlain}>    seen = {'{}'}</Text>
+        </Text>
+      </View>
+      <View style={styles.practiceMockLine}>
+        <Text style={styles.practiceMockLineNo}>3</Text>
+        <Text style={styles.practiceMockCode}>
+          <Text style={styles.practiceMockKeyword}>    for </Text>
+          <Text style={styles.practiceMockPlain}>i, n </Text>
+          <Text style={styles.practiceMockKeyword}>in </Text>
+          <Text style={styles.practiceMockPlain}>enumerate(nums):</Text>
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function MiDiagramBody() {
+  const nodes: { icon: keyof typeof Ionicons.glyphMap; label: string; color: string }[] = [
+    { icon: 'phone-portrait-outline', label: 'Client', color: '#0984E3' },
+    { icon: 'git-network-outline', label: 'Load Bal.', color: '#5A67D8' },
+    { icon: 'server-outline', label: 'Database', color: '#00B894' },
+  ];
+  return (
+    <View style={[styles.miCanvas, styles.miBody]}>
+      {nodes.map((n, i) => (
+        <React.Fragment key={n.label}>
+          {i > 0 && (
+            <Ionicons name="arrow-forward" size={14} color={colors.inkLighter} />
+          )}
+          <View
+            style={[
+              styles.miNode,
+              { borderColor: n.color, backgroundColor: `${n.color}14` },
+            ]}
+          >
+            <Ionicons name={n.icon} size={14} color={n.color} />
+            <Text style={styles.miNodeLabel}>{n.label}</Text>
+          </View>
+        </React.Fragment>
+      ))}
+    </View>
+  );
+}
+
+function MiBugFixBody() {
+  return (
+    <View style={[styles.practiceMockEditor, styles.miBody]}>
+      <View style={styles.practiceMockLine}>
+        <Text style={styles.practiceMockLineNo}>1</Text>
+        <Text style={styles.practiceMockCode}>
+          <Text style={styles.practiceMockKeyword}>def </Text>
+          <Text style={styles.practiceMockFn}>average</Text>
+          <Text style={styles.practiceMockPlain}>(nums):</Text>
+        </Text>
+      </View>
+      <View style={[styles.practiceMockLine, styles.bugFixBuggyLine]}>
+        <Text style={[styles.practiceMockLineNo, styles.bugFixBuggyLineNo]}>2</Text>
+        <Text style={styles.practiceMockCode}>
+          <Text style={styles.practiceMockKeyword}>    return </Text>
+          <Text style={styles.practiceMockPlain}>sum(nums) </Text>
+          <Text style={styles.bugFixBadToken}>//</Text>
+          <Text style={styles.practiceMockPlain}> len(nums)</Text>
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function MiBehavioralBody() {
+  return (
+    <View style={[styles.miCanvas, styles.miBody, { flexDirection: 'column', gap: spacing.sm }]}>
+      <Text style={styles.miQuotePrompt}>
+        "Tell me about a challenging technical problem you solved."
+      </Text>
+      <View style={styles.miQuoteTyping}>
+        <Ionicons name="create-outline" size={13} color={colors.secondary} />
+        <Text style={styles.miQuoteTypingText}>Drafting STAR answer…</Text>
+      </View>
+    </View>
   );
 }
 
@@ -1803,6 +2088,146 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: '700',
     fontSize: 12,
+  },
+  // Step 9: mock interview ad
+  miCard: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    marginHorizontal: spacing.xs,
+    ...shadows.sm,
+  },
+  miHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  miProgressText: {
+    ...typography.labelLarge,
+    color: colors.ink,
+    flex: 1,
+  },
+  miTimerChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.full,
+    backgroundColor: `${colors.purple}1E`,
+  },
+  miTimerText: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.purpleDark,
+  },
+  miNextPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.secondary,
+  },
+  miNextPillText: {
+    ...typography.labelSmall,
+    color: colors.white,
+    fontSize: 11,
+  },
+  miBarTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    overflow: 'hidden',
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  miBarFill: {
+    height: '100%',
+    borderRadius: 2,
+    backgroundColor: colors.purpleDark,
+  },
+  miProblemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  miProblemTitle: {
+    ...typography.headlineSmall,
+    color: colors.ink,
+    marginBottom: spacing.xs,
+  },
+  miKindChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: borderRadius.full,
+  },
+  miKindChipText: {
+    ...typography.labelSmall,
+    fontWeight: '700',
+    fontSize: 11,
+  },
+  miBody: {
+    minHeight: 86,
+    justifyContent: 'center',
+  },
+  miResultSlot: {
+    height: 44,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+    marginTop: spacing.xs,
+  },
+  miCanvas: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.sm,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  miNode: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    borderWidth: 1.5,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  miNodeLabel: {
+    ...typography.labelSmall,
+    color: colors.ink,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  miQuotePrompt: {
+    ...typography.bodyMedium,
+    color: colors.ink,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingHorizontal: spacing.sm,
+  },
+  miQuoteTyping: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  miQuoteTypingText: {
+    ...typography.labelSmall,
+    color: colors.secondary,
   },
   // Step 7: behavioral preview
   behavioralStack: {
