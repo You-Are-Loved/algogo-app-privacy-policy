@@ -7,6 +7,9 @@ import { TestTemplate } from '../data/testMode';
 // are NOT stored here — this slice only persists what the user creates.
 interface TestStoreState {
   templates: TestTemplate[];
+  /** True once the free sample interview has been started — it's one-shot. */
+  sampleUsed: boolean;
+  markSampleUsed: () => void;
   /** Insert or update by id. Stamps updatedAt; sets createdAt on first save. */
   saveTemplate: (template: TestTemplate) => void;
   deleteTemplate: (id: string) => void;
@@ -17,6 +20,8 @@ export const useTestStore = create<TestStoreState>()(
   persist(
     (set, get) => ({
       templates: [],
+      sampleUsed: false,
+      markSampleUsed: () => set({ sampleUsed: true }),
 
       saveTemplate: (template) => {
         const now = Date.now();
@@ -47,7 +52,10 @@ export const useTestStore = create<TestStoreState>()(
     {
       name: '@algogo_test_templates',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ templates: state.templates }),
+      partialize: (state) => ({
+        templates: state.templates,
+        sampleUsed: state.sampleUsed,
+      }),
     },
   ),
 );

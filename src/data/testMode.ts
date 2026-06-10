@@ -14,6 +14,7 @@
 // Scoring (see scoreSession): every item resolves to a 0..1 score —
 //   • algorithms / bug-fix : passed / total test cases
 //   • system-design        : matched / required (components + connections)
+//   • quiz                 : 1 if the correct option was picked, 0 otherwise
 //   • behavioral           : 1 if answered, 0 if not
 // Skipped or timed-out items score 0 and are tallied separately, so skipping
 // directly lowers the final percentage.
@@ -35,6 +36,12 @@ import {
   BehavioralQuestion,
   getBehavioralQuestion,
 } from './behavioral';
+import {
+  quizBank,
+  QuizBankItem,
+  QUIZ_TRACKS,
+  getQuizBankItem,
+} from './quizBank';
 
 export type { Difficulty } from './blind75';
 export type { BugFixLanguage } from './bugFixes';
@@ -43,12 +50,14 @@ export type SectionKind =
   | 'algorithms'
   | 'system-design'
   | 'bug-fix'
+  | 'quiz'
   | 'behavioral';
 
 export const SECTION_KINDS: SectionKind[] = [
   'algorithms',
   'system-design',
   'bug-fix',
+  'quiz',
   'behavioral',
 ];
 
@@ -98,6 +107,16 @@ export const SECTION_META: Record<SectionKind, SectionMetaInfo> = {
     hasLanguages: true,
     poolTotal: bugFixProblems.length,
   },
+  quiz: {
+    label: 'Quiz',
+    short: 'Quiz',
+    icon: 'help-circle-outline',
+    color: '#A855F7',
+    hasDifficulty: false,
+    hasTopics: true,
+    hasLanguages: false,
+    poolTotal: quizBank.length,
+  },
   behavioral: {
     label: 'Behavioral',
     short: 'Behavioral',
@@ -130,7 +149,8 @@ export const LANGUAGE_LABELS: Record<BugFixLanguage, string> = {
   java: 'Java',
 };
 
-/** Topic options for a section's topic multi-select ([] when N/A). */
+/** Topic options for a section's topic multi-select ([] when N/A).
+ *  For quiz, "topics" are the study tracks (Algorithms, iOS, SQL, …). */
 export function topicsForKind(kind: SectionKind): string[] {
   switch (kind) {
     case 'algorithms':
@@ -139,6 +159,8 @@ export function topicsForKind(kind: SectionKind): string[] {
       return SD_TOPICS;
     case 'bug-fix':
       return BUGFIX_TOPICS;
+    case 'quiz':
+      return QUIZ_TRACKS;
     default:
       return [];
   }
@@ -149,6 +171,7 @@ export const DEFAULT_SECONDS: Record<SectionKind, number> = {
   algorithms: 1200, // 20 min
   'system-design': 1500, // 25 min
   'bug-fix': 600, // 10 min
+  quiz: 90, // rapid-fire
   behavioral: 300, // 5 min
 };
 
@@ -225,6 +248,25 @@ export function createBlankTemplate(name = 'My mock interview'): TestTemplate {
   };
 }
 
+/**
+ * Ensure a template has a config row for every section kind. Saved templates
+ * predate kinds added in later versions (e.g. quiz) — missing kinds are
+ * appended disabled so old templates keep working and stay editable.
+ */
+export function withAllSections(template: TestTemplate): TestTemplate {
+  const missing = SECTION_KINDS.filter(
+    (k) => !template.sections.some((s) => s.kind === k),
+  );
+  if (missing.length === 0) return template;
+  return {
+    ...template,
+    sections: [
+      ...template.sections,
+      ...missing.map((k) => ({ ...createSectionConfig(k), enabled: false })),
+    ],
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Pool filtering + sampling
 // ---------------------------------------------------------------------------
@@ -258,6 +300,10 @@ export function poolForSection(cfg: SectionConfig): string[] {
             matchesTopic(cfg.topics, p.topic),
         )
         .map((p) => p.id);
+    case 'quiz':
+      return quizBank
+        .filter((q) => matchesTopic(cfg.topics, q.track))
+        .map((q) => q.bankId);
     case 'behavioral':
       return behavioralQuestions.map((p) => p.id);
   }
@@ -331,6 +377,8 @@ export function itemTitle(kind: SectionKind, problemId: string): string {
       return getSystemDesignProblem(problemId)?.title ?? 'Problem';
     case 'bug-fix':
       return getBugFixProblem(problemId)?.title ?? 'Problem';
+    case 'quiz':
+      return getQuizBankItem(problemId)?.question ?? 'Question';
     case 'behavioral':
       return getBehavioralQuestion(problemId)?.prompt ?? 'Question';
   }
@@ -454,7 +502,43 @@ function preset(
   };
 }
 
+/**
+ * The one preset free users can actually run — one question of every section
+ * kind. Shown only to non-subscribers, and only until they've run it once.
+ *
+ * The questions are FIXED (see buildSampleSession), not sampled: reinstalling
+ * the app re-offers the sample but always with the same five questions, so
+ * there's no fresh content to farm by resetting.
+ */
+export const SAMPLE_TEMPLATE_ID = 'preset-sample';
+
+/** Fixed question set for the sample run — ids must exist in their pools. */
+export function buildSampleSession(): TestItem[] {
+  const fixed: { kind: SectionKind; problemId: string; seconds: number }[] = [
+    { kind: 'algorithms', problemId: 'two-sum', seconds: 900 },
+    { kind: 'system-design', problemId: 'url-shortener', seconds: 900 },
+    { kind: 'bug-fix', problemId: 'py-off-by-one-sum', seconds: 480 },
+    { kind: 'quiz', problemId: 'algorithms/sliding-window/sw-q1', seconds: 90 },
+    { kind: 'behavioral', problemId: 'tech-challenge', seconds: 240 },
+  ];
+  return fixed.map((f, i) => ({
+    uid: `sample-${f.kind}-${i}`,
+    kind: f.kind,
+    problemId: f.problemId,
+    secondsBudget: f.seconds,
+  }));
+}
+
 export const BUILT_IN_TEMPLATES: TestTemplate[] = [
+  // Section configs mirror buildSampleSession so the card's chips/duration
+  // are accurate — but the session itself uses the fixed ids above.
+  preset(SAMPLE_TEMPLATE_ID, 'Sample interview', {
+    algorithms: { count: 1, secondsPerQuestion: 900, difficulties: ['Easy'] },
+    'system-design': { count: 1, secondsPerQuestion: 900 },
+    'bug-fix': { count: 1, secondsPerQuestion: 480 },
+    quiz: { count: 1, secondsPerQuestion: 90 },
+    behavioral: { count: 1, secondsPerQuestion: 240 },
+  }),
   preset('preset-balanced', 'Balanced loop', {
     algorithms: { count: 2, secondsPerQuestion: 1200 },
     'system-design': { count: 2, secondsPerQuestion: 1500 },
@@ -477,6 +561,9 @@ export const BUILT_IN_TEMPLATES: TestTemplate[] = [
     'system-design': { count: 3, secondsPerQuestion: 1500 },
     behavioral: { count: 1, secondsPerQuestion: 360 },
   }),
+  preset('preset-quiz-blitz', 'Quiz blitz', {
+    quiz: { count: 8, secondsPerQuestion: 60 },
+  }),
 ];
 
 export {
@@ -484,10 +571,12 @@ export {
   getSystemDesignProblem,
   getBugFixProblem,
   getBehavioralQuestion,
+  getQuizBankItem,
 };
 export type {
   Blind75Problem,
   SystemDesignProblem,
   BugFixProblem,
   BehavioralQuestion,
+  QuizBankItem,
 };

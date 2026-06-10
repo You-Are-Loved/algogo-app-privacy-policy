@@ -19,6 +19,7 @@ import UpgradeModal from '../components/UpgradeModal';
 import { useTestStore } from '../store/useTestStore';
 import {
   BUILT_IN_TEMPLATES,
+  SAMPLE_TEMPLATE_ID,
   TestTemplate,
   SECTION_META,
   plannedCount,
@@ -35,9 +36,11 @@ export default function TestHomeScreen() {
   const { isSubscribed, toggleDevSubscription } = useSubscriptionContext();
   const templates = useTestStore((s) => s.templates);
   const deleteTemplate = useTestStore((s) => s.deleteTemplate);
+  const sampleUsed = useTestStore((s) => s.sampleUsed);
   const [upgradeVisible, setUpgradeVisible] = useState(false);
 
-  // All entry points gate behind Pro — mock interviews are a Pro feature.
+  // Everything gates behind Pro except the free sample interview — one taste
+  // so free users feel the feature before the paywall.
   const gated = (fn: () => void) => () => {
     if (!isSubscribed) {
       setUpgradeVisible(true);
@@ -46,8 +49,8 @@ export default function TestHomeScreen() {
     fn();
   };
 
-  const handleRun = (template: TestTemplate) =>
-    gated(() => {
+  const handleRun = (template: TestTemplate) => {
+    const run = () => {
       if (!isRunnable(template)) {
         Alert.alert(
           'Nothing to run',
@@ -56,7 +59,13 @@ export default function TestHomeScreen() {
         return;
       }
       navigation.navigate('TestSession', { templateId: template.id });
-    })();
+    };
+    if (template.id === SAMPLE_TEMPLATE_ID) {
+      run();
+      return;
+    }
+    gated(run)();
+  };
 
   const handleDelete = (template: TestTemplate) => {
     Alert.alert('Delete template?', `"${template.name}" will be removed.`, [
@@ -96,20 +105,6 @@ export default function TestHomeScreen() {
           )}
         </View>
 
-        {!isSubscribed && (
-          <TouchableOpacity
-            style={styles.lockBanner}
-            activeOpacity={0.85}
-            onPress={() => setUpgradeVisible(true)}
-          >
-            <Ionicons name="lock-closed" size={18} color={colors.accent} />
-            <Text style={styles.lockBannerText}>
-              Mock interviews are part of Algogo Pro. Tap to unlock.
-            </Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.accent} />
-          </TouchableOpacity>
-        )}
-
         {/* Build your own */}
         <TouchableOpacity
           style={styles.createCard}
@@ -125,8 +120,29 @@ export default function TestHomeScreen() {
               Pick sections, difficulty, topics and timing
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.inkLighter} />
+          <Ionicons
+            name={isSubscribed ? 'chevron-forward' : 'lock-closed'}
+            size={18}
+            color={colors.inkLighter}
+          />
         </TouchableOpacity>
+
+        {/* Free sample — one run, gone once used or subscribed */}
+        {!isSubscribed && !sampleUsed && (
+          <>
+            <Text style={styles.sectionLabel}>TRY ONE FREE</Text>
+            {BUILT_IN_TEMPLATES.filter((t) => t.id === SAMPLE_TEMPLATE_ID).map(
+              (t) => (
+                <TemplateCard
+                  key={t.id}
+                  template={t}
+                  free
+                  onRun={() => handleRun(t)}
+                />
+              ),
+            )}
+          </>
+        )}
 
         {/* User templates */}
         {templates.length > 0 && (
@@ -136,6 +152,7 @@ export default function TestHomeScreen() {
               <TemplateCard
                 key={t.id}
                 template={t}
+                locked={!isSubscribed}
                 onRun={() => handleRun(t)}
                 onEdit={gated(() =>
                   navigation.navigate('TestBuilder', { templateId: t.id }),
@@ -148,10 +165,11 @@ export default function TestHomeScreen() {
 
         {/* Built-in presets */}
         <Text style={styles.sectionLabel}>STARTER PRESETS</Text>
-        {BUILT_IN_TEMPLATES.map((t) => (
+        {BUILT_IN_TEMPLATES.filter((t) => t.id !== SAMPLE_TEMPLATE_ID).map((t) => (
           <TemplateCard
             key={t.id}
             template={t}
+            locked={!isSubscribed}
             onRun={() => handleRun(t)}
             onDuplicate={gated(() =>
               navigation.navigate('TestBuilder', { duplicateFrom: t.id }),
@@ -175,24 +193,37 @@ function TemplateCard({
   onEdit,
   onDuplicate,
   onDelete,
+  locked,
+  free,
 }: {
   template: TestTemplate;
   onRun: () => void;
   onEdit?: () => void;
   onDuplicate?: () => void;
   onDelete?: () => void;
+  /** Show a lock on the start button (tapping still opens the paywall). */
+  locked?: boolean;
+  /** Highlight as the free sample. */
+  free?: boolean;
 }) {
   const questions = estimateQuestions(template);
   const duration = formatMinutesLabel(estimateSeconds(template));
   const activeSections = template.sections.filter((s) => plannedCount(s) > 0);
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, free && styles.cardFree]}>
       <View style={styles.cardTop}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.cardTitle} numberOfLines={1}>
-            {template.name}
-          </Text>
+          <View style={styles.cardTitleRow}>
+            <Text style={styles.cardTitle} numberOfLines={1}>
+              {template.name}
+            </Text>
+            {free && (
+              <View style={styles.freeBadge}>
+                <Text style={styles.freeBadgeText}>FREE</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.cardMeta}>
             {questions} {questions === 1 ? 'question' : 'questions'} · {duration}
           </Text>
@@ -237,7 +268,7 @@ function TemplateCard({
       </View>
 
       <TouchableOpacity style={styles.runBtn} activeOpacity={0.85} onPress={onRun}>
-        <Ionicons name="play" size={15} color={colors.white} />
+        <Ionicons name={locked ? 'lock-closed' : 'play'} size={15} color={colors.white} />
         <Text style={styles.runBtnText}>Start interview</Text>
       </TouchableOpacity>
     </View>
@@ -273,18 +304,6 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   proBadgeText: { ...typography.labelSmall, color: colors.white },
-
-  lockBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: `${colors.accent}14`,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.md,
-  },
-  lockBannerText: { ...typography.labelMedium, color: colors.ink, flex: 1 },
 
   createCard: {
     flexDirection: 'row',
@@ -325,6 +344,26 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.md,
     ...shadows.sm,
+  },
+  cardFree: {
+    borderColor: colors.primary,
+    borderWidth: 1.5,
+  },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  freeBadge: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.full,
+  },
+  freeBadgeText: {
+    ...typography.labelSmall,
+    color: colors.white,
+    fontSize: 10,
   },
   cardTop: {
     flexDirection: 'row',

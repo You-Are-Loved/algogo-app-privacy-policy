@@ -18,7 +18,7 @@ export interface TestCase {
 
 export interface Blind75Problem {
   id: string;
-  number: number; // 1-75
+  number: number; // 1-200
   title: string;
   difficulty: Difficulty;
   topic: string;
@@ -4015,6 +4015,1208 @@ export const blind75: Blind75Problem[] = [
       { input: [1.0, 1000], expected: 1.0 },
       { input: [3.0, 3], expected: 27.0 },
       { input: [0.5, 4], expected: 0.0625 },
+    ],
+  },
+
+  // ===== Expansion pack: problems 151-200 =====
+  {
+    id: "roman-numeral-value",
+    number: 151,
+    title: "Roman Numeral Value",
+    difficulty: 'Easy',
+    topic: "Math",
+    statement:
+      "You are given a string `s` containing a valid Roman numeral, such as `\"XIV\"`. Convert it to its integer value. The symbols are `I=1`, `V=5`, `X=10`, `L=50`, `C=100`, `D=500`, `M=1000`, and the six subtractive pairs `IV`, `IX`, `XL`, `XC`, `CD`, `CM` follow the standard rules. Return the integer.",
+    explanation:
+      "Scan the numeral left to right while keeping a running total. The only trick is the subtractive pairs: whenever a symbol is immediately followed by a strictly larger symbol, that smaller symbol counts negatively (the `I` in `IV` contributes -1, not +1).\n\nSo for each character, look one position ahead. If the next symbol's value is larger, subtract the current value from your total; otherwise add it. A small dictionary mapping each letter to its value is all the state you need. This runs in O(n) time and O(1) space.",
+    functionName: "roman_to_value",
+    functionSignature: "def roman_to_value(s: str) -> int:",
+    starter: STARTER_HEADER + "def roman_to_value(s: str) -> int:\n    pass\n",
+    examples: [
+      { input: ["XIV"], expected: 14 },
+      { input: ["MCMXCIV"], expected: 1994 },
+    ],
+    hiddenTests: [
+      { input: ["III"], expected: 3 },
+      { input: ["LVIII"], expected: 58 },
+      { input: ["IX"], expected: 9 },
+      { input: ["MMXXVI"], expected: 2026 },
+    ],
+  },
+  {
+    id: "sum-of-bit-strings",
+    number: 152,
+    title: "Sum of Bit Strings",
+    difficulty: 'Easy',
+    topic: "Binary",
+    statement:
+      "You are given two binary strings `a` and `b`, each containing only the characters `'0'` and `'1'`. Add them together and return the sum as a binary string. The result must not contain leading zeros unless it is exactly `\"0\"`.",
+    explanation:
+      "Think of how you add numbers by hand: line both strings up at their rightmost digit and add column by column, carrying a 1 whenever a column sums to 2 or 3. Walk two pointers from the ends of both strings toward the front, appending each result bit, then reverse what you built.\n\nAt every step the column sum is the two bits (or 0 if a string has run out) plus the carry; the output bit is `sum % 2` and the new carry is `sum // 2`. Do not forget a possible final carry after the loop. This runs in O(n + m) time and O(n + m) space for the output.",
+    functionName: "add_bit_strings",
+    functionSignature: "def add_bit_strings(a: str, b: str) -> str:",
+    starter: STARTER_HEADER + "def add_bit_strings(a: str, b: str) -> str:\n    pass\n",
+    examples: [
+      { input: ["11", "1"], expected: "100" },
+      { input: ["1010", "1011"], expected: "10101" },
+    ],
+    hiddenTests: [
+      { input: ["0", "0"], expected: "0" },
+      { input: ["1", "111"], expected: "1000" },
+      { input: ["1101", "101"], expected: "10010" },
+      { input: ["1", "0"], expected: "1" },
+    ],
+  },
+  {
+    id: "digit-square-cycle",
+    number: 153,
+    title: "Digit Square Cycle",
+    difficulty: 'Easy',
+    topic: "Math",
+    statement:
+      "Start with a positive integer `n` and repeatedly replace it with the sum of the squares of its digits. For some starting numbers this process eventually reaches `1` and stays there; for others it falls into a cycle that never includes `1`. Return `True` if the process reaches `1`, and `False` otherwise.",
+    explanation:
+      "The key observation is that the process is deterministic: from any value there is exactly one next value. So if you ever revisit a number you have seen before without hitting 1, you are trapped in a loop forever and can stop.\n\nKeep a set of every value seen so far. Loop: if `n` is 1, return True; if `n` is already in the set, return False; otherwise record it and replace `n` with the sum of squared digits. Because the digit-square map quickly drags any number below a few hundred, the set stays tiny. This runs in effectively O(log n) time per step with O(1) bounded space.",
+    functionName: "ends_at_one",
+    functionSignature: "def ends_at_one(n: int) -> bool:",
+    starter: STARTER_HEADER + "def ends_at_one(n: int) -> bool:\n    pass\n",
+    examples: [
+      { input: [19], expected: true },
+      { input: [2], expected: false },
+    ],
+    hiddenTests: [
+      { input: [1], expected: true },
+      { input: [7], expected: true },
+      { input: [4], expected: false },
+      { input: [100], expected: true },
+    ],
+  },
+  {
+    id: "letter-column-index",
+    number: 154,
+    title: "Letter Column Index",
+    difficulty: 'Easy',
+    topic: "Math",
+    statement:
+      "Spreadsheet columns are labeled `\"A\"`, `\"B\"`, ..., `\"Z\"`, then `\"AA\"`, `\"AB\"`, and so on. Given a column label `s` made of uppercase letters, return its 1-based column number, so `\"A\"` is `1` and `\"AB\"` is `28`.",
+    explanation:
+      "This is base-26 conversion with a twist: there is no zero digit. `A` through `Z` represent 1 through 26, so the label is a bijective base-26 numeral.\n\nProcess the string left to right keeping a running value: multiply the accumulator by 26, then add the current letter's value (`ord(ch) - ord('A') + 1`). This is exactly how you would parse a decimal string, just in base 26 with digits shifted by one. It runs in O(n) time and O(1) space.",
+    functionName: "column_index",
+    functionSignature: "def column_index(s: str) -> int:",
+    starter: STARTER_HEADER + "def column_index(s: str) -> int:\n    pass\n",
+    examples: [
+      { input: ["A"], expected: 1 },
+      { input: ["AB"], expected: 28 },
+    ],
+    hiddenTests: [
+      { input: ["Z"], expected: 26 },
+      { input: ["AA"], expected: 27 },
+      { input: ["ZY"], expected: 701 },
+      { input: ["AAA"], expected: 703 },
+    ],
+  },
+  {
+    id: "pure-power-of-three",
+    number: 155,
+    title: "Pure Power of Three",
+    difficulty: 'Easy',
+    topic: "Math",
+    statement:
+      "Given an integer `n` (which may be zero or negative), return `True` if `n` is an exact power of three — that is, `n == 3**k` for some integer `k >= 0` — and `False` otherwise.",
+    explanation:
+      "A power of three has exactly one prime factor: 3. So if you keep dividing `n` by 3 while it divides evenly, a true power of three will eventually shrink all the way down to 1; anything else will get stuck on a leftover factor.\n\nFirst rule out `n < 1`, since no power of three is zero or negative. Then loop `n //= 3` while `n % 3 == 0` and finally check whether you reached exactly 1. The loop runs at most log base 3 of n times, so this is O(log n) time and O(1) space.",
+    functionName: "is_pure_power_three",
+    functionSignature: "def is_pure_power_three(n: int) -> bool:",
+    starter: STARTER_HEADER + "def is_pure_power_three(n: int) -> bool:\n    pass\n",
+    examples: [
+      { input: [27], expected: true },
+      { input: [45], expected: false },
+    ],
+    hiddenTests: [
+      { input: [1], expected: true },
+      { input: [0], expected: false },
+      { input: [243], expected: true },
+      { input: [-27], expected: false },
+    ],
+  },
+  {
+    id: "factorial-zero-tail",
+    number: 156,
+    title: "Factorial Zero Tail",
+    difficulty: 'Easy',
+    topic: "Math",
+    statement:
+      "Given a non-negative integer `n`, return the number of trailing zeros at the end of `n!` (n factorial). Your solution must not compute the factorial itself — for `n = 1000` the factorial has over 2,500 digits.",
+    explanation:
+      "Every trailing zero comes from a factor of 10, which is a 2 paired with a 5. In `n!` factors of 2 vastly outnumber factors of 5, so the answer is simply how many times 5 divides into the product `1 * 2 * ... * n`.\n\nCount the multiples of 5 up to `n` (each contributes one 5), then the multiples of 25 (each contributes an extra 5), then 125, and so on. That is the sum `n//5 + n//25 + n//125 + ...` until the divisor exceeds `n`. This runs in O(log n) time and O(1) space.",
+    functionName: "trailing_zero_count",
+    functionSignature: "def trailing_zero_count(n: int) -> int:",
+    starter: STARTER_HEADER + "def trailing_zero_count(n: int) -> int:\n    pass\n",
+    examples: [
+      { input: [5], expected: 1 },
+      { input: [25], expected: 6 },
+    ],
+    hiddenTests: [
+      { input: [0], expected: 0 },
+      { input: [10], expected: 2 },
+      { input: [100], expected: 24 },
+      { input: [1000], expected: 249 },
+    ],
+  },
+  {
+    id: "insertion-point",
+    number: 157,
+    title: "Insertion Point",
+    difficulty: 'Easy',
+    topic: "Binary Search",
+    statement:
+      "You are given a sorted list of distinct integers `nums` and a target value `target`. If the target is present, return its index; otherwise return the index where it would be inserted to keep the list sorted. Your solution should run in `O(log n)` time.",
+    explanation:
+      "Notice that both cases — found and not found — are answered by the same number: the count of elements strictly less than the target. That count is exactly where the target sits or belongs.\n\nBinary search for that boundary. Keep `lo` and `hi` pointers; when `nums[mid] < target` the answer lies to the right so move `lo = mid + 1`, otherwise move `hi = mid`. When the pointers meet you have the leftmost position whose value is at least the target. This runs in O(log n) time and O(1) space.",
+    functionName: "insertion_point",
+    functionSignature: "def insertion_point(nums: List[int], target: int) -> int:",
+    starter: STARTER_HEADER + "def insertion_point(nums: List[int], target: int) -> int:\n    pass\n",
+    examples: [
+      { input: [[1, 3, 5, 6], 5], expected: 2 },
+      { input: [[1, 3, 5, 6], 2], expected: 1 },
+    ],
+    hiddenTests: [
+      { input: [[1, 3, 5, 6], 7], expected: 4 },
+      { input: [[1, 3, 5, 6], 0], expected: 0 },
+      { input: [[5], 5], expected: 0 },
+      { input: [[2, 4], 3], expected: 1 },
+    ],
+  },
+  {
+    id: "consistent-letter-swap",
+    number: 158,
+    title: "Consistent Letter Swap",
+    difficulty: 'Easy',
+    topic: "Hash Table",
+    statement:
+      "Two strings `s` and `t` of equal length have the same shape if you can replace each distinct character of `s` with a distinct character to obtain `t`, applying the replacement consistently at every position. No two characters of `s` may map to the same character of `t`. Return `True` if `s` and `t` have the same shape.",
+    explanation:
+      "Walk both strings together and build the substitution as you go. Keep two maps: one from characters of `s` to characters of `t`, and one in the reverse direction — the reverse map is what enforces that two different letters never collapse onto the same target.\n\nAt each position, if either map already has an entry that disagrees with the current pair, the shape is broken and you can return False immediately. Otherwise record the pair in both maps. If you finish the scan without conflict, the mapping is a consistent one-to-one substitution. This runs in O(n) time and O(1) space (the alphabet is bounded).",
+    functionName: "same_shape",
+    functionSignature: "def same_shape(s: str, t: str) -> bool:",
+    starter: STARTER_HEADER + "def same_shape(s: str, t: str) -> bool:\n    pass\n",
+    examples: [
+      { input: ["egg", "add"], expected: true },
+      { input: ["foo", "bar"], expected: false },
+    ],
+    hiddenTests: [
+      { input: ["paper", "title"], expected: true },
+      { input: ["badc", "baba"], expected: false },
+      { input: ["a", "a"], expected: true },
+      { input: ["ab", "aa"], expected: false },
+    ],
+  },
+  {
+    id: "pattern-of-words",
+    number: 159,
+    title: "Pattern of Words",
+    difficulty: 'Easy',
+    topic: "Hash Table",
+    statement:
+      "You are given a `pattern` of lowercase letters and a string `s` of words separated by single spaces. Return `True` if the words follow the pattern exactly: there must be a one-to-one correspondence between letters in `pattern` and words in `s`, with the i-th letter always matching the i-th word.",
+    explanation:
+      "First split `s` into words — if the word count differs from the pattern length, the answer is immediately False. Then this becomes a pairing problem identical in spirit to checking isomorphic strings, just with words on one side.\n\nMaintain two dictionaries: letter to word and word to letter. For each aligned (letter, word) pair, verify any existing entries agree, then record the pair in both directions. The reverse map is essential: without it, pattern `\"ab\"` would wrongly match `\"dog dog\"`. This runs in O(n) time and O(n) space for the word list.",
+    functionName: "follows_pattern",
+    functionSignature: "def follows_pattern(pattern: str, s: str) -> bool:",
+    starter: STARTER_HEADER + "def follows_pattern(pattern: str, s: str) -> bool:\n    pass\n",
+    examples: [
+      { input: ["abba", "dog cat cat dog"], expected: true },
+      { input: ["abba", "dog cat cat fish"], expected: false },
+    ],
+    hiddenTests: [
+      { input: ["aaaa", "dog cat cat dog"], expected: false },
+      { input: ["abc", "b c a"], expected: true },
+      { input: ["aa", "dog dog"], expected: true },
+      { input: ["ab", "dog dog"], expected: false },
+    ],
+  },
+  {
+    id: "toll-staircase",
+    number: 160,
+    title: "Toll Staircase",
+    difficulty: 'Easy',
+    topic: "Dynamic Programming",
+    statement:
+      "A staircase has `len(cost)` steps, where `cost[i]` is the toll you pay the moment you stand on step `i`. You may start on step `0` or step `1`, and from any step you may climb up one or two steps. Return the minimum total toll to reach the landing just past the final step. The list has at least 2 steps.",
+    explanation:
+      "Define the subproblem from the destination's point of view: let `dp[i]` be the cheapest total toll to arrive at position `i`, where positions run from 0 up to `n` (the landing past the last step). You arrive at `i` either from `i-1` (having paid `cost[i-1]`) or from `i-2` (having paid `cost[i-2]`).\n\nThat gives `dp[i] = min(dp[i-1] + cost[i-1], dp[i-2] + cost[i-2])` with `dp[0] = dp[1] = 0`, since starting on step 0 or 1 is free until you actually use it as a launch point. The answer is `dp[n]`. Since each state only needs the previous two values you can keep two variables instead of an array. This runs in O(n) time and O(1) space.",
+    functionName: "min_toll",
+    functionSignature: "def min_toll(cost: List[int]) -> int:",
+    starter: STARTER_HEADER + "def min_toll(cost: List[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[10, 15, 20]], expected: 15 },
+      { input: [[1, 100, 1, 1, 1, 100, 1, 1, 100, 1]], expected: 6 },
+    ],
+    hiddenTests: [
+      { input: [[0, 0]], expected: 0 },
+      { input: [[5, 10]], expected: 5 },
+      { input: [[1, 2, 3]], expected: 2 },
+      { input: [[9, 6, 2, 7, 4]], expected: 12 },
+    ],
+  },
+  {
+    id: "snack-stand-change",
+    number: 161,
+    title: "Snack Stand Change",
+    difficulty: 'Easy',
+    topic: "Greedy",
+    statement:
+      "You run a snack stand where every item costs `$5`. Customers line up and pay one at a time with a single bill of `$5`, `$10`, or `$20`, given to you in the order listed in `bills`. You start with no money and must give each customer exact change from the bills you have collected so far. Return `True` if you can serve every customer.",
+    explanation:
+      "Simulate the line while tracking only how many $5 and $10 bills you hold ($20 bills are useless for making change). A $5 payment needs no change; a $10 payment needs one $5; a $20 payment needs $15 back.\n\nThe one greedy decision is how to break $15: always prefer a $10 plus a $5 over three $5 bills. Five-dollar bills are strictly more flexible — they are the only way to change a $10 — so spending a $10 first preserves your options. If at any point you cannot make change, return False. This runs in O(n) time and O(1) space.",
+    functionName: "can_serve_all",
+    functionSignature: "def can_serve_all(bills: List[int]) -> bool:",
+    starter: STARTER_HEADER + "def can_serve_all(bills: List[int]) -> bool:\n    pass\n",
+    examples: [
+      { input: [[5, 5, 5, 10, 20]], expected: true },
+      { input: [[5, 5, 10, 10, 20]], expected: false },
+    ],
+    hiddenTests: [
+      { input: [[5]], expected: true },
+      { input: [[10]], expected: false },
+      { input: [[5, 10, 5, 20]], expected: true },
+      { input: [[5, 5, 20]], expected: false },
+    ],
+  },
+  {
+    id: "bucket-paint",
+    number: 162,
+    title: "Bucket Paint",
+    difficulty: 'Easy',
+    topic: "Matrix",
+    statement:
+      "You are given a grid of integers representing pixel values, a starting cell `(r, c)`, and a new value `color`. Repaint the starting pixel and every pixel reachable from it through side-adjacent pixels (up, down, left, right) that share the starting pixel's original value. Return the resulting grid.",
+    explanation:
+      "This is the classic paint-bucket tool: a connected-component traversal over cells of one value. Record the original value at `(r, c)`, then run a DFS or BFS from there, recoloring every in-bounds neighbor that still holds the original value.\n\nThere is one important guard: if the new color equals the original value, return the grid unchanged immediately — otherwise the traversal keeps finding 'unpainted' cells forever. Each cell is visited at most once, so this runs in O(rows * cols) time and O(rows * cols) space in the worst case for the traversal stack.",
+    functionName: "bucket_paint",
+    functionSignature: "def bucket_paint(grid: List[List[int]], r: int, c: int, color: int) -> List[List[int]]:",
+    starter: STARTER_HEADER + "def bucket_paint(grid: List[List[int]], r: int, c: int, color: int) -> List[List[int]]:\n    pass\n",
+    examples: [
+      { input: [[[1, 1, 1], [1, 1, 0], [1, 0, 1]], 1, 1, 2], expected: [[2, 2, 2], [2, 2, 0], [2, 0, 1]] },
+      { input: [[[0, 0, 0], [0, 0, 0]], 0, 0, 0], expected: [[0, 0, 0], [0, 0, 0]] },
+    ],
+    hiddenTests: [
+      { input: [[[5]], 0, 0, 3], expected: [[3]] },
+      { input: [[[1, 1], [1, 0]], 0, 0, 1], expected: [[1, 1], [1, 0]] },
+      { input: [[[1, 2, 1], [2, 1, 2]], 0, 0, 9], expected: [[9, 2, 1], [2, 1, 2]] },
+      { input: [[[0, 0, 1], [0, 1, 1]], 1, 2, 7], expected: [[0, 0, 7], [0, 7, 7]] },
+    ],
+  },
+  {
+    id: "cancel-adjacent-twins",
+    number: 163,
+    title: "Cancel Adjacent Twins",
+    difficulty: 'Easy',
+    topic: "Stack",
+    statement:
+      "Given a string `s` of lowercase letters, repeatedly find any two equal letters that sit next to each other and delete both. Keep doing this until no two adjacent letters are equal. Return the final string — it is guaranteed to be unique regardless of the order of deletions.",
+    explanation:
+      "Rather than literally rescanning the string after each deletion, process the characters once with a stack. The stack holds the surviving prefix at all times.\n\nFor each incoming character, compare it with the top of the stack: if they match, pop the top (the pair annihilates, and crucially this may expose a new match for the next character); otherwise push it. Deletions that 'cascade', like the middle of `abba`, fall out naturally because popping reveals the older neighbor. Join the stack at the end. This runs in O(n) time and O(n) space.",
+    functionName: "cancel_twins",
+    functionSignature: "def cancel_twins(s: str) -> str:",
+    starter: STARTER_HEADER + "def cancel_twins(s: str) -> str:\n    pass\n",
+    examples: [
+      { input: ["abbaca"], expected: "ca" },
+      { input: ["azxxzy"], expected: "ay" },
+    ],
+    hiddenTests: [
+      { input: ["aa"], expected: "" },
+      { input: ["abc"], expected: "abc" },
+      { input: ["aabbcc"], expected: "" },
+      { input: ["mississippi"], expected: "m" },
+    ],
+  },
+  {
+    id: "quick-range-totals",
+    number: 164,
+    title: "Quick Range Totals",
+    difficulty: 'Easy',
+    topic: "Prefix Sum",
+    statement:
+      "You are given a list of integers `nums` and a list of `queries`, where each query is a pair `[l, r]` of indices with `0 <= l <= r < len(nums)`. For each query, compute the sum of `nums[l]` through `nums[r]` inclusive. Return the answers as a list, in the same order as the queries.",
+    explanation:
+      "Summing each range from scratch costs O(n) per query, which is wasteful when there are many queries over the same array. Precompute instead: build a prefix array where `prefix[i]` holds the sum of the first `i` elements, with `prefix[0] = 0`.\n\nThen any inclusive range sum collapses to a subtraction: `sum(l..r) = prefix[r + 1] - prefix[l]`. Build the prefix once in O(n), then answer every query in O(1). Overall this runs in O(n + q) time and O(n) space.",
+    functionName: "range_totals",
+    functionSignature: "def range_totals(nums: List[int], queries: List[List[int]]) -> List[int]:",
+    starter: STARTER_HEADER + "def range_totals(nums: List[int], queries: List[List[int]]) -> List[int]:\n    pass\n",
+    examples: [
+      { input: [[-2, 0, 3, -5, 2, -1], [[0, 2], [2, 5], [0, 5]]], expected: [1, -1, -3] },
+      { input: [[1, 2, 3, 4], [[1, 3]]], expected: [9] },
+    ],
+    hiddenTests: [
+      { input: [[5], [[0, 0]]], expected: [5] },
+      { input: [[1, 2, 3, 4, 5], [[0, 4], [1, 3], [2, 2]]], expected: [15, 9, 3] },
+      { input: [[-1, -2, -3], [[0, 1]]], expected: [-3] },
+      { input: [[0, 0, 0], [[0, 2], [1, 1]]], expected: [0, 0] },
+    ],
+  },
+  {
+    id: "town-celebrity-check",
+    number: 165,
+    title: "Town Celebrity Check",
+    difficulty: 'Easy',
+    topic: "Graph",
+    statement:
+      "In a town of `n` people labeled `1` through `n`, one person might be the town celebrity: everyone else trusts them, and they trust nobody. You are given `trust`, a list of pairs `[a, b]` meaning person `a` trusts person `b`. Return the label of the celebrity if one exists, otherwise return `-1`.",
+    explanation:
+      "Model trust as a directed graph and think about degrees. The celebrity must have in-degree `n - 1` (everyone else trusts them) and out-degree `0` (they trust no one). Those two conditions can be merged into a single score.\n\nFor each pair `[a, b]`, add 1 to `b`'s score and subtract 1 from `a`'s score. The celebrity is the unique person whose score is exactly `n - 1`: any outgoing trust would knock them below that, and only full incoming trust reaches it. Scan the scores and return the first match, or -1. This runs in O(n + len(trust)) time and O(n) space.",
+    functionName: "trusted_person",
+    functionSignature: "def trusted_person(n: int, trust: List[List[int]]) -> int:",
+    starter: STARTER_HEADER + "def trusted_person(n: int, trust: List[List[int]]) -> int:\n    pass\n",
+    examples: [
+      { input: [2, [[1, 2]]], expected: 2 },
+      { input: [3, [[1, 3], [2, 3], [3, 1]]], expected: -1 },
+    ],
+    hiddenTests: [
+      { input: [1, []], expected: 1 },
+      { input: [3, [[1, 3], [2, 3]]], expected: 3 },
+      { input: [4, [[1, 2], [3, 2], [4, 2], [2, 1]]], expected: -1 },
+      { input: [2, []], expected: -1 },
+    ],
+  },
+  {
+    id: "roman-numeral-builder",
+    number: 166,
+    title: "Roman Numeral Builder",
+    difficulty: 'Medium',
+    topic: "Math",
+    statement:
+      "Given an integer `n` with `1 <= n <= 3999`, return its Roman numeral representation as a string. Use the standard symbols `I, V, X, L, C, D, M` and the six subtractive forms `IV, IX, XL, XC, CD, CM` — for example `1994` becomes `\"MCMXCIV\"`.",
+    explanation:
+      "Roman numerals are built greedily: at every step you write the largest symbol (or subtractive pair) that fits into what remains. Treating the subtractive pairs as first-class 'symbols' with their own values makes the greedy rule airtight.\n\nKeep a table of thirteen value/symbol entries from `(1000, \"M\")` down to `(1, \"I\")`, including entries like `(900, \"CM\")` and `(40, \"XL\")`. Walk the table in descending order, and for each entry append the symbol while the value still fits, subtracting as you go. Because the table is fixed size and `n` only shrinks, this runs in O(1) time and O(1) space.",
+    functionName: "to_roman",
+    functionSignature: "def to_roman(n: int) -> str:",
+    starter: STARTER_HEADER + "def to_roman(n: int) -> str:\n    pass\n",
+    examples: [
+      { input: [58], expected: "LVIII" },
+      { input: [1994], expected: "MCMXCIV" },
+    ],
+    hiddenTests: [
+      { input: [3], expected: "III" },
+      { input: [9], expected: "IX" },
+      { input: [3749], expected: "MMMDCCXLIX" },
+      { input: [2026], expected: "MMXXVI" },
+    ],
+  },
+  {
+    id: "forgiving-integer-parser",
+    number: 167,
+    title: "Forgiving Integer Parser",
+    difficulty: 'Medium',
+    topic: "String",
+    statement:
+      "Parse a string `s` into an integer the way a lenient converter would: skip leading spaces, read one optional `'+'` or `'-'`, then read digits until the first non-digit character and ignore everything after. If no digits are read, return `0`. Clamp the result into the 32-bit signed range `[-2147483648, 2147483647]`.",
+    explanation:
+      "Resist the urge to use regex or built-in parsing — interviewers want the state machine. Track an index through three phases: whitespace skipping, an optional single sign character, then a digit-consuming loop that builds the value with `val = val * 10 + digit`.\n\nThe details that fail people are the edge cases: a sign with no digits after it returns 0, a sign appearing after spaces is fine but a second sign ends parsing, and clamping happens only at the end (Python integers never overflow, so a final `max`/`min` against the 32-bit bounds suffices). This runs in O(n) time and O(1) space.",
+    functionName: "parse_lenient_int",
+    functionSignature: "def parse_lenient_int(s: str) -> int:",
+    starter: STARTER_HEADER + "def parse_lenient_int(s: str) -> int:\n    pass\n",
+    examples: [
+      { input: ["   -42abc"], expected: -42 },
+      { input: ["4193 with words"], expected: 4193 },
+    ],
+    hiddenTests: [
+      { input: ["words 987"], expected: 0 },
+      { input: ["-91283472332"], expected: -2147483648 },
+      { input: ["+1"], expected: 1 },
+      { input: ["  +-12"], expected: 0 },
+    ],
+  },
+  {
+    id: "release-version-compare",
+    number: 168,
+    title: "Release Version Compare",
+    difficulty: 'Medium',
+    topic: "String",
+    statement:
+      "Two release versions `v1` and `v2` are strings of numeric revisions separated by dots, like `\"1.01\"` or `\"7.5.2\"`. Compare them revision by revision as integers (so leading zeros are ignored), treating missing trailing revisions as `0`. Return `-1` if `v1 < v2`, `1` if `v1 > v2`, and `0` if they are equal.",
+    explanation:
+      "Split each version on dots and convert every chunk with `int()`, which handles leading zeros for free: `\"01\"` and `\"001\"` both become 1. The subtlety is that the two lists can have different lengths, and `\"1.0\"` must equal `\"1\"`.\n\nPad the shorter list with zeros until both have the same length, then compare element by element (or lean on Python's list comparison, which is already lexicographic over the integer lists once padded). Return -1, 1, or 0 accordingly. This runs in O(n + m) time and O(n + m) space for the split lists.",
+    functionName: "compare_release_versions",
+    functionSignature: "def compare_release_versions(v1: str, v2: str) -> int:",
+    starter: STARTER_HEADER + "def compare_release_versions(v1: str, v2: str) -> int:\n    pass\n",
+    examples: [
+      { input: ["1.2", "1.10"], expected: -1 },
+      { input: ["1.01", "1.001"], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: ["1.0", "1.0.0"], expected: 0 },
+      { input: ["0.1", "1.1"], expected: -1 },
+      { input: ["1.0.1", "1"], expected: 1 },
+      { input: ["7.5.2.4", "7.5.3"], expected: -1 },
+    ],
+  },
+  {
+    id: "unpack-repeat-notation",
+    number: 169,
+    title: "Unpack Repeat Notation",
+    difficulty: 'Medium',
+    topic: "Stack",
+    statement:
+      "A compressed string uses the notation `k[inner]`, meaning the string `inner` is repeated exactly `k` times. Patterns can be nested, as in `\"3[a2[c]]\"` which expands to `\"accaccacc\"`. Given a well-formed compressed string `s` containing lowercase letters, digits, and square brackets (digits appear only as repeat counts), return the fully expanded string.",
+    explanation:
+      "Nesting screams stack. Keep a current string buffer and a current number; the stack stores the context you must return to when a bracket closes.\n\nScan character by character: digits accumulate into the number (counts can be multi-digit, like `10[a]`); on `'['` push the pair (current buffer, current number) and reset both; letters append to the buffer; on `']'` pop `(prev, k)` and set the buffer to `prev + buffer * k`. When the scan ends the buffer is the answer. Each output character is produced a constant number of times, so this runs in O(output length) time and space.",
+    functionName: "unpack_repeats",
+    functionSignature: "def unpack_repeats(s: str) -> str:",
+    starter: STARTER_HEADER + "def unpack_repeats(s: str) -> str:\n    pass\n",
+    examples: [
+      { input: ["3[a]2[bc]"], expected: "aaabcbc" },
+      { input: ["3[a2[c]]"], expected: "accaccacc" },
+    ],
+    hiddenTests: [
+      { input: ["2[abc]3[cd]ef"], expected: "abcabccdcdcdef" },
+      { input: ["abc"], expected: "abc" },
+      { input: ["10[a]"], expected: "aaaaaaaaaa" },
+      { input: ["2[b3[a]]"], expected: "baaabaaa" },
+    ],
+  },
+  {
+    id: "tidy-file-path",
+    number: 170,
+    title: "Tidy File Path",
+    difficulty: 'Medium',
+    topic: "Stack",
+    statement:
+      "Given an absolute Unix-style file path `path` (it always starts with `'/'`), simplify it to its canonical form: a single `'.'` means the current directory, `'..'` moves up one level (but not above the root), and repeated slashes collapse into one. Any other run of characters — including names like `'...'` — is a valid directory name. Return the canonical path, which starts with `'/'` and has no trailing slash unless it is exactly `\"/\"`.",
+    explanation:
+      "Split the path on `'/'` and process the pieces with a stack of confirmed directory names. The split conveniently turns runs of slashes into empty strings you can skip.\n\nFor each piece: skip empty strings and `'.'`; on `'..'` pop the stack if it is non-empty (popping an empty stack would climb above root, which is a no-op); anything else — including `'...'` or `'a.b'` — is a real name to push. Finally join with slashes and prefix a single `'/'`; an empty stack naturally yields `\"/\"`. This runs in O(n) time and O(n) space.",
+    functionName: "canonical_folder_path",
+    functionSignature: "def canonical_folder_path(path: str) -> str:",
+    starter: STARTER_HEADER + "def canonical_folder_path(path: str) -> str:\n    pass\n",
+    examples: [
+      { input: ["/home//foo/"], expected: "/home/foo" },
+      { input: ["/a/./b/../../c/"], expected: "/c" },
+    ],
+    hiddenTests: [
+      { input: ["/../"], expected: "/" },
+      { input: ["/"], expected: "/" },
+      { input: ["/a/../../b/../c//.//"], expected: "/c" },
+      { input: ["/...//b"], expected: "/.../b" },
+    ],
+  },
+  {
+    id: "boulder-collision-course",
+    number: 171,
+    title: "Boulder Collision Course",
+    difficulty: 'Medium',
+    topic: "Stack",
+    statement:
+      "Boulders roll along a narrow canyon, described by a list of non-zero integers: the absolute value is a boulder's size and the sign is its direction (positive rolls right, negative rolls left). All boulders move at the same speed. When two boulders meet, the smaller one shatters; if they are equal, both shatter; boulders moving the same direction never meet. Return the list of surviving boulders in their original order.",
+    explanation:
+      "Only one kind of meeting is possible: a right-mover that has a left-mover somewhere after it. That ordering constraint is exactly what a stack captures — the stack holds boulders whose fate is not yet sealed.\n\nPush right-movers freely. When a left-mover arrives, let it fight the stack top while the top is a smaller right-mover (pop the top and keep fighting). If it meets an equal right-mover, pop that one and the left-mover dies too; if it meets a bigger one, the left-mover dies alone; if the stack empties or its top moves left, the newcomer survives and is pushed. Each boulder is pushed and popped at most once, so this runs in O(n) time and O(n) space.",
+    functionName: "boulder_collisions",
+    functionSignature: "def boulder_collisions(boulders: List[int]) -> List[int]:",
+    starter: STARTER_HEADER + "def boulder_collisions(boulders: List[int]) -> List[int]:\n    pass\n",
+    examples: [
+      { input: [[5, 10, -5]], expected: [5, 10] },
+      { input: [[10, 2, -5]], expected: [10] },
+    ],
+    hiddenTests: [
+      { input: [[8, -8]], expected: [] },
+      { input: [[-2, -1, 1, 2]], expected: [-2, -1, 1, 2] },
+      { input: [[1, -2, -2, -2]], expected: [-2, -2, -2] },
+      { input: [[5, -5, 5, -5]], expected: [] },
+    ],
+  },
+  {
+    id: "highway-convoys",
+    number: 172,
+    title: "Highway Convoys",
+    difficulty: 'Medium',
+    topic: "Monotonic Stack",
+    statement:
+      "Cars drive toward a checkpoint at mile `target` on a one-lane highway. Car `i` starts at mile `positions[i]` (all distinct, all less than `target`) and drives at `speeds[i]` miles per hour. A car can never pass the car ahead of it: when it catches up, it slows down and they travel together as a single convoy. Return the number of convoys that arrive at the checkpoint.",
+    explanation:
+      "Ignore the catching-up mechanics and compute, for each car, the time it would reach the checkpoint driving alone: `(target - position) / speed`. A car merges into the car ahead exactly when its solo time is less than or equal to the leader's effective time.\n\nSort cars by starting position, closest to the checkpoint first, and sweep while tracking the slowest (largest) arrival time seen so far — the current convoy leader. If the next car's solo time is strictly greater, it can never catch the leader and starts a new convoy; otherwise it merges and is absorbed. Count the new leaders. Sorting dominates: O(n log n) time and O(n) space.",
+    functionName: "convoy_count",
+    functionSignature: "def convoy_count(target: int, positions: List[int], speeds: List[int]) -> int:",
+    starter: STARTER_HEADER + "def convoy_count(target: int, positions: List[int], speeds: List[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [12, [10, 8, 0, 5, 3], [2, 4, 1, 1, 3]], expected: 3 },
+      { input: [10, [3], [3]], expected: 1 },
+    ],
+    hiddenTests: [
+      { input: [100, [0, 2, 4], [4, 2, 1]], expected: 1 },
+      { input: [10, [6, 8], [3, 2]], expected: 2 },
+      { input: [10, [0, 4, 2], [2, 1, 3]], expected: 1 },
+      { input: [12, [4, 8], [1, 1]], expected: 2 },
+    ],
+  },
+  {
+    id: "rescue-boat-count",
+    number: 173,
+    title: "Rescue Boat Count",
+    difficulty: 'Medium',
+    topic: "Two Pointers",
+    statement:
+      "People must be evacuated by boat. Person `i` weighs `weights[i]`, every boat carries at most two people, and a boat's total load cannot exceed `limit`. No single person weighs more than `limit`. Return the minimum number of boats needed to carry everyone.",
+    explanation:
+      "Sort the weights and think about the heaviest remaining person: they must board some boat, and the best possible partner for them is the lightest remaining person — if even that pairing exceeds the limit, the heavy person rides alone, and no other choice could do better.\n\nThat insight becomes a two-pointer sweep: `i` at the lightest, `j` at the heaviest. Each iteration launches one boat carrying person `j`, and also person `i` when `weights[i] + weights[j] <= limit` (advance `i`). Decrement `j` and repeat until the pointers cross. Sorting dominates, so this runs in O(n log n) time and O(1) extra space.",
+    functionName: "min_rescue_boats",
+    functionSignature: "def min_rescue_boats(weights: List[int], limit: int) -> int:",
+    starter: STARTER_HEADER + "def min_rescue_boats(weights: List[int], limit: int) -> int:\n    pass\n",
+    examples: [
+      { input: [[1, 2], 3], expected: 1 },
+      { input: [[3, 2, 2, 1], 3], expected: 3 },
+    ],
+    hiddenTests: [
+      { input: [[3, 5, 3, 4], 5], expected: 4 },
+      { input: [[1, 2, 3], 3], expected: 2 },
+      { input: [[5, 1, 4, 2], 6], expected: 2 },
+      { input: [[2, 2], 3], expected: 2 },
+    ],
+  },
+  {
+    id: "two-office-offsites",
+    number: 174,
+    title: "Two Office Offsites",
+    difficulty: 'Medium',
+    topic: "Greedy",
+    statement:
+      "Your company is flying `2n` employees to two offsite locations, A and B, with exactly `n` people attending each. Flying employee `i` to A costs `costs[i][0]` and to B costs `costs[i][1]`. Return the minimum total cost to fly everyone, with exactly half at each location.",
+    explanation:
+      "Imagine first sending everyone to A, then choosing `n` people to switch to B. Switching employee `i` changes the bill by `costs[i][1] - costs[i][0]`, so you want the `n` employees for whom that difference is smallest (most negative or least positive).\n\nEquivalently, sort all employees by `costs[i][0] - costs[i][1]`: those who favor A most strongly come first. Send the first `n` of the sorted list to A and the rest to B, summing the corresponding costs. The exchange argument shows no other split can beat this. Sorting dominates: O(n log n) time and O(n) space.",
+    functionName: "min_offsite_cost",
+    functionSignature: "def min_offsite_cost(costs: List[List[int]]) -> int:",
+    starter: STARTER_HEADER + "def min_offsite_cost(costs: List[List[int]]) -> int:\n    pass\n",
+    examples: [
+      { input: [[[10, 20], [30, 200], [400, 50], [30, 20]]], expected: 110 },
+      { input: [[[259, 770], [448, 54], [926, 667], [184, 139], [840, 118], [577, 469]]], expected: 1859 },
+    ],
+    hiddenTests: [
+      { input: [[[1, 2], [2, 1]]], expected: 2 },
+      { input: [[[5, 5], [5, 5]]], expected: 10 },
+      { input: [[[100, 1], [1, 100], [50, 50], [50, 50]]], expected: 102 },
+      { input: [[[10, 1], [10, 1]]], expected: 11 },
+    ],
+  },
+  {
+    id: "rope-joining-cost",
+    number: 175,
+    title: "Rope Joining Cost",
+    difficulty: 'Medium',
+    topic: "Heap",
+    statement:
+      "You have a list of rope lengths and want to tie them all into one rope. Joining two ropes of lengths `x` and `y` costs `x + y` and produces a single rope of length `x + y`. Return the minimum total cost to join everything into one rope; if there is only one rope, the cost is `0`.",
+    explanation:
+      "Every join's cost gets baked into the new rope and paid again in every later join that includes it — so ropes joined early are paid for many times. That means short ropes should be merged first, and long ropes should enter the process as late as possible.\n\nA min-heap makes the greedy efficient: push all lengths, then repeatedly pop the two smallest, add their sum to the total, and push the sum back, until one rope remains. This is exactly Huffman tree construction, and the same exchange argument proves optimality. With n ropes and O(log n) per heap operation, this runs in O(n log n) time and O(n) space.",
+    functionName: "min_rope_cost",
+    functionSignature: "def min_rope_cost(ropes: List[int]) -> int:",
+    starter: STARTER_HEADER + "def min_rope_cost(ropes: List[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[4, 3, 2, 6]], expected: 29 },
+      { input: [[1, 2, 3]], expected: 9 },
+    ],
+    hiddenTests: [
+      { input: [[5]], expected: 0 },
+      { input: [[10, 20]], expected: 30 },
+      { input: [[1, 2, 5, 10, 35, 89]], expected: 224 },
+      { input: [[2, 2, 3, 3]], expected: 20 },
+    ],
+  },
+  {
+    id: "the-two-loners",
+    number: 176,
+    title: "The Two Loners",
+    difficulty: 'Medium',
+    topic: "Binary",
+    statement:
+      "In the list `nums`, every value appears exactly twice except for two distinct values that each appear exactly once. Find those two values and return them as a list in increasing order. Aim for linear time and constant extra space.",
+    explanation:
+      "XOR-ing the whole array cancels every paired value, leaving `a ^ b` where `a` and `b` are the two loners. That combined value is not the answer yet, but any set bit in it marks a position where `a` and `b` differ.\n\nPick one such bit — `x & (-x)` isolates the lowest set bit. Partition the numbers by whether they have that bit set: each partition contains exactly one loner plus only complete pairs, so XOR-ing each partition separately yields `a` and `b` individually. Sort the two results before returning. This runs in O(n) time and O(1) space.",
+    functionName: "find_two_loners",
+    functionSignature: "def find_two_loners(nums: List[int]) -> List[int]:",
+    starter: STARTER_HEADER + "def find_two_loners(nums: List[int]) -> List[int]:\n    pass\n",
+    examples: [
+      { input: [[1, 2, 1, 3, 2, 5]], expected: [3, 5] },
+      { input: [[-1, 0]], expected: [-1, 0] },
+    ],
+    hiddenTests: [
+      { input: [[0, 1]], expected: [0, 1] },
+      { input: [[1, 1, 2, 3]], expected: [2, 3] },
+      { input: [[4, 4, 6, 2, 6, 9]], expected: [2, 9] },
+      { input: [[7, 3, 7, 5, 3, 8, 8, 10]], expected: [5, 10] },
+    ],
+  },
+  {
+    id: "square-summand-minimum",
+    number: 177,
+    title: "Square Summand Minimum",
+    difficulty: 'Medium',
+    topic: "Dynamic Programming",
+    statement:
+      "Given a positive integer `n`, return the minimum number of perfect squares (`1, 4, 9, 16, ...`) that sum to exactly `n`. Squares may be reused any number of times — for example `12 = 4 + 4 + 4` uses three squares.",
+    explanation:
+      "This is an unbounded coin-change problem where the coins are the perfect squares up to `n`. Define `dp[i]` as the fewest squares summing to `i`, with `dp[0] = 0`.\n\nFor each amount `i` from 1 to `n`, try every square `j*j <= i` as the last summand: `dp[i] = min(dp[i - j*j] + 1)` over all valid `j`. The answer is `dp[n]`, which by Lagrange's four-square theorem is always at most 4 — a nice sanity check for your tests. This runs in O(n * sqrt(n)) time and O(n) space.",
+    functionName: "fewest_squares",
+    functionSignature: "def fewest_squares(n: int) -> int:",
+    starter: STARTER_HEADER + "def fewest_squares(n: int) -> int:\n    pass\n",
+    examples: [
+      { input: [12], expected: 3 },
+      { input: [13], expected: 2 },
+    ],
+    hiddenTests: [
+      { input: [1], expected: 1 },
+      { input: [7], expected: 4 },
+      { input: [25], expected: 1 },
+      { input: [9999], expected: 4 },
+    ],
+  },
+  {
+    id: "orchard-points",
+    number: 178,
+    title: "Orchard Points",
+    difficulty: 'Medium',
+    topic: "Dynamic Programming",
+    statement:
+      "You are picking numbered fruit from an orchard described by a list `nums` of positive integers. Picking any element with value `v` earns you `v` points, but then every element equal to `v - 1` and every element equal to `v + 1` vanishes from the orchard. You may keep picking remaining elements (including other copies of `v`). Return the maximum total points you can earn.",
+    explanation:
+      "First collapse the list with a counter: picking one copy of value `v` destroys all `v-1` and `v+1`, so once you commit to `v` you should take every copy, earning `v * count[v]` in one decision. Now the problem is over distinct values: take a value and you cannot take its immediate neighbors.\n\nThat is exactly the house-robber recurrence run over the sorted distinct values. Walk them in order tracking two states, the best total if you take the current value and the best if you skip it; when the previous distinct value is not exactly one less, there is no conflict and both states build on the best so far. This runs in O(n log n) time (for the sort) and O(n) space.",
+    functionName: "max_orchard_points",
+    functionSignature: "def max_orchard_points(nums: List[int]) -> int:",
+    starter: STARTER_HEADER + "def max_orchard_points(nums: List[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[3, 4, 2]], expected: 6 },
+      { input: [[2, 2, 3, 3, 3, 4]], expected: 9 },
+    ],
+    hiddenTests: [
+      { input: [[1]], expected: 1 },
+      { input: [[5, 5, 5]], expected: 15 },
+      { input: [[2, 3, 4]], expected: 6 },
+      { input: [[1, 1, 1, 2, 4, 5, 5, 5, 6]], expected: 18 },
+    ],
+  },
+  {
+    id: "break-and-multiply",
+    number: 179,
+    title: "Break and Multiply",
+    difficulty: 'Medium',
+    topic: "Dynamic Programming",
+    statement:
+      "Given an integer `n >= 2`, write it as a sum of at least two positive integers and maximize the product of those parts. Return the maximum product — for example `10 = 3 + 3 + 4` gives `36`.",
+    explanation:
+      "Let `dp[i]` be the best product obtainable by splitting `i` into at least two parts. For each first part `j` from 1 to `i - 1`, the rest is `i - j`, which you may either leave whole (product `j * (i - j)`) or split further (product `j * dp[i - j]`). Take the maximum over all choices.\n\nThe 'leave whole' option matters because `dp` values are forced to split — `dp[3] = 2` even though 3 itself is bigger. (If you want the closed-form shortcut: optimal splits use all 3s, swapping one 3 for a 4 when the remainder is 1.) The DP runs in O(n^2) time and O(n) space.",
+    functionName: "best_split_product",
+    functionSignature: "def best_split_product(n: int) -> int:",
+    starter: STARTER_HEADER + "def best_split_product(n: int) -> int:\n    pass\n",
+    examples: [
+      { input: [2], expected: 1 },
+      { input: [10], expected: 36 },
+    ],
+    hiddenTests: [
+      { input: [3], expected: 2 },
+      { input: [4], expected: 4 },
+      { input: [8], expected: 18 },
+      { input: [58], expected: 1549681956 },
+    ],
+  },
+  {
+    id: "nth-regular-number",
+    number: 180,
+    title: "Nth Regular Number",
+    difficulty: 'Medium',
+    topic: "Heap",
+    statement:
+      "A regular number is a positive integer whose only prime factors are `2`, `3`, or `5`. The sequence in increasing order begins `1, 2, 3, 4, 5, 6, 8, 9, 10, 12, ...`. Given an integer `n >= 1`, return the `n`-th regular number (1-indexed, so `n = 1` returns `1`).",
+    explanation:
+      "Every regular number after 1 is a previous regular number multiplied by 2, 3, or 5. So instead of testing integers one by one (hopeless — regular numbers thin out fast), generate the sequence directly from itself.\n\nKeep the list built so far and three pointers `i2, i3, i5`, where pointer `ix` marks the first list element whose product with `x` has not been used yet. The next regular number is the minimum of the three candidate products; append it, then advance every pointer whose candidate equals it (advancing all matching pointers is what prevents duplicates like 6 = 2*3 = 3*2). This runs in O(n) time and O(n) space.",
+    functionName: "nth_regular_number",
+    functionSignature: "def nth_regular_number(n: int) -> int:",
+    starter: STARTER_HEADER + "def nth_regular_number(n: int) -> int:\n    pass\n",
+    examples: [
+      { input: [10], expected: 12 },
+      { input: [1], expected: 1 },
+    ],
+    hiddenTests: [
+      { input: [7], expected: 8 },
+      { input: [11], expected: 15 },
+      { input: [16], expected: 25 },
+      { input: [20], expected: 36 },
+    ],
+  },
+  {
+    id: "colony-tick",
+    number: 181,
+    title: "Colony Tick",
+    difficulty: 'Medium',
+    topic: "Simulation",
+    statement:
+      "A bacterial colony lives on a finite grid where `1` is a live cell and `0` is dead; everything outside the grid is permanently dead. In one tick, all cells update simultaneously: a live cell survives only with 2 or 3 live neighbors (counting all 8 surrounding cells), and a dead cell becomes alive with exactly 3 live neighbors. Return the grid after one tick.",
+    explanation:
+      "The trap is updating in place while neighbors still need the old values — a cell you just killed would wrongly change its neighbor's count. The simplest correct approach is to build a fresh output grid and read only from the original.\n\nFor each cell, count live neighbors by looping over the eight `(di, dj)` offsets, skipping `(0, 0)` and anything out of bounds. Then apply the two rules: live stays live on a count of 2 or 3; dead becomes live on exactly 3; everything else is dead. This runs in O(rows * cols) time and O(rows * cols) space for the new grid.",
+    functionName: "colony_tick",
+    functionSignature: "def colony_tick(grid: List[List[int]]) -> List[List[int]]:",
+    starter: STARTER_HEADER + "def colony_tick(grid: List[List[int]]) -> List[List[int]]:\n    pass\n",
+    examples: [
+      { input: [[[0, 1, 0], [0, 0, 1], [1, 1, 1], [0, 0, 0]]], expected: [[0, 0, 0], [1, 0, 1], [0, 1, 1], [0, 1, 0]] },
+      { input: [[[1, 1], [1, 1]]], expected: [[1, 1], [1, 1]] },
+    ],
+    hiddenTests: [
+      { input: [[[1]]], expected: [[0]] },
+      { input: [[[0]]], expected: [[0]] },
+      { input: [[[1, 0], [0, 1]]], expected: [[0, 0], [0, 0]] },
+      { input: [[[1, 1, 0], [0, 1, 0], [0, 0, 0]]], expected: [[1, 1, 0], [1, 1, 0], [0, 0, 0]] },
+    ],
+  },
+  {
+    id: "every-door-unlocked",
+    number: 182,
+    title: "Every Door Unlocked",
+    difficulty: 'Medium',
+    topic: "Graph",
+    statement:
+      "A building has rooms numbered `0` to `n - 1`. Room `0` is unlocked; every other room is locked. `rooms[i]` lists the keys lying in room `i`, where each key opens the room with that number. You may move freely between rooms you have unlocked. Return `True` if you can eventually enter every room.",
+    explanation:
+      "Model rooms as nodes and keys as directed edges: a key to room `k` found in room `i` is an edge from `i` to `k`. The question becomes pure reachability — can you reach every node starting from node 0?\n\nRun a DFS or BFS from room 0, keeping a visited set. Each time you enter a new room, push all its keys that lead to rooms you have not visited yet. When the traversal exhausts, compare the visited count with `n`. Keys to already-open rooms and duplicate keys are naturally ignored by the set. This runs in O(n + total keys) time and O(n) space.",
+    functionName: "can_unlock_all",
+    functionSignature: "def can_unlock_all(rooms: List[List[int]]) -> bool:",
+    starter: STARTER_HEADER + "def can_unlock_all(rooms: List[List[int]]) -> bool:\n    pass\n",
+    examples: [
+      { input: [[[1], [2], [3], []]], expected: true },
+      { input: [[[1, 3], [3, 0, 1], [2], [0]]], expected: false },
+    ],
+    hiddenTests: [
+      { input: [[[]]], expected: true },
+      { input: [[[2], [], [1]]], expected: true },
+      { input: [[[1], [], [0]]], expected: false },
+      { input: [[[1, 2], [3], [], []]], expected: true },
+    ],
+  },
+  {
+    id: "steps-to-the-nearest-zero",
+    number: 183,
+    title: "Steps to the Nearest Zero",
+    difficulty: 'Medium',
+    topic: "Matrix",
+    statement:
+      "You are given a grid containing only `0`s and `1`s, with at least one `0` present. For every cell, compute the minimum number of steps to reach a cell containing `0`, where a step moves up, down, left, or right. Return the grid of distances (cells holding `0` have distance `0`).",
+    explanation:
+      "Running a separate search from every `1` is quadratic in the worst case. Flip the perspective: start from all the zeros at once. A multi-source BFS seeded with every zero cell expands outward in rings, and the first ring to touch a cell is, by BFS's level-order guarantee, its true distance.\n\nInitialize a distance grid with 0 for zero-cells and a sentinel (say -1) elsewhere, and enqueue every zero. Pop cells in order; for each unvisited neighbor, set its distance to the popped cell's distance plus one and enqueue it. Every cell enters the queue exactly once. This runs in O(rows * cols) time and O(rows * cols) space.",
+    functionName: "nearest_zero_steps",
+    functionSignature: "def nearest_zero_steps(grid: List[List[int]]) -> List[List[int]]:",
+    starter: STARTER_HEADER + "def nearest_zero_steps(grid: List[List[int]]) -> List[List[int]]:\n    pass\n",
+    examples: [
+      { input: [[[0, 0, 0], [0, 1, 0], [0, 0, 0]]], expected: [[0, 0, 0], [0, 1, 0], [0, 0, 0]] },
+      { input: [[[0, 0, 0], [0, 1, 0], [1, 1, 1]]], expected: [[0, 0, 0], [0, 1, 0], [1, 2, 1]] },
+    ],
+    hiddenTests: [
+      { input: [[[0]]], expected: [[0]] },
+      { input: [[[0, 1], [1, 1]]], expected: [[0, 1], [1, 2]] },
+      { input: [[[1, 0, 1, 1]]], expected: [[1, 0, 1, 2]] },
+      { input: [[[0, 1, 1], [1, 1, 1]]], expected: [[0, 1, 2], [1, 2, 3]] },
+    ],
+  },
+  {
+    id: "windows-under-the-product-cap",
+    number: 184,
+    title: "Windows Under the Product Cap",
+    difficulty: 'Medium',
+    topic: "Sliding Window",
+    statement:
+      "Given a list `nums` of positive integers and an integer `k`, count how many contiguous subarrays have a product strictly less than `k`. Note that if `k <= 1` no subarray qualifies, since every product is at least `1`.",
+    explanation:
+      "Because every element is positive, extending a window can only grow the product and shrinking it can only reduce it — products are monotone in the window. That monotonicity is the license for a sliding window.\n\nGrow `right` one step at a time, multiplying the running product; while it is at least `k`, divide off `nums[left]` and advance `left`. After fixing things up, every subarray ending at `right` and starting at or after `left` is valid, and there are exactly `right - left + 1` of them — add that to the count. Handle `k <= 1` upfront. Each index enters and leaves the window once, so this runs in O(n) time and O(1) space.",
+    functionName: "count_capped_product_windows",
+    functionSignature: "def count_capped_product_windows(nums: List[int], k: int) -> int:",
+    starter: STARTER_HEADER + "def count_capped_product_windows(nums: List[int], k: int) -> int:\n    pass\n",
+    examples: [
+      { input: [[10, 5, 2, 6], 100], expected: 8 },
+      { input: [[1, 2, 3], 0], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [[1, 1, 1], 2], expected: 6 },
+      { input: [[10], 10], expected: 0 },
+      { input: [[10], 11], expected: 1 },
+      { input: [[2, 3, 4], 13], expected: 5 },
+    ],
+  },
+  {
+    id: "longest-run-with-k-flips",
+    number: 185,
+    title: "Longest Run with K Flips",
+    difficulty: 'Medium',
+    topic: "Sliding Window",
+    statement:
+      "You are given a binary list `nums` (containing only `0`s and `1`s) and an integer `k >= 0`. You may flip at most `k` zeros into ones. Return the length of the longest contiguous run of `1`s you can produce.",
+    explanation:
+      "Rephrase the goal: find the longest window that contains at most `k` zeros, since exactly those windows can be turned all-ones with your flip budget. That 'at most k of something' constraint is the classic sliding-window shape.\n\nExpand `right` across the array, incrementing a zero counter when you absorb a 0. Whenever the counter exceeds `k`, advance `left` (decrementing the counter when a 0 exits) until the window is legal again. Track the maximum window size seen. The window never shrinks below its best, and each pointer moves at most n times. This runs in O(n) time and O(1) space.",
+    functionName: "longest_run_with_flips",
+    functionSignature: "def longest_run_with_flips(nums: List[int], k: int) -> int:",
+    starter: STARTER_HEADER + "def longest_run_with_flips(nums: List[int], k: int) -> int:\n    pass\n",
+    examples: [
+      { input: [[1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0], 2], expected: 6 },
+      { input: [[0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1], 3], expected: 10 },
+    ],
+    hiddenTests: [
+      { input: [[0, 0, 0], 0], expected: 0 },
+      { input: [[1, 1], 0], expected: 2 },
+      { input: [[0, 0, 1], 2], expected: 3 },
+      { input: [[1, 0, 1, 0, 1], 1], expected: 3 },
+    ],
+  },
+  {
+    id: "prefix-beats-suffix",
+    number: 186,
+    title: "Prefix Beats Suffix",
+    difficulty: 'Medium',
+    topic: "Prefix Sum",
+    statement:
+      "Given a list of integers `nums` with at least two elements, count the number of valid split points. A split at index `i` (where `0 <= i < len(nums) - 1`) is valid when the sum of `nums[0..i]` is greater than or equal to the sum of `nums[i+1..]`. Both sides must be non-empty.",
+    explanation:
+      "Computing both side sums from scratch for each split is O(n^2). Instead, compute the total once; then as you sweep a running prefix sum from left to right, the right side is always `total - prefix` — no second pass needed.\n\nIterate `i` over every index except the last, adding `nums[i]` to the prefix and checking `prefix >= total - prefix`. Count the successes. Watch the boundary: the last index is not a valid split because the right side would be empty. This runs in O(n) time and O(1) space.",
+    functionName: "count_prefix_wins",
+    functionSignature: "def count_prefix_wins(nums: List[int]) -> int:",
+    starter: STARTER_HEADER + "def count_prefix_wins(nums: List[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[10, 4, -8, 7]], expected: 2 },
+      { input: [[2, 3, 1, 0]], expected: 2 },
+    ],
+    hiddenTests: [
+      { input: [[1, 1]], expected: 1 },
+      { input: [[0, 0, 0]], expected: 2 },
+      { input: [[-1, -2, -3]], expected: 2 },
+      { input: [[5, -100, 1]], expected: 1 },
+    ],
+  },
+  {
+    id: "one-step-lexicographic",
+    number: 187,
+    title: "One Step Lexicographic",
+    difficulty: 'Medium',
+    topic: "Array",
+    statement:
+      "Given a list of integers `nums`, rearrange its elements into the next arrangement in lexicographic order — the smallest arrangement that is strictly greater than the current one. If `nums` is already the greatest possible arrangement, return its elements sorted in increasing order instead. Return the resulting list.",
+    explanation:
+      "Scan from the right to find the pivot: the last index `i` where `nums[i] < nums[i+1]`. Everything after the pivot is non-increasing — already the largest arrangement of that suffix — so the only way to grow the sequence minimally is to bump the pivot itself.\n\nSwap the pivot with the smallest element to its right that is still larger than it (found by scanning from the end), then reverse the suffix so it becomes the smallest arrangement of its values. If no pivot exists, the whole list is non-increasing and reversing it gives the sorted wrap-around case. This runs in O(n) time and O(1) extra space beyond the returned list.",
+    functionName: "next_arrangement",
+    functionSignature: "def next_arrangement(nums: List[int]) -> List[int]:",
+    starter: STARTER_HEADER + "def next_arrangement(nums: List[int]) -> List[int]:\n    pass\n",
+    examples: [
+      { input: [[1, 2, 3]], expected: [1, 3, 2] },
+      { input: [[3, 2, 1]], expected: [1, 2, 3] },
+    ],
+    hiddenTests: [
+      { input: [[1, 1, 5]], expected: [1, 5, 1] },
+      { input: [[1]], expected: [1] },
+      { input: [[2, 3, 1]], expected: [3, 1, 2] },
+      { input: [[1, 5, 8, 4, 7, 6, 5, 3, 1]], expected: [1, 5, 8, 5, 1, 3, 4, 6, 7] },
+    ],
+  },
+  {
+    id: "balloon-line-darts",
+    number: 188,
+    title: "Balloon Line Darts",
+    difficulty: 'Medium',
+    topic: "Interval",
+    statement:
+      "Balloons are taped along a wall, where balloon `i` covers the horizontal span `[points[i][0], points[i][1]]` (inclusive). A dart thrown at position `x` pops every balloon whose span contains `x`. Return the minimum number of darts needed to pop all balloons.",
+    explanation:
+      "Think about the balloon whose span ends first. Some dart must pop it, and throwing that dart exactly at this earliest right endpoint is never worse — moving the dart left can only lose balloons that start later, and it cannot be moved right without missing this balloon.\n\nSo sort balloons by right endpoint and sweep: throw a dart at the first balloon's end, then skip every balloon whose start is within that dart's position. When you meet a balloon that starts beyond the last dart, throw a new dart at its end. Count the darts. Sorting dominates, so this runs in O(n log n) time and O(1) extra space.",
+    functionName: "min_dart_throws",
+    functionSignature: "def min_dart_throws(points: List[List[int]]) -> int:",
+    starter: STARTER_HEADER + "def min_dart_throws(points: List[List[int]]) -> int:\n    pass\n",
+    examples: [
+      { input: [[[10, 16], [2, 8], [1, 6], [7, 12]]], expected: 2 },
+      { input: [[[1, 2], [3, 4], [5, 6], [7, 8]]], expected: 4 },
+    ],
+    hiddenTests: [
+      { input: [[[1, 2], [2, 3], [3, 4], [4, 5]]], expected: 2 },
+      { input: [[[1, 5]]], expected: 1 },
+      { input: [[[1, 10], [2, 3], [4, 5]]], expected: 2 },
+      { input: [[[-5, 0], [-3, 2], [1, 4]]], expected: 2 },
+    ],
+  },
+  {
+    id: "first-and-last-hit",
+    number: 189,
+    title: "First and Last Hit",
+    difficulty: 'Medium',
+    topic: "Binary Search",
+    statement:
+      "Given a list of integers `nums` sorted in non-decreasing order (possibly empty) and a value `target`, return a two-element list `[first, last]` with the indices of the first and last occurrence of `target`. If the target does not appear, return `[-1, -1]`. Your solution should run in `O(log n)` time.",
+    explanation:
+      "A single binary search finds some occurrence, but not necessarily the boundary ones — and walking outward from it degrades to O(n) on arrays full of the target. Run two specialized binary searches instead.\n\nThe left search finds the first index whose value is at least `target` (bias the search left on equality); the right search finds the first index whose value exceeds `target`, then steps back one. If the left result is out of bounds or does not hold the target, the answer is `[-1, -1]`. These are exactly `bisect_left` and `bisect_right`. Two binary searches run in O(log n) time and O(1) space.",
+    functionName: "target_span",
+    functionSignature: "def target_span(nums: List[int], target: int) -> List[int]:",
+    starter: STARTER_HEADER + "def target_span(nums: List[int], target: int) -> List[int]:\n    pass\n",
+    examples: [
+      { input: [[5, 7, 7, 8, 8, 10], 8], expected: [3, 4] },
+      { input: [[5, 7, 7, 8, 8, 10], 6], expected: [-1, -1] },
+    ],
+    hiddenTests: [
+      { input: [[], 0], expected: [-1, -1] },
+      { input: [[1], 1], expected: [0, 0] },
+      { input: [[2, 2, 2, 2], 2], expected: [0, 3] },
+      { input: [[1, 2, 3, 3, 3, 4], 4], expected: [5, 5] },
+    ],
+  },
+  {
+    id: "spread-the-antennas",
+    number: 190,
+    title: "Spread the Antennas",
+    difficulty: 'Medium',
+    topic: "Binary Search",
+    statement:
+      "You have `k` antennas to install along a street, and `positions` lists the distinct integer coordinates of the mounting points available (with `2 <= k <= len(positions)`). To minimize interference, you want the smallest distance between any two installed antennas to be as large as possible. Return that largest possible minimum distance.",
+    explanation:
+      "Flip the question into a yes/no check: for a candidate gap `d`, can you place `k` antennas so every pair is at least `d` apart? With sorted positions, a greedy answers this — install at the first point, then walk right installing at the next point at least `d` away, and count installs. The greedy is optimal because taking the earliest legal point never hurts later choices.\n\nThe check is monotone: if gap `d` is achievable, every smaller gap is too. So binary search `d` between 1 and the full span of positions, keeping the largest `d` whose check passes. With n points, each check is O(n) and the search is O(log range), giving O(n log n + n log range) time and O(1) extra space after sorting.",
+    functionName: "max_min_antenna_gap",
+    functionSignature: "def max_min_antenna_gap(positions: List[int], k: int) -> int:",
+    starter: STARTER_HEADER + "def max_min_antenna_gap(positions: List[int], k: int) -> int:\n    pass\n",
+    examples: [
+      { input: [[1, 2, 3, 4, 7], 3], expected: 3 },
+      { input: [[5, 4, 3, 2, 1, 1000000000], 2], expected: 999999999 },
+    ],
+    hiddenTests: [
+      { input: [[1, 2, 7, 11], 3], expected: 4 },
+      { input: [[0, 100], 2], expected: 100 },
+      { input: [[1, 2, 3], 3], expected: 1 },
+      { input: [[10, 1, 2, 7, 5], 3], expected: 4 },
+    ],
+  },
+  {
+    id: "fair-chunk-split",
+    number: 191,
+    title: "Fair Chunk Split",
+    difficulty: 'Hard',
+    topic: "Binary Search",
+    statement:
+      "You must split the list `nums` of positive integers into exactly `k` non-empty contiguous chunks (`1 <= k <= len(nums)`), keeping the original order. The cost of a split is the largest chunk sum it produces. Return the minimum possible cost.",
+    explanation:
+      "Searching over actual splits explodes combinatorially, but checking a budget is easy: given a cap `m`, greedily pack elements left to right into the current chunk, starting a new chunk whenever adding the next element would exceed `m`. The greedy uses the fewest chunks possible for that cap, so the cap is feasible exactly when the chunk count comes out at most `k`.\n\nFeasibility is monotone in `m` — a bigger budget never needs more chunks — so binary search the answer between `max(nums)` (every element must fit somewhere) and `sum(nums)` (one chunk). Take the smallest feasible cap. With each check costing O(n), this runs in O(n log(sum)) time and O(1) space.",
+    functionName: "min_largest_chunk",
+    functionSignature: "def min_largest_chunk(nums: List[int], k: int) -> int:",
+    starter: STARTER_HEADER + "def min_largest_chunk(nums: List[int], k: int) -> int:\n    pass\n",
+    examples: [
+      { input: [[7, 2, 5, 10, 8], 2], expected: 18 },
+      { input: [[1, 2, 3, 4, 5], 2], expected: 9 },
+    ],
+    hiddenTests: [
+      { input: [[1, 4, 4], 3], expected: 4 },
+      { input: [[10], 1], expected: 10 },
+      { input: [[1, 2, 3, 4, 5], 5], expected: 5 },
+      { input: [[2, 3, 1, 2, 4, 3], 3], expected: 6 },
+    ],
+  },
+  {
+    id: "longest-balanced-run",
+    number: 192,
+    title: "Longest Balanced Run",
+    difficulty: 'Hard',
+    topic: "Stack",
+    statement:
+      "Given a string `s` containing only the characters `'('` and `')'`, return the length of the longest contiguous substring that is a well-formed sequence of parentheses (every opener closed, in valid order). Return `0` if no such substring exists.",
+    explanation:
+      "Validity checks usually push openers and pop on closers, but here you need lengths, so push indices instead. Keep a sentinel index at the bottom of the stack marking the position just before the current candidate run.\n\nOn `'('`, push the index. On `')'`, pop; if the stack becomes empty this closer is unmatched, so push its index as the new sentinel. Otherwise the substring from just after the new stack top through the current index is balanced — measure `i - stack[-1]` and keep the maximum. Start the stack with -1 so runs touching the string start measure correctly. Each index is pushed and popped once: O(n) time and O(n) space.",
+    functionName: "longest_balanced_run",
+    functionSignature: "def longest_balanced_run(s: str) -> int:",
+    starter: STARTER_HEADER + "def longest_balanced_run(s: str) -> int:\n    pass\n",
+    examples: [
+      { input: ["(()"], expected: 2 },
+      { input: [")()())"], expected: 4 },
+    ],
+    hiddenTests: [
+      { input: [""], expected: 0 },
+      { input: ["()(())"], expected: 6 },
+      { input: ["()(()"], expected: 2 },
+      { input: ["((()))()"], expected: 8 },
+    ],
+  },
+  {
+    id: "pop-order-payoff",
+    number: 193,
+    title: "Pop Order Payoff",
+    difficulty: 'Hard',
+    topic: "Dynamic Programming",
+    statement:
+      "A row of balloons is labeled with the numbers in `nums`. When you pop balloon `i` you earn `left * nums[i] * right` coins, where `left` and `right` are the values on the nearest unpopped balloons on each side (treat a missing neighbor as `1`). You must pop every balloon, choosing the order. Return the maximum total coins you can earn.",
+    explanation:
+      "Thinking about which balloon to pop first is a dead end, because popping changes everyone's neighbors. Think about which balloon in a range is popped last: its neighbors at that moment are exactly the fixed boundaries of the range, untouched by anything inside.\n\nPad the array with virtual 1s on both ends and define `dp[l][r]` as the best score for popping everything strictly between indices `l` and `r`. Choosing `i` as the final pop in that window earns `vals[l] * vals[i] * vals[r]` plus the best scores of the two independent sub-windows `(l, i)` and `(i, r)`. Fill windows in increasing length; the answer is `dp[0][n-1]` over the padded array. This runs in O(n^3) time and O(n^2) space.",
+    functionName: "max_pop_coins",
+    functionSignature: "def max_pop_coins(nums: List[int]) -> int:",
+    starter: STARTER_HEADER + "def max_pop_coins(nums: List[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[3, 1, 5, 8]], expected: 167 },
+      { input: [[1, 5]], expected: 10 },
+    ],
+    hiddenTests: [
+      { input: [[7]], expected: 7 },
+      { input: [[1, 2, 3]], expected: 12 },
+      { input: [[5, 10]], expected: 60 },
+      { input: [[2, 4, 8]], expected: 88 },
+    ],
+  },
+  {
+    id: "smaller-numbers-behind",
+    number: 194,
+    title: "Smaller Numbers Behind",
+    difficulty: 'Hard',
+    topic: "Sorting",
+    statement:
+      "For each element of the integer list `nums`, count how many elements to its right are strictly smaller than it. Return the counts as a list aligned with the input — the last element's count is always `0`. Aim for better than quadratic time.",
+    explanation:
+      "The brute force compares every pair. To beat it, process the array from right to left while maintaining a structure that can answer 'how many values seen so far are smaller than x?' in logarithmic time.\n\nA Fenwick (binary indexed) tree over the ranks of the values does the job: compress the values to ranks 1..m, then for each element (right to left) query the prefix count of ranks strictly below it, record that, and add its own rank to the tree. Reverse the recorded answers at the end. A merge-sort that counts inversions per element works equally well. This runs in O(n log n) time and O(n) space.",
+    functionName: "smaller_counts_behind",
+    functionSignature: "def smaller_counts_behind(nums: List[int]) -> List[int]:",
+    starter: STARTER_HEADER + "def smaller_counts_behind(nums: List[int]) -> List[int]:\n    pass\n",
+    examples: [
+      { input: [[5, 2, 6, 1]], expected: [2, 1, 1, 0] },
+      { input: [[-1, -1]], expected: [0, 0] },
+    ],
+    hiddenTests: [
+      { input: [[1]], expected: [0] },
+      { input: [[1, 2, 3]], expected: [0, 0, 0] },
+      { input: [[3, 2, 1]], expected: [2, 1, 0] },
+      { input: [[2, 0, 1]], expected: [2, 0, 0] },
+    ],
+  },
+  {
+    id: "sliding-median-trail",
+    number: 195,
+    title: "Sliding Median Trail",
+    difficulty: 'Hard',
+    topic: "Heap",
+    statement:
+      "Given an integer list `nums` and a window size `k` (with `1 <= k <= len(nums)`), slide a window of size `k` across the list one step at a time and record the median of each window. For even `k` the median is the average of the two middle values. Return the medians in order, as floats.",
+    explanation:
+      "For each of the `n - k + 1` windows you need the middle of the sorted window. The production-grade approach keeps two heaps — a max-heap of the lower half and a min-heap of the upper half — rebalancing on every slide and lazily discarding elements that have left the window; the median is then read off the heap tops.\n\nA simpler route that still passes here is maintaining a sorted window: binary-insert the incoming element and binary-remove the outgoing one (`bisect.insort` and a `bisect_left` deletion), then index the middle. Remember the even-`k` averaging, and emit floats consistently. The sorted-list version runs in O(n * k) time worst case (O(n log k) comparisons but O(k) shifts) with O(k) space; the two-heap version achieves O(n log n).",
+    functionName: "sliding_medians",
+    functionSignature: "def sliding_medians(nums: List[int], k: int) -> List[float]:",
+    starter: STARTER_HEADER + "def sliding_medians(nums: List[int], k: int) -> List[float]:\n    pass\n",
+    examples: [
+      { input: [[1, 3, -1, -3, 5, 3, 6, 7], 3], expected: [1.0, -1.0, -1.0, 3.0, 5.0, 6.0] },
+      { input: [[1, 2, 3, 4], 2], expected: [1.5, 2.5, 3.5] },
+    ],
+    hiddenTests: [
+      { input: [[1], 1], expected: [1.0] },
+      { input: [[2, 2, 2, 2], 2], expected: [2.0, 2.0, 2.0] },
+      { input: [[1, 4, 2, 3], 4], expected: [2.5] },
+      { input: [[5, 2, 2, 7, 3, 7, 9, 0, 2, 3], 3], expected: [2.0, 2.0, 3.0, 7.0, 7.0, 7.0, 2.0, 2.0] },
+    ],
+  },
+  {
+    id: "river-stone-hops",
+    number: 196,
+    title: "River Stone Hops",
+    difficulty: 'Hard',
+    topic: "Dynamic Programming",
+    statement:
+      "A frog wants to cross a river by hopping across stones at the strictly increasing positions given in `stones`, where the first stone is always at position `0`. The frog starts on the first stone, and its first hop must be exactly `1` unit. After a hop of `j` units, the next hop must be `j - 1`, `j`, or `j + 1` units, always forward, and the frog must land exactly on a stone. Return `True` if the frog can reach the last stone.",
+    explanation:
+      "The frog's future depends on two things only: which stone it stands on and the size of the hop that got it there. That pair is the state, and there are at most O(n^2) distinct states since each hop size at a stone is bounded by the number of prior hops.\n\nSearch the state graph with memoized DFS (or BFS over states). From state `(position, j)`, try hop sizes `j - 1`, `j`, `j + 1` (skipping non-positive ones), and follow each that lands in the set of stone positions. Memoize failures so each state is explored once. Handle the openers directly: a single stone is trivially reached, and if the second stone is not at position 1 the first mandatory hop already fails. This runs in O(n^2) time and O(n^2) space.",
+    functionName: "can_cross_river",
+    functionSignature: "def can_cross_river(stones: List[int]) -> bool:",
+    starter: STARTER_HEADER + "def can_cross_river(stones: List[int]) -> bool:\n    pass\n",
+    examples: [
+      { input: [[0, 1, 3, 5, 6, 8, 12, 17]], expected: true },
+      { input: [[0, 1, 2, 3, 4, 8, 9, 11]], expected: false },
+    ],
+    hiddenTests: [
+      { input: [[0, 1]], expected: true },
+      { input: [[0, 2]], expected: false },
+      { input: [[0, 1, 2, 4, 7, 11]], expected: true },
+      { input: [[0, 1, 2, 3, 5, 9]], expected: false },
+    ],
+  },
+  {
+    id: "largest-solid-block",
+    number: 197,
+    title: "Largest Solid Block",
+    difficulty: 'Hard',
+    topic: "Matrix",
+    statement:
+      "Given a matrix `grid` containing only `0`s and `1`s, find the axis-aligned rectangle made up entirely of `1`s with the largest area. Return that area, or `0` if the grid contains no `1`s.",
+    explanation:
+      "Slice the matrix row by row and reuse the histogram trick: for each row, compute `heights[j]`, the number of consecutive `1`s ending at this row in column `j` (reset to 0 on a `0`). Any all-ones rectangle whose bottom edge lies on this row is exactly a rectangle under this histogram.\n\nSo the problem reduces to running 'largest rectangle in a histogram' once per row. Solve each histogram with a monotonic stack of (start index, height): when a shorter bar arrives, pop taller bars, scoring `height * width` for each, and let the new bar inherit the earliest popped start. Appending a sentinel 0 flushes the stack. Take the best over all rows. This runs in O(rows * cols) time and O(cols) space.",
+    functionName: "largest_solid_block",
+    functionSignature: "def largest_solid_block(grid: List[List[int]]) -> int:",
+    starter: STARTER_HEADER + "def largest_solid_block(grid: List[List[int]]) -> int:\n    pass\n",
+    examples: [
+      { input: [[[1, 0, 1, 0, 0], [1, 0, 1, 1, 1], [1, 1, 1, 1, 1], [1, 0, 0, 1, 0]]], expected: 6 },
+      { input: [[[0]]], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [[[1]]], expected: 1 },
+      { input: [[[1, 1], [1, 1]]], expected: 4 },
+      { input: [[[0, 1], [1, 0]]], expected: 1 },
+      { input: [[[1, 1, 0], [1, 1, 1], [0, 1, 1]]], expected: 4 },
+    ],
+  },
+  {
+    id: "cheapest-crew",
+    number: 198,
+    title: "Cheapest Crew",
+    difficulty: 'Hard',
+    topic: "Greedy",
+    statement:
+      "You are hiring exactly `k` of `n` workers. Worker `i` has skill `quality[i]` and demands at least `wage[i]` in total pay. Within the hired crew, pay must be proportional to quality (if one worker has double the quality, they earn double), and every worker must receive at least their demanded wage. Return the minimum total payroll as a float.",
+    explanation:
+      "Proportional pay means the whole crew shares one pay rate per unit of quality, and to satisfy everyone that rate must be at least each member's ratio `wage[i] / quality[i]`. So the crew's rate is its maximum ratio, and the payroll is `rate * (sum of crew qualities)`.\n\nSort workers by ratio and consider each as the rate-setter: every other crew member must come from the workers with smaller or equal ratio, and among those you want the `k - 1` smallest qualities. Sweep the sorted list while maintaining a max-heap of the qualities taken and their running sum, evicting the largest quality when the heap exceeds `k`; whenever the heap holds exactly `k`, candidate cost is `ratio * quality_sum`. Take the minimum. This runs in O(n log n) time and O(n) space.",
+    functionName: "min_crew_payroll",
+    functionSignature: "def min_crew_payroll(quality: List[int], wage: List[int], k: int) -> float:",
+    starter: STARTER_HEADER + "def min_crew_payroll(quality: List[int], wage: List[int], k: int) -> float:\n    pass\n",
+    examples: [
+      { input: [[10, 20, 5], [70, 50, 30], 2], expected: 105.0 },
+      { input: [[3, 1, 10, 10, 1], [4, 8, 2, 2, 7], 3], expected: 30.66666667 },
+    ],
+    hiddenTests: [
+      { input: [[5, 10], [10, 10], 1], expected: 10.0 },
+      { input: [[1, 2, 3], [5, 6, 7], 2], expected: 15.0 },
+      { input: [[4, 2], [8, 2], 2], expected: 12.0 },
+      { input: [[10], [100], 1], expected: 100.0 },
+    ],
+  },
+  {
+    id: "mutual-downtime",
+    number: 199,
+    title: "Mutual Downtime",
+    difficulty: 'Hard',
+    topic: "Interval",
+    statement:
+      "Each member of a team has a busy calendar: `schedules[i]` is a list of intervals `[start, end]`, sorted and non-overlapping, during which member `i` is unavailable. Return every bounded interval of positive length during which all members are free, as a list of `[start, end]` pairs in increasing order. Ignore the unbounded free time before the first event and after the last.",
+    explanation:
+      "Common free time is just the complement of anyone-is-busy time. So forget who owns which interval: pour every busy interval from every member into one list and sort it by start.\n\nSweep the sorted intervals while tracking the furthest busy end seen so far. When the next interval starts strictly after that furthest end, the span between them is a gap where nobody is busy — record it. Either way, extend the furthest end with the current interval. The recorded gaps are automatically sorted, positive-length, and bounded on both sides. Sorting dominates: O(m log m) time and O(m) space, where m is the total number of intervals.",
+    functionName: "mutual_downtime",
+    functionSignature: "def mutual_downtime(schedules: List[List[List[int]]]) -> List[List[int]]:",
+    starter: STARTER_HEADER + "def mutual_downtime(schedules: List[List[List[int]]]) -> List[List[int]]:\n    pass\n",
+    examples: [
+      { input: [[[[1, 2], [5, 6]], [[1, 3]], [[4, 10]]]], expected: [[3, 4]] },
+      { input: [[[[1, 3], [6, 7]], [[2, 4]], [[2, 5], [9, 12]]]], expected: [[5, 6], [7, 9]] },
+    ],
+    hiddenTests: [
+      { input: [[[[1, 2]], [[3, 4]]]], expected: [[2, 3]] },
+      { input: [[[[1, 10]]]], expected: [] },
+      { input: [[[[1, 2], [4, 5]], [[1, 5]]]], expected: [] },
+      { input: [[[[0, 1]], [[2, 3]], [[4, 5]]]], expected: [[1, 2], [3, 4]] },
+    ],
+  },
+  {
+    id: "bracketed-arithmetic",
+    number: 200,
+    title: "Bracketed Arithmetic",
+    difficulty: 'Hard',
+    topic: "Stack",
+    statement:
+      "Evaluate the arithmetic expression in the string `s` and return its integer value. The expression contains non-negative integers, `'+'`, `'-'`, parentheses, and spaces; a `'-'` may also appear as a unary minus at the start of the expression or immediately after `'('`, as in `\"-(2+3)\"`. Do not use any built-in expression evaluator.",
+    explanation:
+      "Without parentheses this is a single pass: keep a running result, a pending sign, and the number being read digit by digit; each operator flushes `sign * number` into the result and records the new sign. The unary minus needs no special case — flushing a zero-length number contributes nothing, then the minus sets the sign.\n\nParentheses introduce nesting, which a stack unwinds. On `'('`, push the running result and pending sign, then start fresh for the inside. On `')'`, flush the current number, then pop `(prev_result, prev_sign)` and combine: `result = prev_result + prev_sign * inner_result`. Flush once more after the loop for the trailing number. Each character is processed once: O(n) time and O(n) space for the stack.",
+    functionName: "eval_bracketed",
+    functionSignature: "def eval_bracketed(s: str) -> int:",
+    starter: STARTER_HEADER + "def eval_bracketed(s: str) -> int:\n    pass\n",
+    examples: [
+      { input: ["1 + 1"], expected: 2 },
+      { input: ["(1+(4+5+2)-3)+(6+8)"], expected: 23 },
+    ],
+    hiddenTests: [
+      { input: [" 2-1 + 2 "], expected: 3 },
+      { input: ["-(2+3)"], expected: -5 },
+      { input: ["1-(-2)"], expected: 3 },
+      { input: ["2-(5-6)"], expected: 3 },
     ],
   },
 ];

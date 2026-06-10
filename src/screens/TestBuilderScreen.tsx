@@ -31,6 +31,7 @@ import {
   MAX_PER_SECTION,
   BUILT_IN_TEMPLATES,
   createBlankTemplate,
+  withAllSections,
   genId,
   poolForSection,
   estimateQuestions,
@@ -86,14 +87,15 @@ export default function TestBuilderScreen() {
   const [template, setTemplate] = useState<TestTemplate>(() => {
     if (params?.templateId) {
       const existing = useTestStore.getState().getTemplate(params.templateId);
-      // Deep copy so edits don't mutate the persisted object until Save.
-      if (existing) return JSON.parse(JSON.stringify(existing));
+      // Deep copy so edits don't mutate the persisted object until Save;
+      // normalize so templates saved before newer kinds (quiz) show them.
+      if (existing) return withAllSections(JSON.parse(JSON.stringify(existing)));
     }
     if (params?.duplicateFrom) {
       const src =
         BUILT_IN_TEMPLATES.find((t) => t.id === params.duplicateFrom) ??
         useTestStore.getState().getTemplate(params.duplicateFrom);
-      if (src) return cloneAsNew(src);
+      if (src) return withAllSections(cloneAsNew(src));
     }
     return createBlankTemplate();
   });

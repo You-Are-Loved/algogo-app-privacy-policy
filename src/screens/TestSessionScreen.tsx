@@ -23,17 +23,21 @@ import { SystemDesignProblemView } from './SystemDesignScreen';
 import { useTestStore } from '../store/useTestStore';
 import {
   BUILT_IN_TEMPLATES,
+  SAMPLE_TEMPLATE_ID,
   TestItem,
   ItemOutcome,
   SECTION_META,
   buildSession,
+  buildSampleSession,
   formatClock,
   itemTitle,
   getProblem,
   getSystemDesignProblem,
   getBugFixProblem,
   getBehavioralQuestion,
+  getQuizBankItem,
   BehavioralQuestion,
+  QuizBankItem,
 } from '../data/testMode';
 
 type Nav = NativeStackNavigationProp<TestStackParamList>;
@@ -55,9 +59,18 @@ export default function TestSessionScreen() {
     [params.templateId],
   );
   // Sampled once on mount; replaying the same template re-samples fresh.
-  const [items] = useState<TestItem[]>(() =>
-    template ? buildSession(template) : [],
-  );
+  // The free sample is the exception: a fixed question set, and starting it
+  // consumes the one free run.
+  const [items] = useState<TestItem[]>(() => {
+    if (params.templateId === SAMPLE_TEMPLATE_ID) return buildSampleSession();
+    return template ? buildSession(template) : [];
+  });
+
+  useEffect(() => {
+    if (params.templateId === SAMPLE_TEMPLATE_ID) {
+      useTestStore.getState().markSampleUsed();
+    }
+  }, [params.templateId]);
 
   const [index, setIndex] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(items[0]?.secondsBudget ?? 0);
@@ -108,11 +121,17 @@ export default function TestSessionScreen() {
     }
     const score = tally.passed / tally.total;
     const noun = target.kind === 'system-design' ? 'requirements' : 'tests';
+    const detail =
+      target.kind === 'quiz'
+        ? score >= 1
+          ? 'Correct'
+          : 'Incorrect'
+        : `${tally.passed} / ${tally.total} ${noun}`;
     return {
       ...base,
       status: score >= 1 ? 'passed' : score > 0 ? 'partial' : 'failed',
       score,
-      detail: `${tally.passed} / ${tally.total} ${noun}`,
+      detail,
     };
   };
 
@@ -171,7 +190,9 @@ export default function TestSessionScreen() {
         'Skip this question?',
         item.kind === 'behavioral'
           ? "You haven't written an answer yet."
-          : "You haven't submitted a result yet — it will count as skipped.",
+          : item.kind === 'quiz'
+            ? "You haven't picked an answer yet — it will count as skipped."
+            : "You haven't submitted a result yet — it will count as skipped.",
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Skip', style: 'destructive', onPress: () => advance(false) },
@@ -315,6 +336,11 @@ function SessionItem({
       if (!problem) return <MissingProblem />;
       return <SystemDesignProblemView problem={problem} embedded onResult={onResult} />;
     }
+    case 'quiz': {
+      const question = getQuizBankItem(item.problemId);
+      if (!question) return <MissingProblem />;
+      return <QuizAnswerView question={question} onResult={onResult} />;
+    }
     case 'behavioral': {
       const question = getBehavioralQuestion(item.problemId);
       if (!question) return <MissingProblem />;
@@ -370,6 +396,98 @@ function BehavioralAnswerView({
         />
       </ScrollView>
     </KeyboardAvoidingView>
+  );
+}
+
+// One-shot multiple choice — picking an option locks it in, exactly like a
+// real screening quiz. The first (only) answer is what gets scored.
+function QuizAnswerView({
+  question,
+  onResult,
+}: {
+  question: QuizBankItem;
+  onResult: (r: RunTally) => void;
+}) {
+  const [selected, setSelected] = useState<number | null>(null);
+  const answered = selected !== null;
+  const correct = selected === question.correctAnswer;
+
+  const pick = (i: number) => {
+    if (answered) return;
+    setSelected(i);
+    onResult({ passed: i === question.correctAnswer ? 1 : 0, total: 1 });
+  };
+
+  return (
+    <ScrollView
+      contentContainerStyle={styles.quizContent}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.quizTrackChip}>
+        <Ionicons name="help-circle-outline" size={13} color={colors.purpleDark} />
+        <Text style={styles.quizTrackChipText}>
+          {question.track} · {question.categoryName}
+        </Text>
+      </View>
+      <Text style={styles.quizQuestion}>{question.question}</Text>
+
+      <View style={{ gap: spacing.sm }}>
+        {question.options.map((opt, i) => {
+          const isCorrect = i === question.correctAnswer;
+          const isSelected = i === selected;
+          let bg = colors.card;
+          let border = colors.border;
+          let icon: string | null = null;
+          let iconColor = colors.inkLight;
+          if (answered) {
+            if (isCorrect) {
+              bg = `${colors.primary}15`;
+              border = colors.primary;
+              icon = 'checkmark-circle';
+              iconColor = colors.primary;
+            } else if (isSelected) {
+              bg = `${colors.error}15`;
+              border = colors.error;
+              icon = 'close-circle';
+              iconColor = colors.error;
+            }
+          }
+          return (
+            <TouchableOpacity
+              key={i}
+              style={[styles.quizOption, { backgroundColor: bg, borderColor: border }]}
+              activeOpacity={answered ? 1 : 0.7}
+              disabled={answered}
+              onPress={() => pick(i)}
+            >
+              <View style={styles.quizOptionLetter}>
+                <Text style={styles.quizOptionLetterText}>
+                  {String.fromCharCode(65 + i)}
+                </Text>
+              </View>
+              <Text style={styles.quizOptionText}>{opt}</Text>
+              {icon && <Ionicons name={icon as any} size={20} color={iconColor} />}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {answered && (
+        <View style={styles.quizExplain}>
+          <Ionicons
+            name={correct ? 'checkmark-circle' : 'information-circle'}
+            size={18}
+            color={correct ? colors.primary : colors.secondary}
+          />
+          <Text style={styles.quizExplainText}>
+            <Text style={{ fontWeight: '700' }}>
+              {correct ? 'Correct! ' : 'Not quite. '}
+            </Text>
+            {question.explanation}
+          </Text>
+        </View>
+      )}
+    </ScrollView>
   );
 }
 
@@ -487,6 +605,74 @@ const styles = StyleSheet.create({
     minHeight: 220,
     color: colors.ink,
     lineHeight: 22,
+  },
+
+  quizContent: {
+    padding: spacing.lg,
+    paddingBottom: spacing['3xl'],
+  },
+  quizTrackChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: `${colors.purple}1E`,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.full,
+    marginBottom: spacing.md,
+  },
+  quizTrackChipText: {
+    ...typography.labelSmall,
+    color: colors.purpleDark,
+    fontWeight: '700',
+  },
+  quizQuestion: {
+    ...typography.headlineMedium,
+    color: colors.ink,
+    lineHeight: 26,
+    marginBottom: spacing.lg,
+  },
+  quizOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+  },
+  quizOptionLetter: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quizOptionLetterText: {
+    ...typography.labelMedium,
+    color: colors.inkLight,
+  },
+  quizOptionText: {
+    ...typography.bodyMedium,
+    color: colors.ink,
+    flex: 1,
+  },
+  quizExplain: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginTop: spacing.lg,
+  },
+  quizExplainText: {
+    ...typography.bodySmall,
+    color: colors.ink,
+    flex: 1,
+    lineHeight: 18,
   },
 
   emptyWrap: {
