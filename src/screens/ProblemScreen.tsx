@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   ScrollView,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -80,6 +81,13 @@ interface AlgorithmProblemViewProps {
   /** Fired whenever a run completes, with the latest test-case tally. */
   onResult?: (r: { passed: number; total: number }) => void;
   onBack?: () => void;
+  /**
+   * Distance from the top of the window to this view. Required when embedded
+   * under other chrome (e.g. the test-session header) — KeyboardAvoidingView
+   * measures relative to its parent, so without this the keyboard toolbar
+   * hides behind the keyboard.
+   */
+  keyboardVerticalOffset?: number;
 }
 
 export function AlgorithmProblemView({
@@ -87,6 +95,7 @@ export function AlgorithmProblemView({
   embedded,
   onResult,
   onBack,
+  keyboardVerticalOffset = 0,
 }: AlgorithmProblemViewProps) {
   const webRef = useRef<WebView>(null);
 
@@ -148,6 +157,15 @@ export function AlgorithmProblemView({
     );
   };
 
+  // The keyboard belongs to the WebView's editor, so Keyboard.dismiss() alone
+  // won't hide it — blur the focused element inside the page.
+  const blurEditor = () => {
+    webRef.current?.injectJavaScript(
+      'document.activeElement && document.activeElement.blur(); true;',
+    );
+    Keyboard.dismiss();
+  };
+
   const handleRun = () => {
     if (!runtimeReady || running) return;
     setRunning(true);
@@ -199,6 +217,7 @@ export function AlgorithmProblemView({
     <View style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={keyboardVerticalOffset}
         style={{ flex: 1 }}
       >
         {/* Header */}
@@ -235,12 +254,16 @@ export function AlgorithmProblemView({
           </TouchableOpacity>
         </View>
 
-        {/* Body: scrollable problem + fixed-height editor + results */}
+        {/* Body: scrollable problem + fixed-height editor + results.
+            Tapping anywhere outside the editor dismisses the keyboard. */}
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: spacing.lg }}
           showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
         >
+          <TouchableWithoutFeedback onPress={blurEditor} accessible={false}>
+          <View>
           {/* Statement */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>PROBLEM</Text>
@@ -322,6 +345,8 @@ export function AlgorithmProblemView({
             </View>
           </View>
 
+          </View>
+          </TouchableWithoutFeedback>
         </ScrollView>
 
         {/* Code-symbol toolbar — sits just above the keyboard when typing */}
@@ -333,6 +358,14 @@ export function AlgorithmProblemView({
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.kbBarInner}
             >
+              <TouchableOpacity
+                style={styles.kbKey}
+                activeOpacity={0.7}
+                onPress={blurEditor}
+                accessibilityLabel="Hide keyboard"
+              >
+                <Ionicons name="chevron-down" size={16} color={colors.ink} />
+              </TouchableOpacity>
               {KEY_SHORTCUTS.map((s) => (
                 <TouchableOpacity
                   key={s.label}

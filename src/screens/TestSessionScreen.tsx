@@ -75,6 +75,10 @@ export default function TestSessionScreen() {
   const [index, setIndex] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(items[0]?.secondsBudget ?? 0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  // Window-Y of the question area — the embedded problem views need it so
+  // their KeyboardAvoidingView accounts for the session header above them.
+  const contentRef = useRef<View>(null);
+  const [contentTopOffset, setContentTopOffset] = useState(0);
 
   // Refs mirror state the 1s timer callback needs without stale closures.
   const secondsLeftRef = useRef(secondsLeft);
@@ -293,10 +297,19 @@ export default function TestSessionScreen() {
       </View>
 
       {/* Current question — keyed by uid so each question mounts fresh */}
-      <View style={{ flex: 1 }}>
+      <View
+        ref={contentRef}
+        style={{ flex: 1 }}
+        onLayout={() => {
+          contentRef.current?.measureInWindow((_x, y) => {
+            if (typeof y === 'number' && y > 0) setContentTopOffset(y);
+          });
+        }}
+      >
         <SessionItem
           key={item.uid}
           item={item}
+          keyboardVerticalOffset={contentTopOffset}
           answer={answers[item.uid] ?? ''}
           onAnswerChange={(text) => {
             answersRef.current[item.uid] = text;
@@ -314,22 +327,38 @@ function SessionItem({
   answer,
   onAnswerChange,
   onResult,
+  keyboardVerticalOffset,
 }: {
   item: TestItem;
   answer: string;
   onAnswerChange: (text: string) => void;
   onResult: (r: RunTally) => void;
+  keyboardVerticalOffset: number;
 }) {
   switch (item.kind) {
     case 'algorithms': {
       const problem = getProblem(item.problemId);
       if (!problem) return <MissingProblem />;
-      return <AlgorithmProblemView problem={problem} embedded onResult={onResult} />;
+      return (
+        <AlgorithmProblemView
+          problem={problem}
+          embedded
+          onResult={onResult}
+          keyboardVerticalOffset={keyboardVerticalOffset}
+        />
+      );
     }
     case 'bug-fix': {
       const problem = getBugFixProblem(item.problemId);
       if (!problem) return <MissingProblem />;
-      return <BugFixProblemView problem={problem} embedded onResult={onResult} />;
+      return (
+        <BugFixProblemView
+          problem={problem}
+          embedded
+          onResult={onResult}
+          keyboardVerticalOffset={keyboardVerticalOffset}
+        />
+      );
     }
     case 'system-design': {
       const problem = getSystemDesignProblem(item.problemId);

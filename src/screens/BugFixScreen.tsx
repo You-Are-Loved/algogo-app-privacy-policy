@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   ScrollView,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -95,6 +96,13 @@ interface BugFixProblemViewProps {
   /** Fired whenever a run/check completes, with the latest pass tally. */
   onResult?: (r: { passed: number; total: number }) => void;
   onBack?: () => void;
+  /**
+   * Distance from the top of the window to this view. Required when embedded
+   * under other chrome (e.g. the test-session header) — KeyboardAvoidingView
+   * measures relative to its parent, so without this the keyboard toolbar
+   * hides behind the keyboard.
+   */
+  keyboardVerticalOffset?: number;
 }
 
 export function BugFixProblemView({
@@ -102,6 +110,7 @@ export function BugFixProblemView({
   embedded,
   onResult,
   onBack,
+  keyboardVerticalOffset = 0,
 }: BugFixProblemViewProps) {
   const webRef = useRef<WebView>(null);
 
@@ -170,6 +179,15 @@ export function BugFixProblemView({
     webRef.current?.postMessage(
       JSON.stringify({ type: 'insert', text, cursorOffset }),
     );
+  };
+
+  // The keyboard belongs to the WebView's editor, so Keyboard.dismiss() alone
+  // won't hide it — blur the focused element inside the page.
+  const blurEditor = () => {
+    webRef.current?.injectJavaScript(
+      'document.activeElement && document.activeElement.blur(); true;',
+    );
+    Keyboard.dismiss();
   };
 
   const handleRun = () => {
@@ -251,6 +269,7 @@ export function BugFixProblemView({
     <View style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={keyboardVerticalOffset}
         style={{ flex: 1 }}
       >
         {/* Header */}
@@ -310,7 +329,10 @@ export function BugFixProblemView({
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: spacing.lg }}
           showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
         >
+          <TouchableWithoutFeedback onPress={blurEditor} accessible={false}>
+          <View>
           {/* Statement */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>FIX THE BUG</Text>
@@ -420,6 +442,8 @@ export function BugFixProblemView({
               )}
             </View>
           </View>
+          </View>
+          </TouchableWithoutFeedback>
         </ScrollView>
 
         {/* Code-symbol toolbar */}
@@ -431,6 +455,14 @@ export function BugFixProblemView({
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.kbBarInner}
             >
+              <TouchableOpacity
+                style={styles.kbKey}
+                activeOpacity={0.7}
+                onPress={blurEditor}
+                accessibilityLabel="Hide keyboard"
+              >
+                <Ionicons name="chevron-down" size={16} color="#d4d4f0" />
+              </TouchableOpacity>
               {KEY_SHORTCUTS.map((s) => (
                 <TouchableOpacity
                   key={s.label}
