@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   ScrollView,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -254,16 +253,12 @@ export function AlgorithmProblemView({
           </TouchableOpacity>
         </View>
 
-        {/* Body: scrollable problem + fixed-height editor + results.
-            Tapping anywhere outside the editor dismisses the keyboard. */}
+        {/* Body: scrollable problem + fixed-height editor + results */}
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: spacing.lg }}
           showsVerticalScrollIndicator={false}
-          keyboardDismissMode="on-drag"
         >
-          <TouchableWithoutFeedback onPress={blurEditor} accessible={false}>
-          <View>
           {/* Statement */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>PROBLEM</Text>
@@ -297,10 +292,8 @@ export function AlgorithmProblemView({
               <Text style={styles.signatureText}>{problem.functionSignature}</Text>
             </View>
           </View>
-          </View>
-          </TouchableWithoutFeedback>
 
-          {/* Editor — outside the dismiss wrapper so taps can focus it */}
+          {/* Editor */}
           <View style={styles.editorSection}>
             <View style={styles.editorHeader}>
               <Text style={styles.sectionLabel}>YOUR SOLUTION</Text>

@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   ScrollView,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -329,10 +328,7 @@ export function BugFixProblemView({
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: spacing.lg }}
           showsVerticalScrollIndicator={false}
-          keyboardDismissMode="on-drag"
         >
-          <TouchableWithoutFeedback onPress={blurEditor} accessible={false}>
-          <View>
           {/* Statement */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>FIX THE BUG</Text>
@@ -393,10 +389,8 @@ export function BugFixProblemView({
               </View>
             </View>
           )}
-          </View>
-          </TouchableWithoutFeedback>
 
-          {/* Editor — outside the dismiss wrapper so taps can focus it */}
+          {/* Editor */}
           <View style={styles.editorSection}>
             <View style={styles.editorHeader}>
               <Text style={styles.sectionLabel}>YOUR FIX</Text>
