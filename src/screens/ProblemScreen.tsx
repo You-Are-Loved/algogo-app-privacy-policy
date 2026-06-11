@@ -297,8 +297,10 @@ export function AlgorithmProblemView({
               <Text style={styles.signatureText}>{problem.functionSignature}</Text>
             </View>
           </View>
+          </View>
+          </TouchableWithoutFeedback>
 
-          {/* Editor */}
+          {/* Editor — outside the dismiss wrapper so taps can focus it */}
           <View style={styles.editorSection}>
             <View style={styles.editorHeader}>
               <Text style={styles.sectionLabel}>YOUR SOLUTION</Text>
@@ -345,8 +347,6 @@ export function AlgorithmProblemView({
             </View>
           </View>
 
-          </View>
-          </TouchableWithoutFeedback>
         </ScrollView>
 
         {/* Code-symbol toolbar — sits just above the keyboard when typing */}

@@ -393,8 +393,10 @@ export function BugFixProblemView({
               </View>
             </View>
           )}
+          </View>
+          </TouchableWithoutFeedback>
 
-          {/* Editor */}
+          {/* Editor — outside the dismiss wrapper so taps can focus it */}
           <View style={styles.editorSection}>
             <View style={styles.editorHeader}>
               <Text style={styles.sectionLabel}>YOUR FIX</Text>
@@ -442,8 +444,6 @@ export function BugFixProblemView({
               )}
             </View>
           </View>
-          </View>
-          </TouchableWithoutFeedback>
         </ScrollView>
 
         {/* Code-symbol toolbar */}
