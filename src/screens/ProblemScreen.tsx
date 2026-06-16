@@ -17,6 +17,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import * as FileSystem from 'expo-file-system/legacy';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { getProblem, Difficulty, TestCase, Blind75Problem } from '../data/blind75';
@@ -103,6 +110,10 @@ export function AlgorithmProblemView({
   const [result, setResult] = useState<ExecResult | null>(null);
   const [resultsVisible, setResultsVisible] = useState(false);
   const [explanationVisible, setExplanationVisible] = useState(false);
+  // Statement + examples live in a sheet that slides up just after the
+  // screen-entry transition settles (mounting it already-open pops with no
+  // animation, which feels jarring) and reopens from the header.
+  const [problemVisible, setProblemVisible] = useState(false);
   const [pageUri, setPageUri] = useState<string | null>(null);
   const [stagedDir, setStagedDir] = useState<string | null>(null);
   const [stageError, setStageError] = useState<string | null>(null);
@@ -212,6 +223,40 @@ export function AlgorithmProblemView({
 
   const diffColor = DIFF_COLORS[problem.difficulty];
 
+  // Drag-to-dismiss for the problem sheet. The drag handle is the
+  // grabber + header; the examples list scrolls independently below it.
+  const sheetY = useSharedValue(0);
+  const sheetStartY = useSharedValue(0);
+
+  // Slide the sheet up shortly after entry rather than popping it instantly.
+  useEffect(() => {
+    const t = setTimeout(() => setProblemVisible(true), 300);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if (problemVisible) sheetY.value = 0;
+  }, [problemVisible, sheetY]);
+
+  const problemPan = Gesture.Pan()
+    .onStart(() => {
+      sheetStartY.value = sheetY.value;
+    })
+    .onUpdate((e) => {
+      sheetY.value = Math.max(0, sheetStartY.value + e.translationY);
+    })
+    .onEnd((e) => {
+      if (sheetY.value > 140 || e.velocityY > 800) {
+        runOnJS(setProblemVisible)(false);
+      } else {
+        sheetY.value = withSpring(0, { damping: 20, stiffness: 220 });
+      }
+    });
+
+  const problemSheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: sheetY.value }],
+  }));
+
   return (
     <View style={styles.container}>
       <KeyboardAvoidingView
@@ -227,7 +272,12 @@ export function AlgorithmProblemView({
             </TouchableOpacity>
           )}
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
+            <Text
+              style={styles.headerTitle}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+            >
               {problem.title}
             </Text>
             <View style={styles.headerMetaRow}>
@@ -239,6 +289,14 @@ export function AlgorithmProblemView({
               <Text style={styles.topicText}>{problem.topic}</Text>
             </View>
           </View>
+          <TouchableOpacity
+            onPress={() => setProblemVisible(true)}
+            style={styles.headerBtn}
+            hitSlop={8}
+            accessibilityLabel="Show problem"
+          >
+            <Ionicons name="document-text-outline" size={20} color={colors.inkLight} />
+          </TouchableOpacity>
           {!embedded && problem.explanation && (
             <TouchableOpacity
               onPress={() => setExplanationVisible(true)}
@@ -251,62 +309,32 @@ export function AlgorithmProblemView({
           <TouchableOpacity onPress={handleReset} style={styles.headerBtn} hitSlop={8}>
             <Ionicons name="refresh-outline" size={20} color={colors.inkLight} />
           </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleRun}
+            disabled={!runtimeReady || running}
+            style={[
+              styles.runIconBtn,
+              (!runtimeReady || running) && styles.runIconBtnDisabled,
+            ]}
+            hitSlop={8}
+            accessibilityLabel={runtimeReady ? 'Run code' : 'Loading runtime'}
+          >
+            {running ? (
+              <ActivityIndicator size="small" color={colors.white} />
+            ) : (
+              <Ionicons name="play" size={18} color={colors.white} />
+            )}
+          </TouchableOpacity>
         </View>
 
-        {/* Body: scrollable problem + fixed-height editor + results */}
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: spacing.lg }}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Statement */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>PROBLEM</Text>
-            <Text style={styles.statement}>{problem.statement}</Text>
-          </View>
-
-          {/* Visible examples */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>EXAMPLES</Text>
-            {problem.examples.map((ex, i) => (
-              <View key={i} style={styles.exampleCard}>
-                <Text style={styles.exampleHeader}>Example {i + 1}</Text>
-                <Text style={styles.exampleLine}>
-                  <Text style={styles.exampleKey}>Input:  </Text>
-                  <Text style={styles.exampleMono}>
-                    {problem.functionName}({ex.input.map((a) => JSON.stringify(a)).join(', ')})
-                  </Text>
-                </Text>
-                <Text style={styles.exampleLine}>
-                  <Text style={styles.exampleKey}>Output: </Text>
-                  <Text style={styles.exampleMono}>{JSON.stringify(ex.expected)}</Text>
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Function signature */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>FUNCTION</Text>
-            <View style={styles.signatureCard}>
-              <Text style={styles.signatureText}>{problem.functionSignature}</Text>
-            </View>
-          </View>
-
-          {/* Editor */}
-          <View style={styles.editorSection}>
-            <View style={styles.editorHeader}>
-              <Text style={styles.sectionLabel}>YOUR SOLUTION</Text>
-              {!runtimeReady && (
-                <View style={styles.loadingTag}>
-                  <ActivityIndicator size="small" color={colors.secondary} />
-                  <Text style={styles.loadingTagText}>Loading Python…</Text>
-                </View>
-              )}
-            </View>
-            <View style={styles.editorWrap}>
+        {/* Body: full-height editor. Statement & examples live in the
+            reopenable problem sheet, and the function signature is already
+            in the starter code, so the editor gets all the vertical space. */}
+        <View style={styles.body}>
+          {/* Editor — fills the whole area below the header, edge to edge */}
+          <View style={styles.editorWrapFill}>
               {stageError ? (
-                <View style={[styles.webview, styles.editorErrorBox]}>
+                <View style={[styles.webviewFill, styles.editorErrorBox]}>
                   <Text style={styles.editorErrorText}>
                     Couldn't prepare the Python runtime: {stageError}
                   </Text>
@@ -329,18 +357,16 @@ export function AlgorithmProblemView({
                   automaticallyAdjustContentInsets={false}
                   contentInsetAdjustmentBehavior="never"
                   injectedJavaScriptBeforeContentLoaded="window.isReactNativeWebView = true; true;"
-                  style={styles.webview}
+                  style={styles.webviewFill}
                 />
               ) : (
-                <View style={[styles.webview, styles.editorLoadingBox]}>
+                <View style={[styles.webviewFill, styles.editorLoadingBox]}>
                   <ActivityIndicator color={colors.secondary} />
                   <Text style={styles.editorLoadingText}>Preparing editor…</Text>
                 </View>
               )}
             </View>
-          </View>
-
-        </ScrollView>
+        </View>
 
         {/* Code-symbol toolbar — sits just above the keyboard when typing */}
         {kbHeight > 0 && (
@@ -373,29 +399,6 @@ export function AlgorithmProblemView({
           </View>
         )}
 
-        {/* Run button */}
-        <View style={styles.runBar}>
-          <TouchableOpacity
-            style={[
-              styles.runBtn,
-              (!runtimeReady || running) && styles.runBtnDisabled,
-            ]}
-            onPress={handleRun}
-            disabled={!runtimeReady || running}
-            activeOpacity={0.85}
-          >
-            {running ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <>
-                <Ionicons name="play" size={20} color={colors.white} />
-                <Text style={styles.runBtnText}>
-                  {runtimeReady ? 'Run code' : 'Loading…'}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
       </KeyboardAvoidingView>
 
       <Modal
@@ -470,6 +473,70 @@ export function AlgorithmProblemView({
           </Pressable>
         </Pressable>
       </Modal>
+
+      <Modal
+        visible={problemVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setProblemVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setProblemVisible(false)}
+          />
+          <Animated.View style={[styles.modalSheet, problemSheetStyle]}>
+            <GestureDetector gesture={problemPan}>
+              <View>
+                <View style={styles.modalGrabber} />
+                <View style={styles.modalHeaderRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.modalTitle}>{problem.title}</Text>
+                    <View style={styles.headerMetaRow}>
+                      <View style={[styles.diffBadge, { backgroundColor: `${diffColor}22` }]}>
+                        <Text style={[styles.diffBadgeText, { color: diffColor }]}>
+                          {problem.difficulty}
+                        </Text>
+                      </View>
+                      <Text style={styles.topicText}>{problem.topic}</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity onPress={() => setProblemVisible(false)} hitSlop={8}>
+                    <Ionicons name="close" size={24} color={colors.inkLight} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </GestureDetector>
+            <ScrollView
+              style={{ maxHeight: 460 }}
+              contentContainerStyle={{ paddingBottom: spacing.md }}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.sectionLabel}>PROBLEM</Text>
+              <Text style={styles.statement}>{problem.statement}</Text>
+
+              <Text style={[styles.sectionLabel, { marginTop: spacing.lg }]}>
+                EXAMPLES
+              </Text>
+              {problem.examples.map((ex, i) => (
+                <View key={i} style={styles.exampleCard}>
+                  <Text style={styles.exampleHeader}>Example {i + 1}</Text>
+                  <Text style={styles.exampleLine}>
+                    <Text style={styles.exampleKey}>Input:  </Text>
+                    <Text style={styles.exampleMono}>
+                      {problem.functionName}({ex.input.map((a) => JSON.stringify(a)).join(', ')})
+                    </Text>
+                  </Text>
+                  <Text style={styles.exampleLine}>
+                    <Text style={styles.exampleKey}>Output: </Text>
+                    <Text style={styles.exampleMono}>{JSON.stringify(ex.expected)}</Text>
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          </Animated.View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -488,7 +555,8 @@ export default function ProblemScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    // White top inset so the status-bar area flows into the white header.
+    <SafeAreaView style={styles.safeTop} edges={['top']}>
       <AlgorithmProblemView problem={problem} onBack={() => navigation.goBack()} />
     </SafeAreaView>
   );
@@ -532,6 +600,7 @@ function ResultSummary({ result }: { result: ExecResult }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  safeTop: { flex: 1, backgroundColor: colors.card },
   notFoundText: {
     ...typography.bodyLarge,
     color: colors.inkLight,
@@ -550,7 +619,8 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 4 },
   headerCenter: { flex: 1 },
-  headerTitle: { ...typography.headlineMedium, color: colors.ink },
+  // lineHeight is cleared so adjustsFontSizeToFit can shrink long titles.
+  headerTitle: { ...typography.headlineMedium, lineHeight: undefined, color: colors.ink },
   headerMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -640,6 +710,30 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   webview: { backgroundColor: '#1e1e2e' },
+  body: { flex: 1 },
+  editorSectionFill: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  editorWrapFill: {
+    flex: 1,
+    backgroundColor: '#1e1e2e',
+  },
+  webviewFill: { flex: 1, backgroundColor: '#1e1e2e' },
+  runIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: spacing.xs,
+  },
+  runIconBtnDisabled: {
+    backgroundColor: colors.borderDark,
+  },
   editorLoadingBox: {
     alignItems: 'center',
     justifyContent: 'center',

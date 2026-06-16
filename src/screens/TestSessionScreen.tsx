@@ -253,7 +253,7 @@ export default function TestSessionScreen() {
   const lowTime = secondsLeft <= 60;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.safeTop} edges={['top']}>
       {/* Session chrome */}
       <View style={styles.sessionHeader}>
         <TouchableOpacity onPress={confirmExit} style={styles.exitBtn} hitSlop={8}>
@@ -299,7 +299,7 @@ export default function TestSessionScreen() {
       {/* Current question — keyed by uid so each question mounts fresh */}
       <View
         ref={contentRef}
-        style={{ flex: 1 }}
+        style={styles.sessionBody}
         onLayout={() => {
           contentRef.current?.measureInWindow((_x, y) => {
             if (typeof y === 'number' && y > 0) setContentTopOffset(y);
@@ -533,6 +533,10 @@ function MissingProblem() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  // White top inset so the status-bar area flows into the white session
+  // header; the body stays grey so cards keep their contrast.
+  safeTop: { flex: 1, backgroundColor: colors.card },
+  sessionBody: { flex: 1, backgroundColor: colors.background },
 
   sessionHeader: {
     flexDirection: 'row',
