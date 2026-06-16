@@ -22,6 +22,7 @@ import { PracticeStackParamList } from '../navigation';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
 import UpgradeModal from '../components/UpgradeModal';
 import BehavioralCard from '../components/BehavioralCard';
+import { TAB_BAR_CLEARANCE } from '../components/AnimatedTabBar';
 
 type NavigationProp = NativeStackNavigationProp<PracticeStackParamList>;
 
@@ -508,7 +509,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
+    paddingBottom: TAB_BAR_CLEARANCE,
   },
   problemRow: {
     flexDirection: 'row',

@@ -1,12 +1,9 @@
 import React from 'react';
-import {
-  NavigationContainer,
-  getFocusedRouteNameFromRoute,
-} from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
 
+import AnimatedTabBar from '../components/AnimatedTabBar';
 import HomeScreen from '../screens/HomeScreen';
 import CategoryScreen from '../screens/CategoryScreen';
 import TermsScreen from '../screens/TermsScreen';
@@ -22,7 +19,6 @@ import TestResultsScreen from '../screens/TestResultsScreen';
 
 import { useStore, CURRENT_TERMS_VERSION } from '../store/useStore';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
-import { colors } from '../theme';
 import { ContentType } from '../data/allCategories';
 import { ItemOutcome } from '../data/testMode';
 
@@ -123,69 +119,17 @@ function TestStackNavigator() {
   );
 }
 
-const TAB_BAR_STYLE = {
-  backgroundColor: colors.card,
-  borderTopColor: colors.border,
-  borderTopWidth: 1,
-  paddingTop: 8,
-  paddingBottom: 8,
-  height: 85,
-} as const;
-
 function MainTabs() {
+  // Labels, icons, the sliding indicator, and hiding-on-content all live in
+  // AnimatedTabBar; the navigator just supplies the routes.
   return (
     <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: TAB_BAR_STYLE,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.inkLight,
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-          marginTop: 2,
-        },
-      }}
+      tabBar={(props) => <AnimatedTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
     >
-      <Tab.Screen
-        name="StudyTab"
-        component={StudyStackNavigator}
-        options={{
-          tabBarLabel: 'Study',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="book-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="PracticeTab"
-        component={PracticeStackNavigator}
-        options={{
-          tabBarLabel: 'Practice',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="code-slash-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="TestTab"
-        component={TestStackNavigator}
-        options={({ route }) => {
-          // Hide the tab bar while an interview is running — it's immersive
-          // and a stray tab switch would wreck the timed session.
-          const focused = getFocusedRouteNameFromRoute(route) ?? 'TestHome';
-          return {
-            tabBarLabel: 'Interview',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="stopwatch-outline" size={size} color={color} />
-            ),
-            tabBarStyle:
-              focused === 'TestSession'
-                ? { display: 'none' as const }
-                : TAB_BAR_STYLE,
-          };
-        }}
-      />
+      <Tab.Screen name="StudyTab" component={StudyStackNavigator} />
+      <Tab.Screen name="PracticeTab" component={PracticeStackNavigator} />
+      <Tab.Screen name="TestTab" component={TestStackNavigator} />
     </Tab.Navigator>
   );
 }

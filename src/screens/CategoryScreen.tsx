@@ -10,7 +10,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import Animated, { FadeInDown, FadeInRight, FadeOutLeft } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  FadeInRight,
+  FadeOutLeft,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
 
 import { colors, spacing, borderRadius, typography, categoryColors } from '../theme';
 import { getCategoryBySlug, categoryHasVisualizations } from '../data/allCategories';
@@ -23,6 +30,10 @@ import UpgradeModal from '../components/UpgradeModal';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
 
 const { width } = Dimensions.get('window');
+
+// Inner padding of the segmented control; shared by the container style and
+// the sliding-pill geometry so the indicator lines up with each tab.
+const TAB_BAR_PADDING = spacing.xs;
 
 type CategoryRouteProp = RouteProp<TabStackParamList, 'Category'>;
 
@@ -121,6 +132,28 @@ export default function CategoryScreen() {
   const hasVisualizations = categoryHasVisualizations(category);
   const tabs = hasVisualizations ? baseTabs : baseTabs.filter(t => t.id !== 'visualize');
 
+  // Sliding selection pill. We measure the segmented control once it lays out,
+  // split the inner width evenly across the tabs (they're all flex: 1), and
+  // spring an absolutely-positioned indicator to the active segment so the
+  // highlight glides between tabs instead of snapping.
+  const activeIndex = Math.max(0, tabs.findIndex(t => t.id === activeTab));
+  const [barSize, setBarSize] = useState({ width: 0, height: 0 });
+  const segmentWidth = barSize.width > 0 ? (barSize.width - TAB_BAR_PADDING * 2) / tabs.length : 0;
+  const pillHeight = barSize.height > 0 ? barSize.height - TAB_BAR_PADDING * 2 : 0;
+  const indicatorX = useSharedValue(0);
+
+  useEffect(() => {
+    indicatorX.value = withSpring(activeIndex * segmentWidth, {
+      damping: 20,
+      stiffness: 200,
+      mass: 0.7,
+    });
+  }, [activeIndex, segmentWidth, indicatorX]);
+
+  const indicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: indicatorX.value }],
+  }));
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -150,14 +183,34 @@ export default function CategoryScreen() {
       </Animated.View>
 
       {/* Tabs */}
-      <Animated.View entering={FadeInDown.delay(200)} style={styles.tabsContainer}>
+      <Animated.View
+        entering={FadeInDown.delay(200)}
+        style={styles.tabsContainer}
+        onLayout={(e) =>
+          setBarSize({
+            width: e.nativeEvent.layout.width,
+            height: e.nativeEvent.layout.height,
+          })
+        }
+      >
+        {segmentWidth > 0 && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.tabIndicator,
+              {
+                width: segmentWidth,
+                height: pillHeight,
+                borderColor: catColors.color,
+              },
+              indicatorStyle,
+            ]}
+          />
+        )}
         {tabs.map((tab) => (
           <TouchableOpacity
             key={tab.id}
-            style={[
-              styles.tab,
-              activeTab === tab.id && [styles.tabActive, { borderColor: catColors.color }],
-            ]}
+            style={styles.tab}
             onPress={() => setActiveTab(tab.id)}
           >
             <Ionicons
@@ -262,7 +315,7 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.lg,
     backgroundColor: colors.border,
     borderRadius: borderRadius.xl,
-    padding: spacing.xs,
+    padding: TAB_BAR_PADDING,
     marginBottom: spacing.lg,
   },
   tab: {
@@ -274,9 +327,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderRadius: borderRadius.lg,
   },
-  tabActive: {
+  tabIndicator: {
+    position: 'absolute',
+    left: TAB_BAR_PADDING,
+    top: TAB_BAR_PADDING,
     backgroundColor: colors.card,
     borderWidth: 2,
+    borderRadius: borderRadius.lg,
   },
   tabText: {
     ...typography.labelMedium,

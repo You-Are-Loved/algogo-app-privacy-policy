@@ -16,6 +16,7 @@ import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { TestStackParamList } from '../navigation';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
 import UpgradeModal from '../components/UpgradeModal';
+import { TAB_BAR_CLEARANCE } from '../components/AnimatedTabBar';
 import { useTestStore } from '../store/useTestStore';
 import {
   BUILT_IN_TEMPLATES,
@@ -279,7 +280,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scrollContent: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing['3xl'],
+    paddingBottom: TAB_BAR_CLEARANCE,
   },
   header: {
     flexDirection: 'row',

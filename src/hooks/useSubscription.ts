@@ -460,3 +460,18 @@ export function formatIntroDuration(offer: IntroOffer): string {
   }
   return `${periodCount}-${periodUnit}`;
 }
+
+/**
+ * Natural-language length of an intro period, for sentence-style copy:
+ * "month", "3 months", "7 days". Used by the paywall for paid intro offers
+ * (pay-up-front / pay-as-you-go) where "$0.99 for your first month" reads
+ * better than the hyphenated screenshot convention formatIntroDuration uses.
+ */
+export function formatIntroPeriod(offer: IntroOffer): string {
+  const { periodCount, periodUnit } = offer;
+  if (periodUnit === 'week') {
+    const days = periodCount * 7;
+    return days === 1 ? '1 day' : `${days} days`;
+  }
+  return periodCount === 1 ? periodUnit : `${periodCount} ${periodUnit}s`;
+}

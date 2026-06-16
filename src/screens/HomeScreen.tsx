@@ -37,6 +37,7 @@ import { TabStackParamList } from '../navigation';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
 import UpgradeModal from '../components/UpgradeModal';
 import RatingPromptModal from '../components/RatingPromptModal';
+import { TAB_BAR_CLEARANCE } from '../components/AnimatedTabBar';
 import { Category } from '../types';
 
 const { width, height } = Dimensions.get('window');
@@ -443,7 +444,10 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE }}
+      >
         {/* Header */}
         <Animated.View entering={hasAnimated.current ? undefined : FadeInDown.delay(100)} style={styles.header}>
           <View style={styles.headerLeft}>

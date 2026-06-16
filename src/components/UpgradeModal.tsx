@@ -16,7 +16,7 @@ import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated'
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
-import { formatIntroDuration } from '../hooks/useSubscription';
+import { formatIntroDuration, formatIntroPeriod } from '../hooks/useSubscription';
 import { getPaywallFeatures, PaywallFeature } from '../data/stats';
 
 const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
@@ -47,9 +47,13 @@ export default function UpgradeModal({
   // grandfathered subscribers + Restore, just not exposed in the UI.
   const product = products.monthly;
   const priceLabel = product?.display ?? '$2.99';
-  const trial =
-    product?.introOffer?.mode === 'free-trial' ? product.introOffer : null;
-  const trialDuration = trial ? formatIntroDuration(trial) : null;
+  // Any configured intro offer — App Store Connect surfaces these as
+  // free-trial, pay-up-front (one charge covering the intro period), or
+  // pay-as-you-go (a reduced per-period charge). We promote all three.
+  const offer = product?.introOffer ?? null;
+  const isFreeTrial = offer?.mode === 'free-trial';
+  const trialDuration = isFreeTrial ? formatIntroDuration(offer) : null;
+  const offerPeriod = offer ? formatIntroPeriod(offer) : null;
 
   const features = React.useMemo(() => getPaywallFeatures(), []);
 
@@ -65,13 +69,21 @@ export default function UpgradeModal({
     if (result.success && result.isSubscribed) onClose();
   };
 
-  const ctaLabel = trial
-    ? `Start ${trialDuration} free trial`
-    : `Subscribe · ${priceLabel}/mo`;
+  const ctaLabel = !offer
+    ? `Subscribe · ${priceLabel}/mo`
+    : isFreeTrial
+      ? `Start ${trialDuration} free trial`
+      : offer.mode === 'pay-as-you-go'
+        ? `Subscribe · ${offer.display}/mo first ${offerPeriod}`
+        : `Subscribe · ${offer.display} first ${offerPeriod}`;
 
-  const subtitleLine = trial
-    ? `${trialDuration === '7-day' ? '7 days' : trialDuration} free, then ${priceLabel}/month. Cancel anytime.`
-    : `${priceLabel}/month. Cancel anytime.`;
+  const subtitleLine = !offer
+    ? `${priceLabel}/month. Cancel anytime.`
+    : isFreeTrial
+      ? `${trialDuration === '7-day' ? '7 days' : trialDuration} free, then ${priceLabel}/month. Cancel anytime.`
+      : offer.mode === 'pay-as-you-go'
+        ? `${offer.display}/month for your first ${offerPeriod}, then ${priceLabel}/month. Cancel anytime.`
+        : `${offer.display} for your first ${offerPeriod}, then ${priceLabel}/month. Cancel anytime.`;
 
   const busy = isLoading || purchasing;
 
@@ -103,7 +115,7 @@ export default function UpgradeModal({
             entering={FadeInDown.delay(200).duration(500)}
             style={styles.title}
           >
-            {trial ? 'Try Algogo Pro free' : 'Unlock Algogo Pro'}
+            {isFreeTrial ? 'Try Algogo Pro free' : 'Unlock Algogo Pro'}
           </Animated.Text>
           <Animated.Text
             entering={FadeInDown.delay(300).duration(500)}
