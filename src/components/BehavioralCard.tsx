@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
-import { colors, spacing, borderRadius, typography } from '../theme';
+import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { BehavioralQuestion } from '../data/behavioral';
 
 const STORAGE_PREFIX = '@algogo_behavioral_';
@@ -155,10 +155,13 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.card,
     borderRadius: borderRadius.md,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    borderBottomWidth: 4,
+    borderBottomColor: colors.borderDark,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
+    ...shadows.sm,
   },
   headerRow: {
     flexDirection: 'row',

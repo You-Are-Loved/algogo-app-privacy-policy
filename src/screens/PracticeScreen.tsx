@@ -156,7 +156,7 @@ export default function PracticeScreen() {
             return (
               <View>
                 <TouchableOpacity
-                  style={styles.problemRow}
+                  style={[styles.problemRow, { borderBottomColor: DIFF_COLORS[item.difficulty] }]}
                   activeOpacity={0.7}
                   onPress={() => handleProblemPress(item.id, item.number)}
                 >
@@ -259,7 +259,7 @@ export default function PracticeScreen() {
             const langColor = LANG_COLORS[item.language];
             return (
               <TouchableOpacity
-                style={styles.problemRow}
+                style={[styles.problemRow, { borderBottomColor: DIFF_COLORS[item.difficulty] }]}
                 activeOpacity={0.7}
                 onPress={() => handleBugFixPress(item.id, item.number)}
               >
@@ -519,8 +519,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    borderBottomWidth: 4,
+    borderBottomColor: colors.borderDark,
+    ...shadows.sm,
   },
   separator: { height: spacing.sm },
   numberWrap: {

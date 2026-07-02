@@ -29,6 +29,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import Svg, { Line } from 'react-native-svg';
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
+import { PrimaryButton } from '../components/ui';
 import { useStore } from '../store/useStore';
 import { getProblem } from '../data/blind75';
 import { contentStats, roundedPlus } from '../data/stats';
@@ -122,10 +123,11 @@ export default function OnboardingScreen() {
 
       {/* Bottom CTA */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.continueBtn} onPress={goNext} activeOpacity={0.85}>
-          <Text style={styles.continueBtnText}>Continue</Text>
-          <Ionicons name="arrow-forward" size={20} color={colors.white} />
-        </TouchableOpacity>
+        <PrimaryButton
+          label={step === TOTAL_STEPS - 1 ? 'Get started' : 'Continue'}
+          icon="arrow-forward"
+          onPress={goNext}
+        />
       </View>
 
       <UpgradeModal
@@ -155,20 +157,20 @@ const TRACKS: {
 
 function ScopeStep() {
   return (
-    <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
+    <Animated.View entering={FadeIn.duration(560)} style={styles.stepContainer}>
       <View style={styles.heroIconWrap}>
         <Animated.View
-          entering={ZoomIn.delay(80).springify().damping(14).mass(0.6)}
+          entering={ZoomIn.delay(80).springify().damping(14).mass(1.0)}
           style={styles.heroIcon}
         >
           <Ionicons name="rocket-outline" size={42} color={colors.primary} />
         </Animated.View>
       </View>
 
-      <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
+      <Animated.Text entering={FadeInDown.delay(200).duration(680)} style={styles.title}>
         Master your tech interviews
       </Animated.Text>
-      <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
+      <Animated.Text entering={FadeInDown.delay(300).duration(680)} style={styles.subtitle}>
         {roundedPlus(contentStats.categories, 10)} topics across {contentStats.tracks} engineering tracks — no fluff
       </Animated.Text>
 
@@ -176,10 +178,15 @@ function ScopeStep() {
         {TRACKS.map((track, i) => (
           <Animated.View
             key={track.label}
-            entering={FadeInDown.delay(400 + i * 60).duration(400)}
-            style={styles.trackCard}
+            entering={FadeInDown.delay(400 + i * 70).springify().damping(13).mass(1.2)}
+            style={[styles.trackCard, { borderBottomColor: track.color }]}
           >
-            <View style={[styles.trackIconWrap, { backgroundColor: `${track.color}20` }]}>
+            <View
+              style={[
+                styles.trackIconWrap,
+                { backgroundColor: `${track.color}20`, borderColor: `${track.color}35` },
+              ]}
+            >
               <Ionicons name={track.icon} size={28} color={track.color} />
             </View>
             <Text style={styles.trackLabel}>{track.label}</Text>
@@ -187,7 +194,7 @@ function ScopeStep() {
         ))}
       </View>
 
-      <Animated.View entering={FadeInUp.delay(900).duration(500)} style={styles.statsRow}>
+      <Animated.View entering={FadeInUp.delay(900).springify().damping(14).mass(1.2)} style={styles.statsRow}>
         <Stat value={roundedPlus(contentStats.categories, 10)} label="Categories" />
         <View style={styles.statDivider} />
         <Stat value={roundedPlus(contentStats.flashcards, 100)} label="Flashcards" />
@@ -236,8 +243,8 @@ function FlashcardStep() {
   }));
 
   return (
-    <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
-      <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.modeHeader}>
+    <Animated.View entering={FadeIn.duration(560)} style={styles.stepContainer}>
+      <Animated.View entering={FadeInDown.delay(100).duration(560)} style={styles.modeHeader}>
         <View style={[styles.modeBadge, { backgroundColor: `${colors.secondary}20` }]}>
           <Ionicons name="copy-outline" size={16} color={colors.secondary} />
           <Text style={[styles.modeBadgeText, { color: colors.secondary }]}>Cards mode</Text>
@@ -274,7 +281,7 @@ function FlashcardStep() {
         </Animated.View>
       </TouchableOpacity>
 
-      <Animated.View entering={FadeInUp.delay(300).duration(400)} style={styles.featureLine}>
+      <Animated.View entering={FadeInUp.delay(300).duration(560)} style={styles.featureLine}>
         <Ionicons name="layers-outline" size={16} color={colors.inkLight} />
         <Text style={styles.featureLineText}>Spaced repetition built in</Text>
       </Animated.View>
@@ -293,8 +300,8 @@ function QuizStep() {
   const isCorrect = selected === QUIZ_CORRECT;
 
   return (
-    <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
-      <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.modeHeader}>
+    <Animated.View entering={FadeIn.duration(560)} style={styles.stepContainer}>
+      <Animated.View entering={FadeInDown.delay(100).duration(560)} style={styles.modeHeader}>
         <View style={[styles.modeBadge, { backgroundColor: `${colors.purple}20` }]}>
           <Ionicons name="bulb-outline" size={16} color={colors.purpleDark} />
           <Text style={[styles.modeBadgeText, { color: colors.purpleDark }]}>Quiz mode</Text>
@@ -303,7 +310,7 @@ function QuizStep() {
         <Text style={styles.subtitle}>Tap an answer below</Text>
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.quizQuestionCard}>
+      <Animated.View entering={FadeInDown.delay(200).duration(560)} style={styles.quizQuestionCard}>
         <Text style={styles.quizQuestionText}>
           Which data structure uses LIFO ordering (last in, first out)?
         </Text>
@@ -315,6 +322,7 @@ function QuizStep() {
           const isThisCorrect = i === QUIZ_CORRECT;
           let bg = colors.card;
           let borderColor = colors.border;
+          let lipColor = colors.borderDark;
           let iconName: keyof typeof Ionicons.glyphMap | null = null;
           let iconColor = colors.inkLight;
 
@@ -322,11 +330,13 @@ function QuizStep() {
             if (isThisCorrect) {
               bg = `${colors.primary}15`;
               borderColor = colors.primary;
+              lipColor = colors.primaryDark;
               iconName = 'checkmark-circle';
               iconColor = colors.primary;
             } else if (isSel) {
               bg = `${colors.error}15`;
               borderColor = colors.error;
+              lipColor = colors.errorDark;
               iconName = 'close-circle';
               iconColor = colors.error;
             }
@@ -335,10 +345,10 @@ function QuizStep() {
           return (
             <Animated.View
               key={opt}
-              entering={FadeInDown.delay(300 + i * 80).duration(400)}
+              entering={FadeInDown.delay(300 + i * 80).springify().damping(14).mass(1.1)}
             >
               <TouchableOpacity
-                style={[styles.quizOption, { backgroundColor: bg, borderColor }]}
+                style={[styles.quizOption, { backgroundColor: bg, borderColor, borderBottomColor: lipColor }]}
                 onPress={() => selected === null && setSelected(i)}
                 activeOpacity={selected === null ? 0.7 : 1}
                 disabled={selected !== null}
@@ -357,7 +367,7 @@ function QuizStep() {
       </View>
 
       {selected !== null && (
-        <Animated.View entering={FadeInUp.duration(300)} style={styles.quizExplanation}>
+        <Animated.View entering={FadeInUp.duration(430)} style={styles.quizExplanation}>
           <Ionicons
             name={isCorrect ? 'checkmark-circle' : 'information-circle'}
             size={20}
@@ -393,8 +403,8 @@ function VisualizationStep() {
   const sum = VIZ_ARRAY.slice(windowStart, windowStart + WINDOW_SIZE).reduce((a, b) => a + b, 0);
 
   return (
-    <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
-      <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.modeHeader}>
+    <Animated.View entering={FadeIn.duration(560)} style={styles.stepContainer}>
+      <Animated.View entering={FadeInDown.delay(100).duration(560)} style={styles.modeHeader}>
         <View style={[styles.modeBadge, { backgroundColor: `${colors.accent}20` }]}>
           <Ionicons name="analytics-outline" size={16} color={colors.accentDark} />
           <Text style={[styles.modeBadgeText, { color: colors.accentDark }]}>Visualize mode</Text>
@@ -403,7 +413,7 @@ function VisualizationStep() {
         <Text style={styles.subtitle}>The sliding window in motion</Text>
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.vizContainer}>
+      <Animated.View entering={FadeInDown.delay(200).duration(560)} style={styles.vizContainer}>
         <View style={styles.vizArray}>
           {VIZ_ARRAY.map((n, i) => {
             const inWindow = i >= windowStart && i < windowStart + WINDOW_SIZE;
@@ -430,7 +440,7 @@ function VisualizationStep() {
             <Text style={styles.vizMetaLabel}>Window sum</Text>
             <Animated.Text
               key={`sum-${windowStart}`}
-              entering={FadeIn.duration(300)}
+              entering={FadeIn.duration(430)}
               style={[styles.vizMetaValue, { color: colors.accent }]}
             >
               {sum}
@@ -439,7 +449,7 @@ function VisualizationStep() {
         </View>
       </Animated.View>
 
-      <Animated.View entering={FadeInUp.delay(400).duration(400)} style={styles.featureLine}>
+      <Animated.View entering={FadeInUp.delay(400).duration(560)} style={styles.featureLine}>
         <Ionicons name="play-circle-outline" size={16} color={colors.inkLight} />
         <Text style={styles.featureLineText}>{contentStats.algorithmPatterns} algorithms with live visualizations</Text>
       </Animated.View>
@@ -452,20 +462,20 @@ function VisualizationStep() {
 // ============================================================================
 function OfflineStep() {
   return (
-    <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
+    <Animated.View entering={FadeIn.duration(560)} style={styles.stepContainer}>
       <View style={styles.heroIconWrap}>
         <Animated.View
-          entering={ZoomIn.delay(80).springify().damping(14).mass(0.6)}
+          entering={ZoomIn.delay(80).springify().damping(14).mass(1.0)}
           style={styles.heroIcon}
         >
           <Ionicons name="airplane-outline" size={42} color={colors.accent} />
         </Animated.View>
       </View>
 
-      <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
+      <Animated.Text entering={FadeInDown.delay(200).duration(680)} style={styles.title}>
         Your library, anywhere
       </Animated.Text>
-      <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
+      <Animated.Text entering={FadeInDown.delay(300).duration(680)} style={styles.subtitle}>
         The whole app works fully offline. No internet, no problem.
       </Animated.Text>
 
@@ -517,26 +527,26 @@ const ONBOARD_KEY_SHORTCUTS: { label: string; insert: string; cursorOffset?: num
 // ============================================================================
 function PracticeStep() {
   return (
-    <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
+    <Animated.View entering={FadeIn.duration(560)} style={styles.stepContainer}>
       <View style={styles.heroIconWrap}>
         <Animated.View
-          entering={ZoomIn.delay(80).springify().damping(14).mass(0.6)}
+          entering={ZoomIn.delay(80).springify().damping(14).mass(1.0)}
           style={styles.heroIcon}
         >
           <Ionicons name="terminal-outline" size={40} color={colors.secondary} />
         </Animated.View>
       </View>
 
-      <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
+      <Animated.Text entering={FadeInDown.delay(200).duration(680)} style={styles.title}>
         Code, run, repeat
       </Animated.Text>
-      <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
+      <Animated.Text entering={FadeInDown.delay(300).duration(680)} style={styles.subtitle}>
         {contentStats.algorithmProblems} algorithm problems with a real Python runtime. Every solve
         happens right on your device.
       </Animated.Text>
 
       <Animated.View
-        entering={FadeInDown.delay(400).duration(500)}
+        entering={FadeInDown.delay(400).duration(680)}
         style={styles.practiceCard}
       >
         <View style={styles.practiceExampleRow}>
@@ -618,26 +628,26 @@ const BUGFIX_LANG_PILLS: { label: string; color: string }[] = [
 
 function BugFixStep() {
   return (
-    <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
+    <Animated.View entering={FadeIn.duration(560)} style={styles.stepContainer}>
       <View style={styles.heroIconWrap}>
         <Animated.View
-          entering={ZoomIn.delay(80).springify().damping(14).mass(0.6)}
+          entering={ZoomIn.delay(80).springify().damping(14).mass(1.0)}
           style={[styles.heroIcon, { backgroundColor: `${colors.error}18` }]}
         >
           <Ionicons name="bug-outline" size={40} color={colors.error} />
         </Animated.View>
       </View>
 
-      <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
+      <Animated.Text entering={FadeInDown.delay(200).duration(680)} style={styles.title}>
         Spot the bug, fix the line
       </Animated.Text>
-      <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
+      <Animated.Text entering={FadeInDown.delay(300).duration(680)} style={styles.subtitle}>
         {contentStats.bugFixProblems} broken snippets across Python, JavaScript, and Java.
         Tap, fix, run the tests — all on-device.
       </Animated.Text>
 
       <Animated.View
-        entering={FadeInDown.delay(400).duration(500)}
+        entering={FadeInDown.delay(400).duration(680)}
         style={styles.practiceCard}
       >
         <View style={styles.bugFixPillRow}>
@@ -778,25 +788,25 @@ function SystemDesignTeaserStep() {
   };
 
   return (
-    <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
+    <Animated.View entering={FadeIn.duration(560)} style={styles.stepContainer}>
       <View style={styles.heroIconWrap}>
         <Animated.View
-          entering={ZoomIn.delay(80).springify().damping(14).mass(0.6)}
+          entering={ZoomIn.delay(80).springify().damping(14).mass(1.0)}
           style={styles.heroIcon}
         >
           <Ionicons name="git-network-outline" size={40} color={colors.primary} />
         </Animated.View>
       </View>
 
-      <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
+      <Animated.Text entering={FadeInDown.delay(200).duration(680)} style={styles.title}>
         Sketch system design
       </Animated.Text>
-      <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
+      <Animated.Text entering={FadeInDown.delay(300).duration(680)} style={styles.subtitle}>
         Drag nodes, tap two to wire them. A Test button grades your design.
       </Animated.Text>
 
       <Animated.View
-        entering={FadeInDown.delay(400).duration(500)}
+        entering={FadeInDown.delay(400).duration(680)}
         style={[styles.sdCanvas, { height: SD_CANVAS_HEIGHT, width: SCREEN_WIDTH - spacing.lg * 2, alignSelf: 'center' }]}
         onLayout={(e) => {
           const { width, height } = e.nativeEvent.layout;
@@ -841,7 +851,7 @@ function SystemDesignTeaserStep() {
       </Animated.View>
 
       <Animated.View
-        entering={FadeInDown.delay(500).duration(500)}
+        entering={FadeInDown.delay(500).duration(680)}
         style={styles.sdDemoPalette}
       >
         {DEMO_PALETTE.map((type) => {
@@ -919,7 +929,7 @@ function BehavioralStep() {
   const firstQuestion = behavioralQuestions[0];
 
   return (
-    <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
+    <Animated.View entering={FadeIn.duration(560)} style={styles.stepContainer}>
       {/* Tap-outside-input dismisses the keyboard. The TextInput inside
           BehavioralCard captures its own taps so this only fires on chrome. */}
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -931,22 +941,22 @@ function BehavioralStep() {
         >
           <View style={styles.heroIconWrap}>
             <Animated.View
-              entering={ZoomIn.delay(80).springify().damping(14).mass(0.6)}
+              entering={ZoomIn.delay(80).springify().damping(14).mass(1.0)}
               style={styles.heroIcon}
             >
               <Ionicons name="chatbubbles-outline" size={40} color={colors.accent} />
             </Animated.View>
           </View>
 
-          <Animated.Text entering={FadeInDown.delay(200).duration(500)} style={styles.title}>
+          <Animated.Text entering={FadeInDown.delay(200).duration(680)} style={styles.title}>
             Polish your stories
           </Animated.Text>
-          <Animated.Text entering={FadeInDown.delay(300).duration(500)} style={styles.subtitle}>
+          <Animated.Text entering={FadeInDown.delay(300).duration(680)} style={styles.subtitle}>
             Tap the prompt, start drafting. Your answer saves as you type.
           </Animated.Text>
 
           <Animated.View
-            entering={FadeInDown.delay(400).duration(500)}
+            entering={FadeInDown.delay(400).duration(680)}
             style={styles.behavioralStack}
           >
             <BehavioralCard question={firstQuestion} />
@@ -975,7 +985,7 @@ const MI_STAGES: {
   result: string;
 }[] = [
   {
-    q: 2,
+    q: 1,
     kind: 'LeetCode',
     color: '#8B5CF6',
     icon: 'code-slash-outline',
@@ -987,7 +997,7 @@ const MI_STAGES: {
     result: 'All 6 tests passed',
   },
   {
-    q: 3,
+    q: 2,
     kind: 'System Design',
     color: '#636E72',
     icon: 'git-network-outline',
@@ -999,7 +1009,7 @@ const MI_STAGES: {
     result: 'All components connected',
   },
   {
-    q: 4,
+    q: 3,
     kind: 'Bug Fix',
     color: '#EF4444',
     icon: 'bug-outline',
@@ -1011,7 +1021,7 @@ const MI_STAGES: {
     result: 'Bug fixed — 5 / 5 tests',
   },
   {
-    q: 5,
+    q: 4,
     kind: 'Behavioral',
     color: '#1CB0F6',
     icon: 'chatbubbles-outline',
@@ -1063,8 +1073,8 @@ function MockInterviewStep() {
   }));
 
   return (
-    <Animated.View entering={FadeIn.duration(400)} style={styles.stepContainer}>
-      <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.modeHeader}>
+    <Animated.View entering={FadeIn.duration(560)} style={styles.stepContainer}>
+      <Animated.View entering={FadeInDown.delay(100).duration(560)} style={styles.modeHeader}>
         <View style={[styles.modeBadge, { backgroundColor: `${colors.purple}20` }]}>
           <Ionicons name="stopwatch-outline" size={16} color={colors.purpleDark} />
           <Text style={[styles.modeBadgeText, { color: colors.purpleDark }]}>
@@ -1079,11 +1089,11 @@ function MockInterviewStep() {
       </Animated.View>
 
       {/* Faux session card — plays one round per section kind on loop */}
-      <Animated.View entering={FadeInDown.delay(250).duration(500)} style={styles.miCard}>
+      <Animated.View entering={FadeInDown.delay(250).duration(680)} style={styles.miCard}>
         <View style={styles.miHeader}>
           <Animated.Text
             key={`q-${stageIdx}`}
-            entering={FadeIn.duration(300)}
+            entering={FadeIn.duration(430)}
             style={styles.miProgressText}
           >
             Question {stage.q} of 6
@@ -1105,7 +1115,7 @@ function MockInterviewStep() {
           />
         </View>
 
-        <Animated.View key={`stage-${stageIdx}`} entering={FadeIn.duration(350)}>
+        <Animated.View key={`stage-${stageIdx}`} entering={FadeIn.duration(480)}>
           <View style={styles.miProblemRow}>
             <View style={[styles.miKindChip, { backgroundColor: `${stage.color}16` }]}>
               <Ionicons name={stage.icon} size={12} color={stage.color} />
@@ -1131,7 +1141,7 @@ function MockInterviewStep() {
           {/* Fixed-height slot so the toast doesn't shift the layout */}
           <View style={styles.miResultSlot}>
             <Animated.View
-              entering={FadeInUp.delay(1300).duration(400)}
+              entering={FadeInUp.delay(1300).duration(560)}
               style={styles.practiceMockResult}
             >
               <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
@@ -1274,7 +1284,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
   },
   dotActive: {
-    width: 24,
+    width: 28,
     backgroundColor: colors.primary,
   },
   dotPast: {
@@ -1301,7 +1311,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
     borderWidth: 1.5,
     borderColor: colors.borderDark,
-    ...shadows.sm,
+    // Round surface: use a soft drop shadow for depth (a bottom-border "lip"
+    // reads as an odd crescent on a circle).
+    ...shadows.md,
   },
   title: {
     ...typography.displaySmall,
@@ -1322,21 +1334,6 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     paddingTop: spacing.sm,
   },
-  continueBtn: {
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.lg,
-    borderRadius: borderRadius.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    ...shadows.md,
-  },
-  continueBtnText: {
-    ...typography.labelLarge,
-    color: colors.white,
-    fontSize: 16,
-  },
   // Step 0: tracks grid
   tracksGrid: {
     flexDirection: 'row',
@@ -1349,10 +1346,13 @@ const styles = StyleSheet.create({
     width: '31%',
     backgroundColor: colors.card,
     borderRadius: borderRadius.lg,
-    paddingVertical: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    // Chunky colored lip (color set per-track inline) for playful depth.
+    borderBottomWidth: 5,
     ...shadows.sm,
   },
   trackIconWrap: {
@@ -1362,6 +1362,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.xs,
+    borderWidth: 1.5,
   },
   trackLabel: {
     ...typography.labelMedium,
@@ -1371,9 +1372,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: colors.card,
     borderRadius: borderRadius.lg,
-    paddingVertical: spacing.md,
-    borderWidth: 1,
+    paddingVertical: spacing.lg,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    borderBottomWidth: 5,
+    borderBottomColor: colors.primaryLight,
     ...shadows.sm,
   },
   stat: {
@@ -1381,7 +1384,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statValue: {
-    ...typography.headlineMedium,
+    ...typography.headlineLarge,
     color: colors.primary,
   },
   statLabel: {
@@ -1428,6 +1431,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     padding: spacing.xl,
     borderWidth: 2,
+    borderBottomWidth: 7,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.lg,
@@ -1435,9 +1439,11 @@ const styles = StyleSheet.create({
   },
   flipCardFront: {
     borderColor: colors.secondary,
+    borderBottomColor: colors.secondaryDark,
   },
   flipCardBack: {
     borderColor: colors.accent,
+    borderBottomColor: colors.accentDark,
   },
   flipCardLabel: {
     ...typography.labelSmall,
@@ -1486,8 +1492,10 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     padding: IS_SMALL_SCREEN ? spacing.md : spacing.lg,
     marginBottom: IS_SMALL_SCREEN ? spacing.sm : spacing.lg,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    borderBottomWidth: 5,
+    borderBottomColor: colors.purpleLight,
     ...shadows.sm,
   },
   quizQuestionText: {
@@ -1505,7 +1513,10 @@ const styles = StyleSheet.create({
     padding: IS_SMALL_SCREEN ? spacing.sm : spacing.md,
     borderRadius: borderRadius.md,
     borderWidth: 2,
+    borderBottomWidth: 5,
+    backgroundColor: colors.card,
     gap: spacing.md,
+    ...shadows.sm,
   },
   quizOptionLetter: {
     width: 28,
@@ -1620,8 +1631,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: borderRadius.md,
     padding: spacing.md,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    borderBottomWidth: 4,
+    borderBottomColor: colors.borderDark,
+    ...shadows.sm,
   },
   perkIconWrap: {
     width: 36,
@@ -1737,22 +1751,6 @@ const styles = StyleSheet.create({
   paywallCtas: {
     marginTop: spacing.md,
   },
-  primaryCta: {
-    backgroundColor: colors.primary,
-    paddingVertical: 20,
-    borderRadius: borderRadius.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    ...shadows.md,
-    marginBottom: spacing.sm,
-  },
-  primaryCtaText: {
-    ...typography.labelLarge,
-    color: colors.white,
-    fontSize: 17,
-  },
   secondaryCtaText: {
     ...typography.labelLarge,
     color: colors.inkLight,
@@ -1783,8 +1781,10 @@ const styles = StyleSheet.create({
   practiceCard: {
     backgroundColor: colors.card,
     borderRadius: borderRadius.lg,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    borderBottomWidth: 5,
+    borderBottomColor: colors.primaryLight,
     padding: spacing.md,
     marginHorizontal: spacing.xs,
     ...shadows.sm,
@@ -1822,22 +1822,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  practiceRunBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.md,
-    ...shadows.button(colors.primary),
-  },
-  practiceRunBtnDisabled: { opacity: 0.6 },
-  practiceRunText: {
-    ...typography.labelLarge,
-    color: colors.white,
-    fontSize: 15,
-  },
   practiceResultsBlock: {
     marginTop: spacing.sm,
   },
@@ -1865,6 +1849,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     marginTop: spacing.sm,
     marginBottom: spacing.sm,
+    borderBottomWidth: 4,
+    borderBottomColor: '#12121c',
   },
   practiceMockLine: {
     flexDirection: 'row',
@@ -2054,9 +2040,11 @@ const styles = StyleSheet.create({
     height: 70,
     borderRadius: borderRadius.md,
     borderWidth: 2,
+    borderBottomWidth: 5,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
+    ...shadows.sm,
   },
   sdNodeLabel: {
     ...typography.labelSmall,
@@ -2081,6 +2069,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
     borderWidth: 2,
+    borderBottomWidth: 4,
     backgroundColor: colors.card,
   },
   sdDemoPaletteLabel: {
@@ -2093,8 +2082,10 @@ const styles = StyleSheet.create({
   miCard: {
     backgroundColor: colors.card,
     borderRadius: borderRadius.lg,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    borderBottomWidth: 5,
+    borderBottomColor: colors.purpleLight,
     padding: spacing.lg,
     marginHorizontal: spacing.xs,
     ...shadows.sm,

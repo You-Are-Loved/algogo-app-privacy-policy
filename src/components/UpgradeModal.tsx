@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     borderRadius: borderRadius.lg,
     gap: spacing.sm,
-    ...shadows.md,
+    ...shadows.button(colors.primaryDark),
   },
   primaryCtaText: {
     ...typography.labelLarge,

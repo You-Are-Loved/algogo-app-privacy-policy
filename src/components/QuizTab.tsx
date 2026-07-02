@@ -9,7 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeIn, FadeInRight } from 'react-native-reanimated';
 
-import { colors, spacing, borderRadius, typography } from '../theme';
+import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { Category } from '../types';
 import { useStore } from '../store/useStore';
 
@@ -377,6 +377,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing['2xl'],
     borderRadius: borderRadius.lg,
+    ...shadows.button(colors.borderDark),
   },
   startButtonText: {
     ...typography.labelLarge,
@@ -464,10 +465,13 @@ const styles = StyleSheet.create({
   questionCard: {
     backgroundColor: colors.card,
     borderRadius: borderRadius.xl,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    borderBottomWidth: 6,
+    borderBottomColor: colors.secondaryLight,
     padding: spacing.xl,
     marginBottom: spacing.lg,
+    ...shadows.sm,
   },
   questionText: {
     ...typography.headlineMedium,
@@ -484,19 +488,25 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderWidth: 2,
     borderColor: colors.border,
+    borderBottomWidth: 5,
+    borderBottomColor: colors.borderDark,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
+    ...shadows.sm,
   },
   optionSelected: {
     borderColor: colors.secondary,
+    borderBottomColor: colors.secondaryDark,
     backgroundColor: `${colors.secondary}10`,
   },
   optionCorrect: {
     borderColor: colors.primary,
+    borderBottomColor: colors.primaryDark,
     backgroundColor: `${colors.primary}15`,
   },
   optionIncorrect: {
     borderColor: colors.error,
+    borderBottomColor: colors.errorDark,
     backgroundColor: `${colors.error}15`,
   },
   optionLetter: {
@@ -545,6 +555,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.lg,
+    ...shadows.button(colors.borderDark),
   },
   actionButtonText: {
     ...typography.labelLarge,

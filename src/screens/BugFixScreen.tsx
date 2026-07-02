@@ -12,7 +12,7 @@ import {
   Pressable,
   Keyboard,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
@@ -686,6 +686,7 @@ export default function BugFixScreen() {
   const navigation = useNavigation();
   const { params } = useRoute<RouteP>();
   const problem = getBugFixProblem(params.problemId);
+  const insets = useSafeAreaInsets();
 
   if (!problem) {
     return (
@@ -698,7 +699,14 @@ export default function BugFixScreen() {
   return (
     // White top inset so the status-bar area flows into the white header.
     <SafeAreaView style={styles.safeTop} edges={['top']}>
-      <BugFixProblemView problem={problem} onBack={() => navigation.goBack()} />
+      <BugFixProblemView
+        problem={problem}
+        onBack={() => navigation.goBack()}
+        // The top SafeAreaView inset pushes this view down from the window
+        // top; without matching offset the keyboard toolbar hides behind
+        // the keyboard (KeyboardAvoidingView measures relative to parent).
+        keyboardVerticalOffset={insets.top}
+      />
     </SafeAreaView>
   );
 }
@@ -843,6 +851,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: spacing.xs,
+    ...shadows.button(colors.primaryDark),
   },
   runIconBtnDisabled: {
     backgroundColor: colors.borderDark,
@@ -902,8 +911,11 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     padding: spacing.md,
     marginBottom: spacing.sm,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    borderBottomWidth: 4,
+    borderBottomColor: colors.borderDark,
+    ...shadows.sm,
   },
   exampleHeader: {
     ...typography.labelLarge,
@@ -1028,7 +1040,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.primary,
     borderRadius: borderRadius.lg,
-    ...shadows.sm,
+    ...shadows.button(colors.primaryDark),
   },
   runBtnDisabled: {
     backgroundColor: colors.inkLighter,

@@ -5219,6 +5219,2479 @@ export const blind75: Blind75Problem[] = [
       { input: ["2-(5-6)"], expected: 3 },
     ],
   },
+  {
+    id: 'rotate-left-in-place',
+    number: 201,
+    title: "Rotate Array Left In Place",
+    difficulty: 'Medium',
+    topic: "Array",
+    statement:
+      "Given a list of integers `nums` and a non-negative integer `k`, rotate the list to the **left** by `k` positions, so that each element moves `k` slots toward the front and elements that fall off the front wrap around to the back.\n\nModify the list in place and return it. Note `k` may be larger than the length of the list, and the list may be empty.\n\nExample: rotating `[1,2,3,4,5]` left by `2` gives `[3,4,5,1,2]`.",
+    explanation:
+      "Rotating left by `k` is the same as rotating left by `k % n` (rotating by a full length changes nothing). Handle the empty list up front to avoid dividing by zero.\n\nThe classic in-place trick is three reversals: reverse the first `k` elements, reverse the rest, then reverse the whole list. This lands every element in its rotated position using O(1) extra space and O(n) time.",
+    functionName: 'rotate_left',
+    functionSignature: "def rotate_left(nums: list[int], k: int) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def rotate_left(nums: list[int], k: int) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [[1,2,3,4,5,6,7],3], expected: [4,5,6,7,1,2,3] },
+      { input: [[1,2,3],1], expected: [2,3,1] },
+      { input: [[1,2],3], expected: [2,1] },
+    ],
+    hiddenTests: [
+      { input: [[1,2,3,4,5],0], expected: [1,2,3,4,5] },
+      { input: [[],4], expected: [] },
+      { input: [[9],100], expected: [9] },
+    ],
+  },
+  {
+    id: 'sort-three-way-flag',
+    number: 202,
+    title: "Three-Color Flag Sort",
+    difficulty: 'Medium',
+    topic: "Array",
+    statement:
+      "You're given a list `nums` containing only the integers `0`, `1`, and `2`. Sort the list in place in a single pass so that all `0`s come first, then all `1`s, then all `2`s, and return it.\n\nDo not simply count and rewrite — use a partitioning approach (the Dutch national flag technique) that swaps elements as it scans.",
+    explanation:
+      "Maintain three pointers: `low` (boundary of the 0s region), `mid` (the current element), and `high` (boundary of the 2s region). Scan with `mid` while `mid <= high`.\n\nIf `nums[mid]` is 0, swap it into the low region and advance both `low` and `mid`. If it's 1, it's already in the middle band, so just advance `mid`. If it's 2, swap it toward the high region and shrink `high` — but do NOT advance `mid`, because the swapped-in value still needs inspecting.\n\nOne pass, O(1) extra space.",
+    functionName: 'sort_three_way',
+    functionSignature: "def sort_three_way(nums: list[int]) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def sort_three_way(nums: list[int]) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [[2,0,2,1,1,0]], expected: [0,0,1,1,2,2] },
+      { input: [[2,0,1]], expected: [0,1,2] },
+      { input: [[0]], expected: [0] },
+    ],
+    hiddenTests: [
+      { input: [[2,2,2,0,0,1]], expected: [0,0,1,2,2,2] },
+      { input: [[1,1,1]], expected: [1,1,1] },
+      { input: [[]], expected: [] },
+    ],
+  },
+  {
+    id: 'running-product-except-self',
+    number: 203,
+    title: "Running Product Except Self",
+    difficulty: 'Medium',
+    topic: "Array",
+    statement:
+      "Given a list of integers `nums`, return a new list `out` where `out[i]` equals the product of every element of `nums` **except** `nums[i]`.\n\nYou must solve it **without using the division operator**, and it should run in O(n) time. The input can contain zeros and negative numbers.\n\nExample: for `[1,2,3,4]` the answer is `[24,12,8,6]`.",
+    explanation:
+      "Division would break on zeros, so build the answer from prefix and suffix products instead.\n\nFirst pass, left to right: set `out[i]` to the product of all elements strictly before `i` (a running prefix product, starting at 1). Second pass, right to left: multiply `out[i]` by a running suffix product of all elements strictly after `i`.\n\nAfter both passes `out[i]` holds prefix × suffix = product of everything except index `i`. O(n) time, O(1) extra space beyond the output.",
+    functionName: 'running_product_except_self',
+    functionSignature: "def running_product_except_self(nums: list[int]) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def running_product_except_self(nums: list[int]) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [[1,2,3,4]], expected: [24,12,8,6] },
+      { input: [[-1,1,0,-3,3]], expected: [0,0,9,0,0] },
+      { input: [[2,3]], expected: [3,2] },
+    ],
+    hiddenTests: [
+      { input: [[5,0,0]], expected: [0,0,0] },
+      { input: [[1,1,1,1]], expected: [1,1,1,1] },
+    ],
+  },
+  {
+    id: 'equilibrium-indices',
+    number: 204,
+    title: "Equilibrium Indices",
+    difficulty: 'Easy',
+    topic: "Array",
+    statement:
+      "An index `i` of a list `nums` is an **equilibrium index** if the sum of all elements strictly to the left of `i` equals the sum of all elements strictly to the right of `i`. (For the first index the left sum is 0; for the last index the right sum is 0.)\n\nReturn a list of all equilibrium indices, in increasing order. If there are none, return an empty list.",
+    explanation:
+      "The brute-force approach recomputes left and right sums for each index — O(n²). Instead, use a prefix-sum sweep.\n\nCompute the total sum first. Then walk left to right keeping a running `left` sum of everything before the current index. At index `i` with value `v`, the right sum is `total - left - v`. Whenever `left == total - left - v`, record `i`. Then add `v` to `left` and continue.\n\nSingle pass after the total, O(n) time and O(1) extra space (besides the answer).",
+    functionName: 'equilibrium_indices',
+    functionSignature: "def equilibrium_indices(nums: list[int]) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def equilibrium_indices(nums: list[int]) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [[1,7,3,6,5,6]], expected: [3] },
+      { input: [[1,2,3]], expected: [] },
+      { input: [[2,1,-1]], expected: [0] },
+    ],
+    hiddenTests: [
+      { input: [[0,0,0]], expected: [0,1,2] },
+      { input: [[-1,-1,-1,0,1,1]], expected: [0] },
+      { input: [[]], expected: [] },
+    ],
+  },
+  {
+    id: 'min-swaps-group-ones',
+    number: 205,
+    title: "Minimum Swaps to Group Ones",
+    difficulty: 'Hard',
+    topic: "Array",
+    statement:
+      "You're given a **circular** binary list `nums` (its last element is considered adjacent to its first). In one move you may swap the values at any two positions. Return the minimum number of swaps needed to bring all the `1`s together into one contiguous block (contiguity is allowed to wrap around the ends).\n\nIf there are no `1`s, or every element is a `1`, the answer is `0`.",
+    explanation:
+      "Let `t` be the total number of `1`s. In the final arrangement they occupy some window of length `t`. The number of swaps to fill a chosen window with all ones equals the number of `0`s currently inside that window (each such zero must be swapped out for a one from outside).\n\nSo the task reduces to: over all length-`t` windows, find the one containing the fewest zeros. Because the array is circular, conceptually double it (or use modular indexing) and slide a window of size `t`, maintaining the zero count incrementally. The minimum zero count over all windows is the answer.\n\nHandle the trivial cases (`t == 0` or `t == n`) by returning 0. O(n) time.",
+    functionName: 'min_swaps_group_ones',
+    functionSignature: "def min_swaps_group_ones(nums: list[int]) -> int:",
+    starter:
+      STARTER_HEADER + "def min_swaps_group_ones(nums: list[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[1,0,1,0,1]], expected: 1 },
+      { input: [[0,0,0,1,0]], expected: 0 },
+      { input: [[1,1,0,0,1]], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [[0,1,1,1,0,0,1,1,0]], expected: 2 },
+      { input: [[1,1,1]], expected: 0 },
+      { input: [[0,0,0]], expected: 0 },
+      { input: [[1,0,0,1,0,1,0,1]], expected: 1 },
+    ],
+  },
+  {
+    id: 'circular-maximum-subarray',
+    number: 206,
+    title: "Circular Maximum Subarray",
+    difficulty: 'Medium',
+    topic: "Array",
+    statement:
+      "Given an integer array `nums` arranged in a **circle** (so the element after the last one wraps around to the first), find the maximum possible sum of a non-empty subarray.\n\nA circular subarray may either be a normal contiguous run, or it may wrap around the end and continue from the front — but it can use each element **at most once** (so its length is at most `len(nums)`). Return that maximum sum.",
+    explanation:
+      "There are two cases. The best subarray is either fully inside the array (standard Kadane's maximum), or it wraps around the ends.\n\nA wrapping subarray is everything **except** some middle contiguous block. To maximize what's kept, minimize what's removed: that middle block is the **minimum** subarray. So the wrapping candidate is `total_sum − minimum_subarray_sum`.\n\nRun Kadane's forwards to get both the max and min subarray sums in one pass. The answer is `max(best_max, total − best_min)`. Edge case: if every number is negative, `total − best_min` would be 0 (an empty selection), which isn't allowed — in that case just return `best_max`.",
+    functionName: 'max_circular_subarray',
+    functionSignature: "def max_circular_subarray(nums: list[int]) -> int:",
+    starter:
+      STARTER_HEADER + "def max_circular_subarray(nums: list[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[1,-2,3,-2]], expected: 3 },
+      { input: [[5,-3,5]], expected: 10 },
+      { input: [[-3,-2,-3]], expected: -2 },
+    ],
+    hiddenTests: [
+      { input: [[3,-1,2,-1]], expected: 4 },
+      { input: [[3,-2,2,-3]], expected: 3 },
+      { input: [[-2,4,-5,4,-5,9,4]], expected: 15 },
+      { input: [[8,-1,3,4]], expected: 15 },
+    ],
+  },
+  {
+    id: 'majority-over-third',
+    number: 207,
+    title: "Majority Over a Third",
+    difficulty: 'Medium',
+    topic: "Array",
+    statement:
+      "Given an integer array `nums`, return every element that appears **more than** `len(nums) // 3` times (strictly more, using integer floor division for the threshold).\n\nThere can be at most two such elements. Return them in a list sorted in **ascending order** (return an empty list if there are none).",
+    explanation:
+      "A value can exceed the `n//3` threshold only if it's one of at most two 'dominant' candidates — you can't have three distinct elements each appearing more than a third of the time.\n\nUse a two-slot Boyer-Moore voting pass. Track two candidates with two counters. For each number: if it matches a candidate, bump that counter; else if a counter is 0, adopt the number as that candidate; otherwise decrement both counters.\n\nThe survivors are only *potential* answers, so do a second pass to count their real frequencies and keep those strictly above `n//3`. Finally sort the result. O(n) time, O(1) extra space.",
+    functionName: 'majority_over_third',
+    functionSignature: "def majority_over_third(nums: list[int]) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def majority_over_third(nums: list[int]) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [[3,2,3]], expected: [3] },
+      { input: [[1,1,1,3,3,2,2,2]], expected: [1,2] },
+      { input: [[1]], expected: [1] },
+    ],
+    hiddenTests: [
+      { input: [[1,2]], expected: [1,2] },
+      { input: [[5,5,5,5]], expected: [5] },
+      { input: [[1,2,3,4,5,6]], expected: [] },
+    ],
+  },
+  {
+    id: 'count-subarrays-with-sum',
+    number: 208,
+    title: "Count Subarrays With Sum",
+    difficulty: 'Easy',
+    topic: "Array",
+    statement:
+      "Given an integer array `nums` and an integer `target`, return the **number** of non-empty contiguous subarrays whose elements sum exactly to `target`.\n\nThe array may contain negative numbers and zeros, so different subarrays can have the same sum.",
+    explanation:
+      "A subarray sum equals `prefix[j] − prefix[i]`. If the running prefix sum up to the current index is `s`, then a subarray ending here sums to `target` exactly when some earlier prefix equalled `s − target`.\n\nSweep left to right keeping a running total `s`. Maintain a dictionary counting how many times each prefix sum has occurred (seed it with `{0: 1}` so subarrays starting at index 0 are counted). At each step add `count[s − target]` to the answer, then record the current prefix `s`.\n\nOne pass, O(n) time and O(n) space. Handles negatives and zeros naturally.",
+    functionName: 'count_subarrays_with_sum',
+    functionSignature: "def count_subarrays_with_sum(nums: list[int], target: int) -> int:",
+    starter:
+      STARTER_HEADER + "def count_subarrays_with_sum(nums: list[int], target: int) -> int:\n    pass\n",
+    examples: [
+      { input: [[1,1,1],2], expected: 2 },
+      { input: [[1,2,3],3], expected: 2 },
+      { input: [[1,-1,0],0], expected: 3 },
+    ],
+    hiddenTests: [
+      { input: [[3,4,7,2,-3,1,4,2],7], expected: 4 },
+      { input: [[0,0,0],0], expected: 6 },
+      { input: [[1,2,3],7], expected: 0 },
+    ],
+  },
+  {
+    id: 'merge-sorted-arrays',
+    number: 209,
+    title: "Merge Two Sorted Arrays",
+    difficulty: 'Easy',
+    topic: "Array",
+    statement:
+      "Given two lists `a` and `b`, each already sorted in **non-decreasing** order, merge them into a single list sorted in non-decreasing order and return it.\n\nEither list may be empty. Duplicate values across the two lists are kept (the result contains every element from both).",
+    explanation:
+      "This is the merge step of merge sort. Walk two pointers `i` and `j` across `a` and `b`. Repeatedly compare `a[i]` and `b[j]`, append the smaller (append from `a` on ties to keep it simple), and advance that pointer.\n\nWhen one list is exhausted, append whatever remains in the other list — it's already sorted, so no more comparisons are needed.\n\nO(len(a) + len(b)) time, single linear pass, no sorting call required.",
+    functionName: 'merge_sorted_arrays',
+    functionSignature: "def merge_sorted_arrays(a: list[int], b: list[int]) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def merge_sorted_arrays(a: list[int], b: list[int]) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [[1,3,5],[2,4,6]], expected: [1,2,3,4,5,6] },
+      { input: [[],[1,2,3]], expected: [1,2,3] },
+      { input: [[1,2,3],[]], expected: [1,2,3] },
+    ],
+    hiddenTests: [
+      { input: [[1,1,2],[1,3]], expected: [1,1,1,2,3] },
+      { input: [[-5,0,7],[-3,-1,10]], expected: [-5,-3,-1,0,7,10] },
+    ],
+  },
+  {
+    id: 'palindrome-permutation',
+    number: 210,
+    title: "Palindrome Rearrangement Check",
+    difficulty: 'Easy',
+    topic: "String",
+    statement:
+      "You're given a string `s` made of lowercase letters. Determine whether its characters can be rearranged to form a palindrome. Return `True` if some rearrangement reads the same forwards and backwards, otherwise `False`.\n\nThe empty string counts as a palindrome.",
+    explanation:
+      "A string can be permuted into a palindrome only if at most one distinct character appears an odd number of times — that lone character (if any) sits in the middle, and everything else pairs up around it.\n\nCount how often each character occurs, then count how many characters have an odd frequency. If that odd count is 0 or 1, a palindrome arrangement exists.\n\nO(n) time, O(1) extra space (only 26 letters).",
+    functionName: 'can_form_palindrome',
+    functionSignature: "def can_form_palindrome(s: str) -> bool:",
+    starter:
+      STARTER_HEADER + "def can_form_palindrome(s: str) -> bool:\n    pass\n",
+    examples: [
+      { input: ["aabb"], expected: true },
+      { input: ["abc"], expected: false },
+      { input: ["racecar"], expected: true },
+    ],
+    hiddenTests: [
+      { input: [""], expected: true },
+      { input: ["aab"], expected: true },
+      { input: ["aaabbbb"], expected: true },
+      { input: ["aaabbbbc"], expected: false },
+    ],
+  },
+  {
+    id: 'run-length-compress',
+    number: 211,
+    title: "Run-Length Compression",
+    difficulty: 'Medium',
+    topic: "String",
+    statement:
+      "Compress a string `s` using run-length encoding: replace each maximal run of a repeated character with that character followed by the run's length. For example the run `\"aaa\"` becomes `\"a3\"`.\n\nReturn the compressed string ONLY if it is strictly shorter than the original; otherwise return the original string unchanged. For the empty string, return the empty string.",
+    explanation:
+      "Walk through the string tracking the current character and how many times it has repeated consecutively. When the character changes, append `char + str(count)` to your output and reset the counter.\n\nAfter building the encoded form, compare its length to the original: return the encoded version only when it is strictly shorter, otherwise keep the original (encoding rarely helps for strings with few repeats).\n\nO(n) time, O(n) space.",
+    functionName: 'compress_string',
+    functionSignature: "def compress_string(s: str) -> str:",
+    starter:
+      STARTER_HEADER + "def compress_string(s: str) -> str:\n    pass\n",
+    examples: [
+      { input: ["aaabbccc"], expected: "a3b2c3" },
+      { input: ["abcdef"], expected: "abcdef" },
+      { input: ["wwwwwwwwww"], expected: "w10" },
+    ],
+    hiddenTests: [
+      { input: ["aabbccdd"], expected: "aabbccdd" },
+      { input: [""], expected: "" },
+      { input: ["aaabaaa"], expected: "a3b1a3" },
+    ],
+  },
+  {
+    id: 'anagram-group-count',
+    number: 212,
+    title: "Count Anagram Groups",
+    difficulty: 'Medium',
+    topic: "String",
+    statement:
+      "You're given a list of lowercase words `words`. Two words belong to the same group if one is an anagram of the other (same letters, same counts, any order).\n\nReturn the number of distinct anagram groups. An empty list has `0` groups.",
+    explanation:
+      "Two words are anagrams exactly when their letters, sorted, produce the same string. So the sorted form of a word is a canonical signature shared by every word in its group.\n\nBuild a set of these signatures by inserting `''.join(sorted(word))` for each word. The size of the set is the number of distinct groups.\n\nO(n·k log k) time for n words of length up to k.",
+    functionName: 'anagram_group_count',
+    functionSignature: "def anagram_group_count(words: list[str]) -> int:",
+    starter:
+      STARTER_HEADER + "def anagram_group_count(words: list[str]) -> int:\n    pass\n",
+    examples: [
+      { input: [["eat","tea","tan","ate","nat","bat"]], expected: 3 },
+      { input: [["abc","bca","cab"]], expected: 1 },
+      { input: [["listen","silent","enlist","google"]], expected: 2 },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: 0 },
+      { input: [["a","b","c"]], expected: 3 },
+    ],
+  },
+  {
+    id: 'decode-repeat-string',
+    number: 213,
+    title: "Decode Nested Repeats",
+    difficulty: 'Medium',
+    topic: "String",
+    statement:
+      "A string `s` is encoded with the rule `k[encoded]`, meaning the substring `encoded` is repeated exactly `k` times. Encodings may be nested, e.g. `3[a2[c]]`. The multiplier `k` is a positive integer and may have multiple digits. Plain letters can appear outside brackets.\n\nReturn the fully decoded string. You may assume the input is always well-formed (brackets balanced, every `[` preceded by a number).",
+    explanation:
+      "Use a stack to handle nesting. Scan left to right while building the current segment `cur` and current number `num`.\n\n- On a digit, extend `num` (multiply by 10 and add).\n- On `[`, push the pair `(cur, num)` and reset both.\n- On `]`, pop `(prev, k)` and set `cur = prev + cur * k`.\n- On a letter, append it to `cur`.\n\nWhen the scan ends, `cur` holds the decoded string. O(output length) time.",
+    functionName: 'decode_message',
+    functionSignature: "def decode_message(s: str) -> str:",
+    starter:
+      STARTER_HEADER + "def decode_message(s: str) -> str:\n    pass\n",
+    examples: [
+      { input: ["3[a]2[bc]"], expected: "aaabcbc" },
+      { input: ["3[a2[c]]"], expected: "accaccacc" },
+      { input: ["2[abc]3[cd]ef"], expected: "abcabccdcdcdef" },
+    ],
+    hiddenTests: [
+      { input: ["abc"], expected: "abc" },
+      { input: ["10[a]"], expected: "aaaaaaaaaa" },
+    ],
+  },
+  {
+    id: 'longest-palindromic-prefix',
+    number: 214,
+    title: "Longest Palindromic Prefix Length",
+    difficulty: 'Hard',
+    topic: "String",
+    statement:
+      "Given a string `s` of lowercase letters, return the length of the longest prefix of `s` that is itself a palindrome.\n\nA prefix is any leading portion of the string (from the first character). The empty string has answer `0`. A single character is always a palindrome of length 1.",
+    explanation:
+      "You want the largest `i` such that `s[:i]` reads the same forwards and backwards.\n\nA direct approach checks prefixes from longest to shortest and returns the first palindrome found. For an optimal solution, build the string `s + '#' + reverse(s)` and compute its KMP failure function; the final value equals the longest prefix of `s` that is also a suffix of `reverse(s)` — i.e. the longest palindromic prefix — giving O(n) time.",
+    functionName: 'longest_palindrome_prefix',
+    functionSignature: "def longest_palindrome_prefix(s: str) -> int:",
+    starter:
+      STARTER_HEADER + "def longest_palindrome_prefix(s: str) -> int:\n    pass\n",
+    examples: [
+      { input: ["aacecaaa"], expected: 7 },
+      { input: ["abcd"], expected: 1 },
+      { input: ["racecarxyz"], expected: 7 },
+    ],
+    hiddenTests: [
+      { input: ["aaaa"], expected: 4 },
+      { input: [""], expected: 0 },
+      { input: ["ba"], expected: 1 },
+    ],
+  },
+  {
+    id: 'run-length-encode',
+    number: 215,
+    title: "Run-Length Encode a String",
+    difficulty: 'Easy',
+    topic: "String",
+    statement:
+      "Compress a string using run-length encoding. Scan the string left to right and replace each *maximal run* of the same character with that character immediately followed by the run's length written in decimal.\n\nFor example, `\"aaabbc\"` becomes `\"a3b2c1\"` — three `a`s, two `b`s, one `c`. Every character in the output carries a count, even runs of length 1.\n\nThe input contains only printable characters and never contains digits, so the encoding is unambiguous. Return the encoded string. An empty input produces an empty string.",
+    explanation:
+      "Walk through the string tracking the current character and how many times it has repeated in a row. When the next character differs (or you reach the end), append the character together with its count to the result, then reset the run.\n\nThis is a single linear pass, O(n) time. The only edge cases are the empty string (return `\"\"`) and remembering to flush the final run after the loop ends.",
+    functionName: 'run_length_encode',
+    functionSignature: "def run_length_encode(s: str) -> str:",
+    starter:
+      STARTER_HEADER + "def run_length_encode(s: str) -> str:\n    pass\n",
+    examples: [
+      { input: ["aaabbc"], expected: "a3b2c1" },
+      { input: ["abc"], expected: "a1b1c1" },
+      { input: [""], expected: "" },
+    ],
+    hiddenTests: [
+      { input: ["wwwwwwwwwww"], expected: "w11" },
+      { input: ["aabbaa"], expected: "a2b2a2" },
+      { input: ["x"], expected: "x1" },
+    ],
+  },
+  {
+    id: 'shift-cipher-match',
+    number: 216,
+    title: "Shift Cipher Match",
+    difficulty: 'Easy',
+    topic: "String",
+    statement:
+      "Two lowercase strings `a` and `b` are a *shift match* if you can turn `a` into `b` by shifting every letter forward around the alphabet by the same fixed amount (a Caesar shift). Shifting wraps: after `z` comes `a`. A shift of 0 is allowed, so a string always matches itself.\n\nFor example `\"abc\"` and `\"bcd\"` match with shift 1, and `\"az\"` and `\"ba\"` match with shift 1 (the `z` wraps to `a`). But `\"abc\"` and `\"abd\"` do not match with any single shift.\n\nStrings of different lengths never match. Two empty strings match. Return `true` if `a` and `b` are a shift match, otherwise `false`.",
+    explanation:
+      "If the lengths differ, they cannot match. Otherwise every position must be shifted by the *same* amount. Compute the required shift from the first character: `(b[0] - a[0]) mod 26`.\n\nThen verify every position: for each pair `(x, y)`, check that shifting `x` by that amount lands exactly on `y`, i.e. `(x - 'a' + shift) mod 26 == (y - 'a')`. If any position disagrees, return `false`. Empty strings trivially match.\n\nOne linear pass, O(n) time, O(1) space.",
+    functionName: 'is_shifted_match',
+    functionSignature: "def is_shifted_match(a: str, b: str) -> bool:",
+    starter:
+      STARTER_HEADER + "def is_shifted_match(a: str, b: str) -> bool:\n    pass\n",
+    examples: [
+      { input: ["abc","bcd"], expected: true },
+      { input: ["az","ba"], expected: true },
+      { input: ["abc","abd"], expected: false },
+    ],
+    hiddenTests: [
+      { input: ["abc","abc"], expected: true },
+      { input: ["abc","ab"], expected: false },
+      { input: ["",""], expected: true },
+      { input: ["hello","ifmmp"], expected: true },
+    ],
+  },
+  {
+    id: 'min-deletions-no-adjacent',
+    number: 217,
+    title: "Minimum Deletions for No Adjacent Duplicates",
+    difficulty: 'Easy',
+    topic: "String",
+    statement:
+      "Given a string `s`, you may delete characters to ensure that no two *adjacent* characters in the resulting string are equal. Return the minimum number of deletions required.\n\nWhen a run of identical characters appears (for example `\"aaa\"`), you must delete all but one of them so that only a single copy remains touching its neighbors. So `\"aaa\"` needs 2 deletions, `\"aab\"` needs 1, and `\"abab\"` needs 0.\n\nThe empty string needs 0 deletions.",
+    explanation:
+      "The only thing that forces a deletion is two equal characters sitting next to each other. For a run of length `k` of the same character, you must remove `k - 1` of them.\n\nSweep once, comparing each character with the previous kept character. Every time the current character equals the previous one, count one deletion (and effectively skip it). Summing these gives the answer.\n\nO(n) time, O(1) space.",
+    functionName: 'min_deletions_no_adjacent',
+    functionSignature: "def min_deletions_no_adjacent(s: str) -> int:",
+    starter:
+      STARTER_HEADER + "def min_deletions_no_adjacent(s: str) -> int:\n    pass\n",
+    examples: [
+      { input: ["aab"], expected: 1 },
+      { input: ["aaaa"], expected: 3 },
+      { input: ["abab"], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [""], expected: 0 },
+      { input: ["aaabbbccc"], expected: 6 },
+      { input: ["a"], expected: 0 },
+    ],
+  },
+  {
+    id: 'smallest-distinct-subsequence',
+    number: 218,
+    title: "Smallest Distinct Subsequence",
+    difficulty: 'Hard',
+    topic: "String",
+    statement:
+      "Given a lowercase string `s`, remove characters so that every distinct letter of `s` appears exactly once in the result, while keeping the *relative order* of the letters you keep. Among all such results, return the one that is lexicographically smallest.\n\nFor example, from `\"bcabc\"` the distinct letters are `a`, `b`, `c`, and the smallest valid ordering achievable as a subsequence is `\"abc\"`. From `\"cbacdcbc\"` the answer is `\"acdb\"`.\n\nThe empty string returns the empty string.",
+    explanation:
+      "This is the classic \"remove duplicate letters\" greedy problem solved with a monotonic stack.\n\nFirst record the last index at which each character occurs. Then scan left to right, maintaining a stack that stays as lexicographically small as possible. Skip any character already in the stack. Otherwise, while the top of the stack is greater than the current character AND that top character appears again later (its last index is beyond the current position), pop it — you can safely add it back later, and removing it now makes the prefix smaller. Push the current character and mark it present.\n\nEach character is pushed and popped at most once, so this runs in O(n) time.",
+    functionName: 'smallest_distinct_subsequence',
+    functionSignature: "def smallest_distinct_subsequence(s: str) -> str:",
+    starter:
+      STARTER_HEADER + "def smallest_distinct_subsequence(s: str) -> str:\n    pass\n",
+    examples: [
+      { input: ["bcabc"], expected: "abc" },
+      { input: ["cbacdcbc"], expected: "acdb" },
+      { input: ["bbcaac"], expected: "bac" },
+    ],
+    hiddenTests: [
+      { input: [""], expected: "" },
+      { input: ["aaaa"], expected: "a" },
+      { input: ["edcba"], expected: "edcba" },
+    ],
+  },
+  {
+    id: 'closest-pair-sum',
+    number: 219,
+    title: "Closest Pair Sum",
+    difficulty: 'Medium',
+    topic: "Two Pointers",
+    statement:
+      "You're given a list of integers `nums` (length at least 2) and an integer `target`. Consider every pair of two distinct positions; each pair has a sum. Return the pair sum that is closest to `target` — that is, the sum whose absolute difference from `target` is smallest.\n\nIf two different pair sums are equally close to `target`, return the smaller of those two sums.",
+    explanation:
+      "Sort the array first, then sweep two pointers inward from both ends. At each step the pair sum tells you which direction to move: if the sum is below `target`, advancing the left pointer can only increase it; if above, retreating the right pointer can only decrease it.\n\nTrack the best sum seen so far, breaking ties toward the smaller sum. Sorting is O(n log n) and the sweep is O(n).",
+    functionName: 'closest_pair_sum',
+    functionSignature: "def closest_pair_sum(nums: list[int], target: int) -> int:",
+    starter:
+      STARTER_HEADER + "def closest_pair_sum(nums: list[int], target: int) -> int:\n    pass\n",
+    examples: [
+      { input: [[1,3,4,7,10],15], expected: 14 },
+      { input: [[-1,2,1,-4],4], expected: 3 },
+      { input: [[5,5,5],10], expected: 10 },
+    ],
+    hiddenTests: [
+      { input: [[1,2,3,4],100], expected: 7 },
+      { input: [[10,-10,0],1], expected: 0 },
+      { input: [[2,2,2,2],3], expected: 4 },
+    ],
+  },
+  {
+    id: 'merge-two-sorted-arrays',
+    number: 220,
+    title: "Merge Two Sorted Arrays",
+    difficulty: 'Easy',
+    topic: "Two Pointers",
+    statement:
+      "You're given two lists of integers `a` and `b`, each already sorted in non-decreasing order (either may be empty). Merge them into a single new list that is also sorted in non-decreasing order, and return it.\n\nDuplicates are kept: if a value appears in both lists (or multiple times), it appears that many times in the result.",
+    explanation:
+      "Because both inputs are already sorted, you never need to re-sort. Keep one index into each list. Repeatedly compare the two front elements and append the smaller one, advancing that list's index.\n\nWhen one list runs out, append whatever remains of the other. This is a single linear pass, O(len(a) + len(b)) time.",
+    functionName: 'merge_sorted',
+    functionSignature: "def merge_sorted(a: list[int], b: list[int]) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def merge_sorted(a: list[int], b: list[int]) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [[1,3,5],[2,4,6]], expected: [1,2,3,4,5,6] },
+      { input: [[],[1,2]], expected: [1,2] },
+      { input: [[0,0],[0]], expected: [0,0,0] },
+    ],
+    hiddenTests: [
+      { input: [[1,2,3],[]], expected: [1,2,3] },
+      { input: [[-3,-1,4],[-2,0,5]], expected: [-3,-2,-1,0,4,5] },
+    ],
+  },
+  {
+    id: 'count-pairs-below-threshold',
+    number: 221,
+    title: "Count Pairs Below Threshold",
+    difficulty: 'Medium',
+    topic: "Two Pointers",
+    statement:
+      "You're given a list of integers `nums` and an integer `limit`. Count how many unordered pairs of distinct positions `(i, j)` satisfy `nums[i] + nums[j] < limit`.\n\nEach unordered pair is counted once. Return the total count.",
+    explanation:
+      "Sort the array, then use two pointers from the two ends. If the smallest and largest current values already sum to less than `limit`, then pairing the left element with every element between the two pointers also stays under `limit` — so add `right - left` to the count in one shot and advance the left pointer.\n\nOtherwise the sum is too big, so move the right pointer inward. Sorting dominates at O(n log n).",
+    functionName: 'count_pairs_below',
+    functionSignature: "def count_pairs_below(nums: list[int], limit: int) -> int:",
+    starter:
+      STARTER_HEADER + "def count_pairs_below(nums: list[int], limit: int) -> int:\n    pass\n",
+    examples: [
+      { input: [[1,2,3,4],5], expected: 2 },
+      { input: [[-2,0,1,3],2], expected: 4 },
+      { input: [[5,5,5],20], expected: 3 },
+    ],
+    hiddenTests: [
+      { input: [[1],10], expected: 0 },
+      { input: [[1,1,1,1],3], expected: 6 },
+    ],
+  },
+  {
+    id: 'dedup-keep-at-most-two',
+    number: 222,
+    title: "Dedup Keeping At Most Two",
+    difficulty: 'Medium',
+    topic: "Two Pointers",
+    statement:
+      "You're given a list of integers `nums` sorted in non-decreasing order. Remove extra duplicates in place so that each distinct value appears at most twice, preserving order. Return the resulting list (the kept prefix).\n\nFor example `[1,1,1,2,2,3]` becomes `[1,1,2,2,3]` — the third `1` is dropped.",
+    explanation:
+      "Use a slow write pointer and a fast read pointer. The first two elements are always allowed to stay, so start the write pointer at index 2.\n\nFor each element under the read pointer, compare it against the value two slots behind the write pointer. If they differ, this element does not create a third copy, so write it and advance. This keeps each value to at most two occurrences in a single O(n) pass.",
+    functionName: 'dedup_at_most_two',
+    functionSignature: "def dedup_at_most_two(nums: list[int]) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def dedup_at_most_two(nums: list[int]) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [[1,1,1,2,2,3]], expected: [1,1,2,2,3] },
+      { input: [[0,0,1,1,1,1,2,3,3]], expected: [0,0,1,1,2,3,3] },
+      { input: [[1]], expected: [1] },
+    ],
+    hiddenTests: [
+      { input: [[1,2]], expected: [1,2] },
+      { input: [[5,5,5,5]], expected: [5,5] },
+    ],
+  },
+  {
+    id: 'three-sum-smaller-count',
+    number: 223,
+    title: "Three Sum Smaller Count",
+    difficulty: 'Hard',
+    topic: "Two Pointers",
+    statement:
+      "You're given a list of integers `nums` and an integer `target`. Count how many triples of distinct positions `(i, j, k)` with `i < j < k` satisfy `nums[i] + nums[j] + nums[k] < target`.\n\nReturn the total count. If `nums` has fewer than three elements, return `0`.",
+    explanation:
+      "Sort the array. Fix the leftmost element of the triple, then run a two-pointer sweep on the remaining suffix — exactly like counting pairs below a threshold, but the threshold becomes `target - nums[k]`.\n\nWhen the fixed value plus the two pointer values sums below `target`, every element between the two pointers also works, so add `right - left` and advance the left pointer; otherwise move the right pointer in. Overall O(n^2).",
+    functionName: 'three_sum_smaller',
+    functionSignature: "def three_sum_smaller(nums: list[int], target: int) -> int:",
+    starter:
+      STARTER_HEADER + "def three_sum_smaller(nums: list[int], target: int) -> int:\n    pass\n",
+    examples: [
+      { input: [[-2,0,1,3],2], expected: 2 },
+      { input: [[],0], expected: 0 },
+      { input: [[0],0], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [[3,1,0,-2],4], expected: 3 },
+      { input: [[-1,0,1,2],3], expected: 3 },
+    ],
+  },
+  {
+    id: 'max-vowels-in-window',
+    number: 224,
+    title: "Most Vowels in a Window",
+    difficulty: 'Easy',
+    topic: "Sliding Window",
+    statement:
+      "You're given a lowercase string `s` and an integer `k` (with `1 <= k <= len(s)`). Consider every contiguous substring of length exactly `k`. Return the maximum number of vowels (`a`, `e`, `i`, `o`, `u`) contained in any one of those windows.",
+    explanation:
+      "Recomputing the vowel count for each window from scratch is O(n*k). Instead, slide a fixed-size window across the string.\n\nCount the vowels in the first `k` characters. Then move the window one step at a time: add the incoming character (if it's a vowel) and subtract the outgoing character (if it's a vowel). Track the running maximum count.\n\nOne pass, O(n) time, O(1) extra space.",
+    functionName: 'max_vowels_in_window',
+    functionSignature: "def max_vowels_in_window(s: str, k: int) -> int:",
+    starter:
+      STARTER_HEADER + "def max_vowels_in_window(s: str, k: int) -> int:\n    pass\n",
+    examples: [
+      { input: ["abciiidef",3], expected: 3 },
+      { input: ["aeiou",2], expected: 2 },
+      { input: ["leetcode",3], expected: 2 },
+    ],
+    hiddenTests: [
+      { input: ["rhythms",4], expected: 0 },
+      { input: ["tryhard",1], expected: 1 },
+      { input: ["a",1], expected: 1 },
+    ],
+  },
+  {
+    id: 'longest-at-most-k-odd',
+    number: 225,
+    title: "Longest Run with K Odd Numbers",
+    difficulty: 'Medium',
+    topic: "Sliding Window",
+    statement:
+      "You're given a list of integers `nums` and an integer `k` (with `k >= 0`). Return the length of the longest contiguous subarray that contains at most `k` odd numbers. If `nums` is empty, return `0`.",
+    explanation:
+      "This is a classic at-most-k variable-window problem.\n\nExpand a window with a `right` pointer, counting how many odd numbers are inside. Whenever the count of odds exceeds `k`, shrink from the left, decrementing the odd count as odd values leave, until the window is valid again.\n\nAt every step the window `[left, right]` is valid, so update the best length with `right - left + 1`.\n\nO(n) time, O(1) extra space.",
+    functionName: 'longest_at_most_k_odd',
+    functionSignature: "def longest_at_most_k_odd(nums: list[int], k: int) -> int:",
+    starter:
+      STARTER_HEADER + "def longest_at_most_k_odd(nums: list[int], k: int) -> int:\n    pass\n",
+    examples: [
+      { input: [[1,2,3,4,5],2], expected: 4 },
+      { input: [[2,4,6],0], expected: 3 },
+      { input: [[1,3,5,7],1], expected: 1 },
+    ],
+    hiddenTests: [
+      { input: [[2,2,1,2,2],1], expected: 5 },
+      { input: [[1,1,1],0], expected: 0 },
+      { input: [[],3], expected: 0 },
+    ],
+  },
+  {
+    id: 'min-swaps-group-ones-2',
+    number: 226,
+    title: "Minimum Swaps to Gather the Ones",
+    difficulty: 'Medium',
+    topic: "Sliding Window",
+    statement:
+      "You're given a binary list `nums` containing only `0`s and `1`s. In one swap you may exchange the values at any two positions. Return the minimum number of swaps needed so that all the `1`s end up in a single contiguous block. If there are no `1`s, return `0`.",
+    explanation:
+      "Let `t` be the total number of `1`s. In the final arrangement all `1`s occupy some window of length exactly `t`. The cheapest choice is the length-`t` window that already contains the most `1`s, because every missing `1` in that window costs exactly one swap to bring in.\n\nUse a fixed-size sliding window of width `t`: count the `1`s in the first window, then slide, adding the entering element and removing the leaving one, tracking the maximum ones-in-window `m`. The answer is `t - m`.\n\nO(n) time, O(1) extra space.",
+    functionName: 'min_swaps_to_group_ones',
+    functionSignature: "def min_swaps_to_group_ones(nums: list[int]) -> int:",
+    starter:
+      STARTER_HEADER + "def min_swaps_to_group_ones(nums: list[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[1,0,1,0,1]], expected: 1 },
+      { input: [[0,0,0,1,0]], expected: 0 },
+      { input: [[1,1,0,0,1]], expected: 1 },
+    ],
+    hiddenTests: [
+      { input: [[0,0,0]], expected: 0 },
+      { input: [[1,0,1,0,1,0,0,1,1,0,1]], expected: 3 },
+      { input: [[1,1,1]], expected: 0 },
+    ],
+  },
+  {
+    id: 'count-substrings-all-abc',
+    number: 227,
+    title: "Substrings Covering a, b, and c",
+    difficulty: 'Hard',
+    topic: "Sliding Window",
+    statement:
+      "You're given a string `s` made up only of the characters `a`, `b`, and `c`. Return the number of contiguous substrings that contain at least one occurrence of each of the three characters `a`, `b`, and `c`.",
+    explanation:
+      "Fix the right end of the substring at index `i` and count how many valid substrings end there. A substring ending at `i` is valid once it reaches back far enough to include the most recent `a`, `b`, and `c`.\n\nTrack `last['a']`, `last['b']`, `last['c']` — the most recent index of each character (initialized to -1). For each `i`, the smallest of those three last-seen indices, call it `m`, is the latest start that still covers all three. Every start position `0..m` yields a valid substring ending at `i`, so add `m + 1` (which is `1 + min(...)`, and contributes nothing while any character is still missing).\n\nSumming over all `i` gives the total. O(n) time, O(1) extra space.",
+    functionName: 'count_substrings_all_abc',
+    functionSignature: "def count_substrings_all_abc(s: str) -> int:",
+    starter:
+      STARTER_HEADER + "def count_substrings_all_abc(s: str) -> int:\n    pass\n",
+    examples: [
+      { input: ["abcabc"], expected: 10 },
+      { input: ["aaacb"], expected: 3 },
+      { input: ["abc"], expected: 1 },
+    ],
+    hiddenTests: [
+      { input: ["ab"], expected: 0 },
+      { input: ["cccabababc"], expected: 23 },
+    ],
+  },
+  {
+    id: 'longest-ones-after-deletion',
+    number: 228,
+    title: "Longest Ones After One Deletion",
+    difficulty: 'Medium',
+    topic: "Sliding Window",
+    statement:
+      "You're given a binary list `nums` of `0`s and `1`s. You must delete exactly one element from the list. After the deletion, return the length of the longest contiguous run of `1`s that remains. If no run of `1`s can be formed, return `0`.",
+    explanation:
+      "Because you must delete exactly one element, the answer is the longest window that contains at most one `0`, minus that one deleted slot.\n\nSlide a variable window that allows at most one `0` inside. Expand with `right`; when the window holds two `0`s, shrink from `left` until only one `0` remains. Since exactly one element is removed, the count of `1`s you can keep from a window `[left, right]` is `right - left` (the window length minus one).\n\nTake the maximum of `right - left` over all windows. This naturally handles the all-`1`s case (you're forced to delete one) and the all-`0`s case (result `0`). O(n) time, O(1) space.",
+    functionName: 'longest_ones_after_deletion',
+    functionSignature: "def longest_ones_after_deletion(nums: list[int]) -> int:",
+    starter:
+      STARTER_HEADER + "def longest_ones_after_deletion(nums: list[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[1,1,0,1]], expected: 3 },
+      { input: [[0,1,1,1,0,1,1,0,1]], expected: 5 },
+      { input: [[1,1,1]], expected: 2 },
+    ],
+    hiddenTests: [
+      { input: [[0,0,0]], expected: 0 },
+      { input: [[1,1,1,1]], expected: 3 },
+      { input: [[1,0,1,1,0,1,1,1,1]], expected: 6 },
+    ],
+  },
+  {
+    id: 'rotated-search-with-dupes',
+    number: 229,
+    title: "Rotated Search With Repeats",
+    difficulty: 'Medium',
+    topic: "Binary Search",
+    statement:
+      "A sorted-ascending array `nums` was rotated at some unknown pivot (so `[0,1,2,4,4,5]` might become `[4,5,0,1,2,4]`). Unlike the classic version, `nums` may contain duplicate values. Given `nums` and a value `target`, return `true` if `target` appears anywhere in the array, otherwise `false`.\n\nAim for better than a full linear scan on average by exploiting the rotated-sorted structure.",
+    explanation:
+      "This extends binary search on a rotated array. At each step you inspect `mid`; if it matches the target you're done. Otherwise you decide which half is sorted and whether the target lies in it.\n\nThe wrinkle from duplicates: when `nums[lo] == nums[mid] == nums[hi]`, you can't tell which side is sorted, so you shrink the window by one on each end (`lo += 1`, `hi -= 1`) and continue. This gives O(log n) average time but O(n) worst case when the array is all equal values.",
+    functionName: 'search_rotated_dupes',
+    functionSignature: "def search_rotated_dupes(nums: list[int], target: int) -> bool:",
+    starter:
+      STARTER_HEADER + "def search_rotated_dupes(nums: list[int], target: int) -> bool:\n    pass\n",
+    examples: [
+      { input: [[2,5,6,0,0,1,2],0], expected: true },
+      { input: [[2,5,6,0,0,1,2],3], expected: false },
+      { input: [[1,0,1,1,1],0], expected: true },
+    ],
+    hiddenTests: [
+      { input: [[1,1,1,1],2], expected: false },
+      { input: [[4,5,6,7,0,1,2],5], expected: true },
+      { input: [[1],1], expected: true },
+    ],
+  },
+  {
+    id: 'count-negatives-sorted-grid',
+    number: 230,
+    title: "Negatives in a Sorted Grid",
+    difficulty: 'Easy',
+    topic: "Binary Search",
+    statement:
+      "You're given an `m x n` matrix `grid`. Every row is sorted in non-increasing (descending) order from left to right, and every column is sorted in non-increasing order from top to bottom. Return the count of negative numbers in `grid`.\n\nUse the sorted structure of each row rather than checking every cell blindly.",
+    explanation:
+      "Within a single descending row, all negatives are clustered at the right end. Binary-search each row for the first index where the value drops below 0; every element from that index onward is negative, contributing `len(row) - index` to the total.\n\nProcessing each row with binary search gives O(m log n). (A staircase walk from the bottom-left achieves O(m + n), but the per-row binary search is the intended approach here.)",
+    functionName: 'count_negatives',
+    functionSignature: "def count_negatives(grid: list[list[int]]) -> int:",
+    starter:
+      STARTER_HEADER + "def count_negatives(grid: list[list[int]]) -> int:\n    pass\n",
+    examples: [
+      { input: [[[4,3,2,-1],[3,2,1,-1],[1,1,-1,-2],[-1,-1,-2,-3]]], expected: 8 },
+      { input: [[[3,2],[1,0]]], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [[[5,1,0],[-5,-5,-5]]], expected: 3 },
+      { input: [[[-1]]], expected: 1 },
+      { input: [[[7,7,7],[7,7,7]]], expected: 0 },
+    ],
+  },
+  {
+    id: 'target-first-last-range',
+    number: 231,
+    title: "First and Last Position",
+    difficulty: 'Medium',
+    topic: "Binary Search",
+    statement:
+      "Given an array `nums` sorted in non-decreasing order and a value `target`, return the starting and ending indices of `target` as a two-element list `[first, last]`. If `target` is not present, return `[-1, -1]`.\n\nYour solution must run in O(log n) time.",
+    explanation:
+      "Two boundary binary searches solve this. The lower bound is the leftmost index where `target` could be inserted while keeping the array sorted (`bisect_left`); if that index is in range and the value there equals `target`, it's the first occurrence.\n\nThe upper bound is one before the leftmost index where a value greater than `target` would go (`bisect_right - 1`), giving the last occurrence. If the target isn't present at the lower bound, return `[-1, -1]`.",
+    functionName: 'search_range',
+    functionSignature: "def search_range(nums: list[int], target: int) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def search_range(nums: list[int], target: int) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [[5,7,7,8,8,10],8], expected: [3,4] },
+      { input: [[5,7,7,8,8,10],6], expected: [-1,-1] },
+      { input: [[],0], expected: [-1,-1] },
+    ],
+    hiddenTests: [
+      { input: [[1],1], expected: [0,0] },
+      { input: [[2,2,2,2],2], expected: [0,3] },
+    ],
+  },
+  {
+    id: 'split-array-min-largest-sum',
+    number: 232,
+    title: "Split Array Smallest Largest Sum",
+    difficulty: 'Hard',
+    topic: "Binary Search",
+    statement:
+      "Given an array `nums` of non-negative integers and an integer `k`, split `nums` into exactly `k` non-empty contiguous subarrays. Among all valid splits, minimize the largest subarray sum, and return that minimized value.",
+    explanation:
+      "This is binary search on the answer. The answer (the largest subarray sum) lies between `max(nums)` (no group can be smaller than its biggest element) and `sum(nums)` (one group holds everything).\n\nFor a candidate cap, greedily walk the array counting how many groups you need if no group may exceed the cap: start a new group whenever adding the next element would overflow. If the required group count is at most `k`, the cap is feasible. Binary-search for the smallest feasible cap: O(n log(sum)).",
+    functionName: 'split_array_min_largest',
+    functionSignature: "def split_array_min_largest(nums: list[int], k: int) -> int:",
+    starter:
+      STARTER_HEADER + "def split_array_min_largest(nums: list[int], k: int) -> int:\n    pass\n",
+    examples: [
+      { input: [[7,2,5,10,8],2], expected: 18 },
+      { input: [[1,2,3,4,5],2], expected: 9 },
+    ],
+    hiddenTests: [
+      { input: [[1,4,4],3], expected: 4 },
+      { input: [[10],1], expected: 10 },
+      { input: [[2,3,1,2,4,3],5], expected: 4 },
+    ],
+  },
+  {
+    id: 'min-days-bouquets',
+    number: 233,
+    title: "Minimum Days for Bouquets",
+    difficulty: 'Medium',
+    topic: "Binary Search",
+    statement:
+      "You have a garden of flowers; `bloom[i]` is the day flower `i` blooms. To make one bouquet you need `k` adjacent flowers (contiguous positions) that have all bloomed. You want to make `m` bouquets in total. Return the minimum number of days to wait so that `m` bouquets can be made, or `-1` if it is impossible.\n\nEach flower can be used in at most one bouquet.",
+    explanation:
+      "First, if `m * k > len(bloom)` it's impossible, so return `-1`. Otherwise binary-search on the answer: the number of days.\n\nFor a candidate day `d`, a flower is usable if `bloom[i] <= d`. Scan left to right counting consecutive usable flowers; each time the run reaches `k`, complete a bouquet and reset the run. If you can form at least `m` bouquets, `d` is feasible. Search between `min(bloom)` and `max(bloom)` for the smallest feasible day.",
+    functionName: 'min_bloom_days',
+    functionSignature: "def min_bloom_days(bloom: list[int], m: int, k: int) -> int:",
+    starter:
+      STARTER_HEADER + "def min_bloom_days(bloom: list[int], m: int, k: int) -> int:\n    pass\n",
+    examples: [
+      { input: [[1,10,3,10,2],3,1], expected: 3 },
+      { input: [[1,10,3,10,2],3,2], expected: -1 },
+    ],
+    hiddenTests: [
+      { input: [[7,7,7,7,12,7,7],2,3], expected: 12 },
+      { input: [[1,10,2,9,3,8,4,7,5,6],4,2], expected: 9 },
+      { input: [[5],1,1], expected: 5 },
+    ],
+  },
+  {
+    id: 'backspace-string-compare',
+    number: 234,
+    title: "Backspace Text Compare",
+    difficulty: 'Easy',
+    topic: "Stack",
+    statement:
+      "Two people typed text into editors, given as strings `s` and `t`. In each string the character `'#'` means a backspace: it deletes the character typed just before it. A backspace on an already-empty text does nothing. Return `true` if the two editors show the same final text after all backspaces are applied, and `false` otherwise.\n\nExample: `\"ab#c\"` becomes `\"ac\"` (the `b` is deleted), and `\"ad#c\"` also becomes `\"ac\"`, so they match.",
+    explanation:
+      "Each backspace removes the most recently typed surviving character — that last-in-first-out behavior is exactly a stack. Build the final text for each string independently, then compare.\n\nScan a string left to right with an empty stack: on a normal character, push it; on `'#'`, pop the stack only if it is non-empty (a backspace on empty text is a no-op). After the scan the stack holds the visible text. Do this for both `s` and `t` and check the two stacks are equal. Each character is handled once, so this runs in O(len(s) + len(t)) time and O(len(s) + len(t)) space.",
+    functionName: 'backspace_compare',
+    functionSignature: "def backspace_compare(s: str, t: str) -> bool:",
+    starter:
+      STARTER_HEADER + "def backspace_compare(s: str, t: str) -> bool:\n    pass\n",
+    examples: [
+      { input: ["ab#c","ad#c"], expected: true },
+      { input: ["ab##","c#d#"], expected: true },
+      { input: ["a#c","b"], expected: false },
+    ],
+    hiddenTests: [
+      { input: ["#####a","a"], expected: true },
+      { input: ["xywrrmp","xywrrmu#p"], expected: true },
+      { input: ["bxj##tw","bxo#j##tw"], expected: true },
+      { input: ["a##c","#a#c"], expected: true },
+    ],
+  },
+  {
+    id: 'max-frequency-stack-ops',
+    number: 235,
+    title: "Frequency Stack Replay",
+    difficulty: 'Hard',
+    topic: "Stack",
+    statement:
+      "Simulate a special stack and return the sequence of values popped from it. You are given a list `ops` of operations, each a list. `[\"push\", x]` pushes the integer `x`. `[\"pop\"]` removes and yields the most frequent value currently in the stack; if several values are tied for most frequent, it yields the one that was pushed most recently among them.\n\nReturn a list of the values yielded by the `pop` operations, in the order they were popped. There is always at least one value present when a `pop` occurs.",
+    explanation:
+      "A plain stack can't find the most frequent element quickly, so track counts explicitly. Keep a dictionary `freq` mapping each value to how many copies are currently present, and a dictionary `groups` mapping a frequency level `f` to a stack of the values that have reached count `f`. Also keep `maxf`, the highest active frequency.\n\nOn push of `x`: increment `freq[x]` to `f`, append `x` onto `groups[f]`, and raise `maxf` to `f` if larger. Because a value appears in `groups[1]`, `groups[2]`, ... up to its current count, the top of `groups[maxf]` is always the most-frequent, most-recently-pushed value. On pop: take `v = groups[maxf].pop()`, decrement `freq[v]`, and if `groups[maxf]` became empty drop `maxf` by one. Each operation is O(1) amortized, giving O(len(ops)) time and space overall.",
+    functionName: 'freq_stack',
+    functionSignature: "def freq_stack(ops: list[list]) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def freq_stack(ops: list[list]) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [[["push",5],["push",7],["push",5],["push",7],["push",4],["push",5],["pop"],["pop"],["pop"],["pop"]]], expected: [5,7,5,4] },
+      { input: [[["push",1],["push",1],["push",2],["pop"],["pop"],["pop"]]], expected: [1,2,1] },
+    ],
+    hiddenTests: [
+      { input: [[["push",3],["pop"]]], expected: [3] },
+      { input: [[["push",9],["push",9],["push",1],["push",1],["push",1],["pop"],["pop"]]], expected: [1,1] },
+      { input: [[["push",2],["push",2],["push",3],["push",3],["pop"]]], expected: [3] },
+    ],
+  },
+  {
+    id: 'balanced-bracket-score',
+    number: 236,
+    title: "Balanced Bracket Score",
+    difficulty: 'Medium',
+    topic: "Stack",
+    statement:
+      "You are given a balanced string `s` made only of the characters `'('` and `')'`. Compute its score using these rules:\n\n- `\"()\"` has a score of `1`.\n- `AB` (two adjacent balanced parts) has score `score(A) + score(B)`.\n- `(A)` (a balanced part wrapped in one pair) has score `2 * score(A)`.\n\nFor example `\"(())\"` scores `2`, `\"()()\"` scores `2`, and `\"(()(()))\"` scores `6`. Return the total score as an integer. The input is always a valid balanced parenthesis string.",
+    explanation:
+      "The score of a group depends on what is directly inside it, so use a stack where each entry is the accumulated score of the group currently open at that depth. Start the stack with a single 0 representing the outermost group.\n\nScan the string: on `'('`, open a new group by pushing 0. On `')'`, close the current group — pop its inner score `inner`; the closed pair contributes `max(2 * inner, 1)` (that is `1` for an empty `\"()\"`, or double the inner score otherwise) and you add that contribution to the new top of the stack. When the scan finishes, the single remaining stack value is the answer. Every character is processed once with O(1) work, so the algorithm is O(n) time and O(n) space for the depth of nesting.",
+    functionName: 'bracket_score',
+    functionSignature: "def bracket_score(s: str) -> int:",
+    starter:
+      STARTER_HEADER + "def bracket_score(s: str) -> int:\n    pass\n",
+    examples: [
+      { input: ["()"], expected: 1 },
+      { input: ["(())"], expected: 2 },
+      { input: ["(()(()))"], expected: 6 },
+    ],
+    hiddenTests: [
+      { input: ["()()"], expected: 2 },
+      { input: ["((()))"], expected: 4 },
+      { input: ["(()())"], expected: 4 },
+      { input: ["()(())"], expected: 3 },
+    ],
+  },
+  {
+    id: 'remove-k-adjacent-duplicates',
+    number: 237,
+    title: "Collapse K Adjacent Duplicates",
+    difficulty: 'Medium',
+    topic: "Stack",
+    statement:
+      "You are given a lowercase string `s` and an integer `k`. Repeatedly remove any group of `k` adjacent, equal characters. After a removal the two sides join together, which may create new groups of `k` equal characters that then also get removed. Keep going until no such group remains, and return the final string.\n\nFor example, with `k = 3`, `\"deeedbbcccbdaa\"` becomes `\"aa\"`: removing `eee` gives `\"ddbbcccbdaa\"`, removing `ccc` gives `\"ddbbbdaa\"`, removing `bbb` gives `\"dddaa\"`, and removing `ddd` gives `\"aa\"`. The final result is unique regardless of removal order.",
+    explanation:
+      "Instead of rescanning the whole string after each removal, carry a running count with a stack. Each stack entry is a pair `[character, count]` describing a maximal run of equal characters that is still present.\n\nScan `s` left to right. If the incoming character equals the character on top of the stack, increment that entry's count; if the count reaches `k`, pop the entry (the run is fully removed) — this naturally lets the previous run merge with whatever comes next on the following steps. Otherwise push a fresh `[character, 1]`. At the end, rebuild the answer by repeating each surviving character by its stored count. Every character is pushed and popped at most once, giving O(n) time and O(n) space.",
+    functionName: 'remove_k_duplicates',
+    functionSignature: "def remove_k_duplicates(s: str, k: int) -> str:",
+    starter:
+      STARTER_HEADER + "def remove_k_duplicates(s: str, k: int) -> str:\n    pass\n",
+    examples: [
+      { input: ["abcd",2], expected: "abcd" },
+      { input: ["deeedbbcccbdaa",3], expected: "aa" },
+      { input: ["pbbcggttciiippooaais",2], expected: "ps" },
+    ],
+    hiddenTests: [
+      { input: ["aaabbbaaa",3], expected: "" },
+      { input: ["yyxxyy",2], expected: "" },
+      { input: ["aaa",4], expected: "aaa" },
+      { input: ["aabbccddaa",2], expected: "" },
+    ],
+  },
+  {
+    id: 'stock-span-widths',
+    number: 238,
+    title: "Stock Span Widths",
+    difficulty: 'Easy',
+    topic: "Monotonic Stack",
+    statement:
+      "You're given a list `prices` where `prices[i]` is a stock's price on day `i`. The *span* of the stock on a given day is the number of consecutive days ending on that day (including the day itself) for which the price was less than or equal to the price on that day.\n\nFormally, the span on day `i` is the largest `k` such that `prices[i - k + 1] <= prices[i]`, `prices[i - k + 2] <= prices[i]`, ..., up through `prices[i]`. The moment you hit an earlier day whose price is strictly greater than `prices[i]`, the run stops.\n\nReturn a list of the same length where position `i` holds the span for day `i`.",
+    explanation:
+      "A brute-force scan backward from each day is O(n²). A monotonic stack fixes that.\n\nKeep a stack of day indices whose prices are strictly decreasing. For each new day `i`, pop every index on top whose price is `<= prices[i]` (those days are absorbed into the current span). After popping, if the stack is empty the span reaches all the way to the start (`i + 1`); otherwise it reaches back to just after the index now on top: `i - stack[-1]`. Push `i` and continue.\n\nEach index is pushed and popped at most once, so this is O(n) time.",
+    functionName: 'stock_span',
+    functionSignature: "def stock_span(prices: list[int]) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def stock_span(prices: list[int]) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [[100,80,60,70,60,75,85]], expected: [1,1,1,2,1,4,6] },
+      { input: [[10,4,5,90,120,80]], expected: [1,1,2,4,5,1] },
+    ],
+    hiddenTests: [
+      { input: [[5,5,5]], expected: [1,2,3] },
+      { input: [[1]], expected: [1] },
+      { input: [[6,3,4,5,2]], expected: [1,1,2,3,1] },
+      { input: [[1,2,3,4]], expected: [1,2,3,4] },
+    ],
+  },
+  {
+    id: 'smallest-after-k-removals',
+    number: 239,
+    title: "Smallest After K Removals",
+    difficulty: 'Medium',
+    topic: "Monotonic Stack",
+    statement:
+      "You're given `num`, a non-negative integer represented as a string of digits (no sign, may contain leading zeros only in edge cases), and an integer `k`. Remove exactly `k` digits from `num` so that the remaining digits, read left to right in their original order, form the smallest possible number.\n\nReturn the result as a string with no leading zeros. If removing digits leaves nothing (or the result would be all zeros), return `\"0\"`. You may assume `0 <= k <= len(num)`.",
+    explanation:
+      "To make the number as small as possible, you want smaller digits as far left as possible. Scan left to right maintaining a stack of kept digits.\n\nFor each incoming digit `d`, while you still have removals left (`k > 0`) and the digit on top of the stack is strictly greater than `d`, pop it (removing a larger digit that sits before a smaller one always helps). Then push `d`.\n\nIf you finish the scan with removals remaining (the string was non-decreasing), drop that many digits from the end. Finally, join the stack, strip leading zeros, and return `\"0\"` if the result is empty.\n\nThis greedy monotonic-stack approach runs in O(n).",
+    functionName: 'remove_k_digits',
+    functionSignature: "def remove_k_digits(num: str, k: int) -> str:",
+    starter:
+      STARTER_HEADER + "def remove_k_digits(num: str, k: int) -> str:\n    pass\n",
+    examples: [
+      { input: ["1432219",3], expected: "1219" },
+      { input: ["10200",1], expected: "200" },
+      { input: ["10",2], expected: "0" },
+    ],
+    hiddenTests: [
+      { input: ["112",1], expected: "11" },
+      { input: ["1234567890",9], expected: "0" },
+      { input: ["9",1], expected: "0" },
+      { input: ["100",1], expected: "0" },
+    ],
+  },
+  {
+    id: 'sum-of-subarray-minimums',
+    number: 240,
+    title: "Sum of Subarray Minimums",
+    difficulty: 'Hard',
+    topic: "Monotonic Stack",
+    statement:
+      "You're given a list of integers `arr`. Consider every contiguous subarray of `arr`. For each subarray, take its minimum element. Return the sum of all those minimums.\n\nBecause the total can be large, return the answer modulo `1000000007`.\n\nFor example, with `arr = [3, 1, 2, 4]`, the subarrays and their minimums are: `[3]`→3, `[1]`→1, `[2]`→2, `[4]`→4, `[3,1]`→1, `[1,2]`→1, `[2,4]`→2, `[3,1,2]`→1, `[1,2,4]`→1, `[3,1,2,4]`→1, summing to 17.",
+    explanation:
+      "Enumerating all O(n²) subarrays is too slow. Instead, count how many subarrays have each element as their minimum.\n\nFor index `i`, let `left` be the number of consecutive elements ending at `i` (including `i`) that are all strictly greater than `arr[i]` on the left side, and `right` the number on the right where elements are greater-than-or-equal. Element `arr[i]` is the minimum of exactly `left * right` subarrays, so its contribution is `arr[i] * left * right`.\n\nUse a monotonic stack to find, for each `i`, the previous strictly-smaller element and the next smaller-or-equal element (the strict/non-strict asymmetry avoids double-counting equal values). Sum all contributions modulo 1e9+7.\n\nThis runs in O(n) time.",
+    functionName: 'sum_subarray_mins',
+    functionSignature: "def sum_subarray_mins(arr: list[int]) -> int:",
+    starter:
+      STARTER_HEADER + "def sum_subarray_mins(arr: list[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[3,1,2,4]], expected: 17 },
+      { input: [[11,81,94,43,3]], expected: 444 },
+    ],
+    hiddenTests: [
+      { input: [[1]], expected: 1 },
+      { input: [[2,2,2]], expected: 12 },
+      { input: [[71,55,82,55]], expected: 593 },
+    ],
+  },
+  {
+    id: 'reverse-linked-list-between',
+    number: 241,
+    title: "Reverse Linked List Between",
+    difficulty: 'Medium',
+    topic: "Linked List",
+    statement:
+      "You're given the values of a singly linked list (as a flat Python list) and two 1-indexed positions `left` and `right` with `1 <= left <= right <= n`. Reverse only the sublist of nodes from position `left` to position `right`, inclusive, leaving the rest of the list untouched. Return the resulting values as a Python list.",
+    explanation:
+      "The flat-list shortcut is a slice reversal: convert to 0-indexed bounds `lo = left - 1`, `hi = right - 1`, then reverse `vals[lo:hi+1]` in place.\n\nThe real linked-list version does this in one pass with O(1) space. Walk `left - 1` steps to the node just before the sublist (use a dummy head so `left == 1` is handled uniformly). Then repeatedly take the node right after your current position and splice it to the front of the reversed segment — the classic head-insertion trick. After `right - left` such splices the segment is reversed and correctly re-attached.\n\nO(n) time, O(1) extra space.",
+    functionName: 'reverse_between',
+    functionSignature: "def reverse_between(head: list[int], left: int, right: int) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def reverse_between(head: list[int], left: int, right: int) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [[1,2,3,4,5],2,4], expected: [1,4,3,2,5] },
+      { input: [[5],1,1], expected: [5] },
+      { input: [[1,2,3],1,3], expected: [3,2,1] },
+    ],
+    hiddenTests: [
+      { input: [[1,2,3,4,5],1,1], expected: [1,2,3,4,5] },
+      { input: [[3,5],1,2], expected: [5,3] },
+      { input: [[10,20,30,40],2,3], expected: [10,30,20,40] },
+    ],
+  },
+  {
+    id: 'palindrome-linked-list',
+    number: 242,
+    title: "Palindrome Linked List",
+    difficulty: 'Easy',
+    topic: "Linked List",
+    statement:
+      "Given the values of a singly linked list as a flat Python list, determine whether the sequence of values reads the same forwards and backwards. Return `True` if it is a palindrome, `False` otherwise. An empty list is considered a palindrome.",
+    explanation:
+      "With a flat list the check is simply `head == head[::-1]`.\n\nThe interesting O(1)-space linked-list technique: use slow/fast pointers to find the middle, reverse the second half in place, then walk the two halves inward comparing values node by node. If every pair matches, it's a palindrome. (Optionally restore the list by reversing the second half back.)\n\nComparing values inward is O(n) time; the in-place reverse keeps space at O(1), versus the naive O(n)-space approach of copying all values into an array.",
+    functionName: 'is_palindrome_list',
+    functionSignature: "def is_palindrome_list(head: list[int]) -> bool:",
+    starter:
+      STARTER_HEADER + "def is_palindrome_list(head: list[int]) -> bool:\n    pass\n",
+    examples: [
+      { input: [[1,2,2,1]], expected: true },
+      { input: [[1,2]], expected: false },
+      { input: [[1]], expected: true },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: true },
+      { input: [[1,2,3,2,1]], expected: true },
+      { input: [[1,0,1,0]], expected: false },
+    ],
+  },
+  {
+    id: 'linked-list-cycle-start',
+    number: 243,
+    title: "Linked List Cycle Start",
+    difficulty: 'Medium',
+    topic: "Linked List",
+    statement:
+      "You're given the node values of a singly linked list and an integer `pos`. If `pos >= 0`, the tail node is wired back to the node at index `pos`, forming a cycle that begins there. If `pos == -1`, the list has no cycle. Return the index at which the cycle begins, or `-1` if there is no cycle. An empty list has no cycle.",
+    explanation:
+      "Because `pos` is handed to you, the answer is just `pos` when a cycle exists (and the list is non-empty) and `-1` otherwise.\n\nThe algorithmic heart is Floyd's two-phase cycle detection. **Phase 1**: advance `slow` by one and `fast` by two until they meet inside the loop (if `fast` hits the end, return -1). **Phase 2**: reset one pointer to the head, then advance both one step at a time; they meet exactly at the cycle's entry node. This works because the distance from the head to the entry equals the distance from the meeting point to the entry (mod the cycle length).\n\nO(n) time, O(1) space — no hash set of visited nodes needed.",
+    functionName: 'cycle_start',
+    functionSignature: "def cycle_start(values: list[int], pos: int) -> int:",
+    starter:
+      STARTER_HEADER + "def cycle_start(values: list[int], pos: int) -> int:\n    pass\n",
+    examples: [
+      { input: [[3,2,0,-4],1], expected: 1 },
+      { input: [[1,2],0], expected: 0 },
+      { input: [[1],-1], expected: -1 },
+    ],
+    hiddenTests: [
+      { input: [[],-1], expected: -1 },
+      { input: [[1,2,3,4,5],4], expected: 4 },
+      { input: [[7],0], expected: 0 },
+    ],
+  },
+  {
+    id: 'partition-list',
+    number: 244,
+    title: "Partition List",
+    difficulty: 'Medium',
+    topic: "Linked List",
+    statement:
+      "Given the values of a singly linked list as a flat Python list and an integer `x`, reorder the values so that every value strictly less than `x` comes before every value greater than or equal to `x`. The original relative order of the nodes within each of the two groups must be preserved (a stable partition). Return the reordered values as a Python list.",
+    explanation:
+      "The stability requirement is the crux: you can't sort or swap freely. Build two separate sequences in a single left-to-right pass — one collecting values `< x` in the order they appear, the other collecting values `>= x` in the order they appear — then concatenate the first followed by the second.\n\nWith real nodes you'd keep two dummy-headed sub-lists (`less` and `greater`), append each node to the appropriate tail, and finally splice the `less` chain in front of the `greater` chain (remember to null-terminate the greater tail).\n\nO(n) time, O(1) extra space beyond the output.",
+    functionName: 'partition_list',
+    functionSignature: "def partition_list(head: list[int], x: int) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def partition_list(head: list[int], x: int) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [[1,4,3,2,5,2],3], expected: [1,2,2,4,3,5] },
+      { input: [[2,1],2], expected: [1,2] },
+      { input: [[5,4,3,2,1],3], expected: [2,1,5,4,3] },
+    ],
+    hiddenTests: [
+      { input: [[],3], expected: [] },
+      { input: [[1,1,1],0], expected: [1,1,1] },
+    ],
+  },
+  {
+    id: 'remove-all-duplicate-values',
+    number: 245,
+    title: "Remove All Duplicate Values",
+    difficulty: 'Medium',
+    topic: "Linked List",
+    statement:
+      "Given the values of a singly linked list as a flat Python list, remove every node whose value appears more than once anywhere in the list, keeping only the nodes whose value is unique. The relative order of the surviving values must be preserved. Return the resulting values as a Python list.",
+    explanation:
+      "Note this deletes duplicated values entirely — not just the extra copies. A value that appears twice contributes nothing to the output.\n\nCount how many times each value occurs (a single pass building a frequency dictionary), then do a second pass keeping only the values whose count equals 1, in their original order.\n\nThe classic linked-list form uses a dummy head and a `prev` pointer: when you spot a run of equal values, skip the entire run by pointing `prev.next` past it; otherwise advance `prev`. That variant assumes a sorted list and runs in O(n) time, O(1) space. The counting approach here handles unsorted input in O(n) time, O(n) space.",
+    functionName: 'delete_duplicates_all',
+    functionSignature: "def delete_duplicates_all(head: list[int]) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def delete_duplicates_all(head: list[int]) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [[1,2,3,3,4,4,5]], expected: [1,2,5] },
+      { input: [[1,1,1,2,3]], expected: [2,3] },
+      { input: [[1,2,3]], expected: [1,2,3] },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: [] },
+      { input: [[2,2,2]], expected: [] },
+      { input: [[1,2,2,1,3]], expected: [3] },
+    ],
+  },
+  {
+    id: 'count-leaf-nodes',
+    number: 246,
+    title: "Count Leaf Nodes",
+    difficulty: 'Easy',
+    topic: "Tree",
+    statement:
+      "A binary tree is encoded here as a level-order array with `None` for missing nodes (children of a missing node are omitted, as in the standard LeetCode encoding). A *leaf* is a node with no left child and no right child. Return the number of leaf nodes in the tree. An empty tree has 0 leaves.",
+    explanation:
+      "Build the actual node tree from the level-order array, then count nodes whose `left` and `right` are both `None`.\n\nRecursive view: `leaves(None) = 0`; `leaves(leaf) = 1`; otherwise `leaves(node) = leaves(node.left) + leaves(node.right)`.\n\nAn iterative DFS with a stack works too — pop each node, add 1 when it has no children, and push any children. O(n) time.",
+    functionName: 'count_leaves',
+    functionSignature: "def count_leaves(root: list) -> int:",
+    starter:
+      STARTER_HEADER + "def count_leaves(root: list) -> int:\n    # root is a level-order array; None marks missing nodes.\n    pass\n",
+    examples: [
+      { input: [[3,9,20,null,null,15,7]], expected: 3 },
+      { input: [[1,null,2]], expected: 1 },
+      { input: [[]], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [[1]], expected: 1 },
+      { input: [[1,2,3,4,5,6,7]], expected: 4 },
+      { input: [[5,4,null,3,null,2]], expected: 1 },
+    ],
+  },
+  {
+    id: 'range-sum-of-bst',
+    number: 247,
+    title: "Range Sum of BST",
+    difficulty: 'Medium',
+    topic: "Tree",
+    statement:
+      "A binary search tree is encoded as a level-order array with `None` for missing nodes (standard LeetCode encoding; children of a missing node are omitted). Given integers `low` and `high`, return the sum of the values of all nodes whose value lies in the inclusive range `[low, high]`. Values are unique. Return 0 for an empty tree.",
+    explanation:
+      "You could sum every in-range node with a plain traversal, but the BST property lets you prune.\n\nDo a DFS from the root. At a node with value `v`:\n- if `v < low`, the entire left subtree is too small — only recurse right;\n- if `v > high`, the entire right subtree is too large — only recurse left;\n- otherwise add `v` and recurse into both children.\n\nEach node is visited at most once, so O(n) worst case but far fewer visits on typical trees.",
+    functionName: 'range_sum_bst',
+    functionSignature: "def range_sum_bst(root: list, low: int, high: int) -> int:",
+    starter:
+      STARTER_HEADER + "def range_sum_bst(root: list, low: int, high: int) -> int:\n    # root is a level-order array of a BST; None marks missing nodes.\n    pass\n",
+    examples: [
+      { input: [[10,5,15,3,7,null,18],7,15], expected: 32 },
+      { input: [[10,5,15,3,7,13,18,1,null,6],6,10], expected: 23 },
+      { input: [[],1,5], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [[8],8,8], expected: 8 },
+      { input: [[8,3,10,1,6,null,14],3,10], expected: 27 },
+    ],
+  },
+  {
+    id: 'minimum-absolute-difference-bst',
+    number: 248,
+    title: "Minimum Absolute Difference in BST",
+    difficulty: 'Medium',
+    topic: "Tree",
+    statement:
+      "A binary search tree is encoded as a level-order array with `None` for missing nodes (standard LeetCode encoding; children of a missing node are omitted). Return the minimum absolute difference between the values of any two different nodes in the tree. The tree has at least two nodes.",
+    explanation:
+      "In a BST, an in-order traversal visits values in strictly increasing order. The closest pair of values is therefore always two *consecutive* values in that in-order sequence.\n\nDo an in-order traversal collecting values into a list, then take the minimum difference between adjacent entries. Because the list is sorted, you never need to compare non-adjacent pairs.\n\nO(n) time; O(n) space for the list (or O(h) if you track only the previous value during traversal).",
+    functionName: 'min_diff_bst',
+    functionSignature: "def min_diff_bst(root: list) -> int:",
+    starter:
+      STARTER_HEADER + "def min_diff_bst(root: list) -> int:\n    # root is a level-order array of a BST; None marks missing nodes.\n    pass\n",
+    examples: [
+      { input: [[4,2,6,1,3]], expected: 1 },
+      { input: [[1,0,48,null,null,12,49]], expected: 1 },
+      { input: [[10,5,15]], expected: 5 },
+    ],
+    hiddenTests: [
+      { input: [[27,null,34,null,58,50,null,44]], expected: 6 },
+    ],
+  },
+  {
+    id: 'average-of-levels',
+    number: 249,
+    title: "Average of Levels in Binary Tree",
+    difficulty: 'Easy',
+    topic: "Tree",
+    statement:
+      "A binary tree is encoded as a level-order array with `None` for missing nodes (standard LeetCode encoding; children of a missing node are omitted). Return a list giving the average value of the nodes on each level, from the root level downward.\n\nTo keep the result exact and unambiguous, each average must be an integer (Python `int`) when it divides evenly, and otherwise the exact `float` value of `sum / count`. Return an empty list for an empty tree.",
+    explanation:
+      "This is a breadth-first (level-order) traversal. Use a queue seeded with the root. Repeatedly process one full level at a time: record the current queue size `n`, pop exactly `n` nodes summing their values while enqueuing their children, then the level average is `sum / n`.\n\nTo match the required output format, emit `int(avg)` when `avg` is a whole number and the plain float otherwise. O(n) time.",
+    functionName: 'level_averages',
+    functionSignature: "def level_averages(root: list) -> list:",
+    starter:
+      STARTER_HEADER + "def level_averages(root: list) -> list:\n    # root is a level-order array; None marks missing nodes.\n    pass\n",
+    examples: [
+      { input: [[3,9,20,null,null,15,7]], expected: [3,14.5,11] },
+      { input: [[1]], expected: [1] },
+      { input: [[]], expected: [] },
+    ],
+    hiddenTests: [
+      { input: [[4,8,12]], expected: [4,10] },
+      { input: [[1,2,3,4,5]], expected: [1,2.5,4.5] },
+    ],
+  },
+  {
+    id: 'maximum-width-of-binary-tree',
+    number: 250,
+    title: "Maximum Width of Binary Tree",
+    difficulty: 'Hard',
+    topic: "Tree",
+    statement:
+      "A binary tree is encoded as a level-order array with `None` for missing nodes (standard LeetCode encoding; children of a missing node are omitted). Return the maximum *width* of the tree.\n\nThe width of a level is the number of positions between its leftmost and rightmost non-`None` nodes **inclusive**, counting the `None` gap positions in between as if this were a complete binary tree. Formally, if the root sits at index 0, a node at index `i` has children at indices `2*i` and `2*i + 1`; a level's width is `rightmost_index - leftmost_index + 1`. Return 0 for an empty tree.",
+    explanation:
+      "Run a BFS where every queued node carries its positional index as in a complete binary tree: root index 0, and a node at index `i` gives children indices `2*i` and `2*i + 1`.\n\nProcess one level at a time. The first node dequeued on a level holds the leftmost index and the last holds the rightmost index; that level's width is `last - first + 1`. Track the maximum across all levels.\n\nTo avoid overflow in other languages you'd normalize indices per level by subtracting the level's first index, but Python's big integers make that optional. O(n) time.",
+    functionName: 'max_width',
+    functionSignature: "def max_width(root: list) -> int:",
+    starter:
+      STARTER_HEADER + "def max_width(root: list) -> int:\n    # root is a level-order array; None marks missing nodes.\n    pass\n",
+    examples: [
+      { input: [[1,3,2,5,3,null,9]], expected: 4 },
+      { input: [[1,3,2,5,null,null,9,6,null,7]], expected: 7 },
+      { input: [[1,3,2,5]], expected: 2 },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: 0 },
+      { input: [[1]], expected: 1 },
+      { input: [[1,1,1,1,1,1,1]], expected: 4 },
+    ],
+  },
+  {
+    id: 'count-root-to-leaf-with-sum',
+    number: 251,
+    title: "Count Root-to-Leaf Paths With Sum",
+    difficulty: 'Easy',
+    topic: "Tree",
+    statement:
+      "You're given a binary tree encoded as a level-order array `tree` (using `null` for missing children), and an integer `target`.\n\nA *root-to-leaf path* starts at the root and ends at a leaf (a node with no children). Count how many such paths have node values that add up exactly to `target`, and return that count.\n\nIf the tree is empty, return `0`. Node values may be negative.",
+    explanation:
+      "Walk from the root toward the leaves while carrying a running sum of the values along the current path.\n\nAt every leaf, check whether the accumulated sum equals `target`; if so, add one to your count. Use DFS (a stack or recursion) so each path's sum is tracked independently.\n\nThis visits each node once: O(n) time, O(h) extra space for the traversal, where h is the tree height.",
+    functionName: 'count_root_to_leaf_with_sum',
+    functionSignature: "def count_root_to_leaf_with_sum(tree: list, target: int) -> int:",
+    starter:
+      STARTER_HEADER + "def count_root_to_leaf_with_sum(tree: list, target: int) -> int:\n    pass\n",
+    examples: [
+      { input: [[5,4,8,11,null,13,4,7,2,null,null,null,1],22], expected: 1 },
+      { input: [[1,2,3,4,null,null,3],7], expected: 2 },
+      { input: [[],0], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [[1,2,3],3], expected: 1 },
+      { input: [[1,2],1], expected: 0 },
+      { input: [[-2,null,-3],-5], expected: 1 },
+      { input: [[1,-2,-3,1,3,-2,null,-1],2], expected: 1 },
+    ],
+  },
+  {
+    id: 'tree-diameter-edges',
+    number: 252,
+    title: "Tree Diameter (Edge Count)",
+    difficulty: 'Medium',
+    topic: "Tree",
+    statement:
+      "You're given a binary tree encoded as a level-order array `tree` (using `null` for missing children).\n\nThe *diameter* of the tree is the length of the longest path between any two nodes, measured as the number of **edges** on that path. This path may or may not pass through the root.\n\nReturn the diameter. A tree with 0 or 1 node has diameter `0`.",
+    explanation:
+      "For any single node, the longest path that bends at that node equals (height of its left subtree) + (height of its right subtree), counted in edges.\n\nDo one post-order DFS that returns each subtree's height. While unwinding, update a running maximum with `leftHeight + rightHeight` at every node. The overall maximum is the diameter.\n\nComputing height and diameter together avoids recomputation: O(n) time, O(h) recursion depth.",
+    functionName: 'tree_diameter',
+    functionSignature: "def tree_diameter(tree: list) -> int:",
+    starter:
+      STARTER_HEADER + "def tree_diameter(tree: list) -> int:\n    pass\n",
+    examples: [
+      { input: [[1,2,3,4,5]], expected: 3 },
+      { input: [[1,2]], expected: 1 },
+      { input: [[]], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [[1]], expected: 0 },
+      { input: [[4,-7,-3,null,null,-9,-3,9,-7,-4,null,6,null,-6,-6,null,null,0,6,5,null,9,null,null,-1,-4,null,null,null,-2]], expected: 8 },
+    ],
+  },
+  {
+    id: 'lca-bst-value',
+    number: 253,
+    title: "Lowest Common Ancestor in a BST (Value)",
+    difficulty: 'Medium',
+    topic: "Tree",
+    statement:
+      "You're given a **binary search tree** encoded as a level-order array `tree` (using `null` for missing children), and two values `p` and `q` that are both present in the tree.\n\nReturn the **value** of the lowest common ancestor (LCA) of `p` and `q` — the deepest node that has both `p` and `q` somewhere in its subtree (a node can be an ancestor of itself).\n\nAssume the tree obeys the BST property: every value in a node's left subtree is smaller than the node, and every value in its right subtree is larger. All values are distinct.",
+    explanation:
+      "Because it's a BST, you don't need to search both subtrees. Start at the root and compare.\n\nIf both `p` and `q` are smaller than the current node, the LCA lies to the left. If both are larger, it lies to the right. The moment the current node sits between them (or equals one of them), that node is the split point — the LCA.\n\nThis walks a single path down the tree: O(h) time, O(1) extra space.",
+    functionName: 'lca_bst',
+    functionSignature: "def lca_bst(tree: list, p: int, q: int) -> int:",
+    starter:
+      STARTER_HEADER + "def lca_bst(tree: list, p: int, q: int) -> int:\n    pass\n",
+    examples: [
+      { input: [[6,2,8,0,4,7,9,null,null,3,5],2,8], expected: 6 },
+      { input: [[6,2,8,0,4,7,9,null,null,3,5],2,4], expected: 2 },
+      { input: [[2,1],2,1], expected: 2 },
+    ],
+    hiddenTests: [
+      { input: [[5,3,8,2,4,7,9],7,9], expected: 8 },
+      { input: [[5,3,8,2,4,7,9],2,4], expected: 3 },
+    ],
+  },
+  {
+    id: 'build-tree-preorder-inorder',
+    number: 254,
+    title: "Rebuild Tree From Preorder and Inorder",
+    difficulty: 'Hard',
+    topic: "Tree",
+    statement:
+      "You're given two integer lists, `preorder` and `inorder`, representing the preorder and inorder traversals of the same binary tree. All node values are distinct.\n\nReconstruct the tree and return it as a **level-order array** (breadth-first), using `null` for missing children, with any trailing `null` entries trimmed off.\n\nFor example, preorder `[3,9,20,15,7]` and inorder `[9,3,15,20,7]` rebuild to the level-order encoding `[3,9,20,null,null,15,7]`.",
+    explanation:
+      "The first element of `preorder` is always the root. Find that value in `inorder`: everything to its left belongs to the left subtree, everything to its right to the right subtree.\n\nRecurse, consuming preorder values in order (the next preorder value is the next subtree's root). A hash map from value to inorder index makes the split O(1) instead of scanning.\n\nAfter building the tree, run a BFS to emit the level-order array, appending `null` for absent children, then strip trailing `null`s. Construction is O(n).",
+    functionName: 'build_tree_preorder_inorder',
+    functionSignature: "def build_tree_preorder_inorder(preorder: list, inorder: list) -> list:",
+    starter:
+      STARTER_HEADER + "def build_tree_preorder_inorder(preorder: list, inorder: list) -> list:\n    pass\n",
+    examples: [
+      { input: [[3,9,20,15,7],[9,3,15,20,7]], expected: [3,9,20,null,null,15,7] },
+      { input: [[-1],[-1]], expected: [-1] },
+      { input: [[1,2,3],[2,1,3]], expected: [1,2,3] },
+    ],
+    hiddenTests: [
+      { input: [[1,2],[2,1]], expected: [1,2] },
+      { input: [[1,2],[1,2]], expected: [1,null,2] },
+    ],
+  },
+  {
+    id: 'largest-island-area',
+    number: 255,
+    title: "Largest Island Area",
+    difficulty: 'Medium',
+    topic: "Graph",
+    statement:
+      "You're given a 2D grid of `0`s (water) and `1`s (land). An island is a group of `1`s connected 4-directionally (up, down, left, right). Return the number of cells in the largest island, or `0` if the grid has no land.\n\nThe grid may be empty or contain empty rows.",
+    explanation:
+      "This is a connected-components sweep on a grid. Walk every cell; when you find unvisited land, flood-fill from it (DFS or BFS) counting how many land cells are reachable, marking each visited so you never recount it.\n\nTrack the maximum island size you find across the whole scan. Each cell is visited a constant number of times, so the algorithm runs in O(rows x cols).\n\nUse a stack/queue or recursion for the flood fill, and a visited matrix (or mutate the grid in place) to avoid revisiting cells.",
+    functionName: 'largest_island',
+    functionSignature: "def largest_island(grid: list[list[int]]) -> int:",
+    starter:
+      STARTER_HEADER + "def largest_island(grid: list[list[int]]) -> int:\n    pass\n",
+    examples: [
+      { input: [[[1,1,0],[0,1,0],[0,0,1]]], expected: 3 },
+      { input: [[[0,0],[0,0]]], expected: 0 },
+      { input: [[[1,0,1],[0,0,0],[1,1,1]]], expected: 3 },
+    ],
+    hiddenTests: [
+      { input: [[[1]]], expected: 1 },
+      { input: [[[1,1,1],[1,1,1]]], expected: 6 },
+      { input: [[]], expected: 0 },
+    ],
+  },
+  {
+    id: 'is-graph-bipartite',
+    number: 256,
+    title: "Is Graph Bipartite",
+    difficulty: 'Medium',
+    topic: "Graph",
+    statement:
+      "You're given `n` nodes labeled `0..n-1` and a list of undirected `edges`. Return `true` if the graph is bipartite — meaning you can split the nodes into two groups such that every edge connects a node in one group to a node in the other — and `false` otherwise.\n\nThe graph may be disconnected. Nodes with no edges are always placeable.",
+    explanation:
+      "A graph is bipartite exactly when it has no odd-length cycle. Detect this with a 2-coloring: try to color every node one of two colors so that no edge connects two same-colored nodes.\n\nRun BFS (or DFS) from each uncolored node. Color the start, then color each neighbor the opposite color. If you ever reach a neighbor already colored the same as the current node, the graph is not bipartite.\n\nBecause the graph may be disconnected, loop over all nodes and start a fresh traversal from any that remain uncolored. Runs in O(n + e).",
+    functionName: 'is_bipartite',
+    functionSignature: "def is_bipartite(n: int, edges: list[list[int]]) -> bool:",
+    starter:
+      STARTER_HEADER + "def is_bipartite(n: int, edges: list[list[int]]) -> bool:\n    pass\n",
+    examples: [
+      { input: [4,[[0,1],[1,2],[2,3],[3,0]]], expected: true },
+      { input: [3,[[0,1],[1,2],[2,0]]], expected: false },
+      { input: [2,[[0,1]]], expected: true },
+    ],
+    hiddenTests: [
+      { input: [3,[]], expected: true },
+      { input: [5,[[0,1],[1,2],[0,2]]], expected: false },
+      { input: [6,[[0,1],[2,3],[4,5]]], expected: true },
+    ],
+  },
+  {
+    id: 'minimum-semesters-courses',
+    number: 257,
+    title: "Minimum Semesters to Finish Courses",
+    difficulty: 'Medium',
+    topic: "Graph",
+    statement:
+      "There are `n` courses labeled `0..n-1`. `prerequisites[i] = [course, pre]` means you must finish `pre` before taking `course`. In one semester you may take any number of courses whose prerequisites are all already completed.\n\nReturn the minimum number of semesters needed to finish every course. If the prerequisites form a cycle (making it impossible), return `-1`.",
+    explanation:
+      "This is a layered topological sort (Kahn's algorithm), where each BFS layer corresponds to one semester.\n\nBuild an adjacency list from `pre -> course` and an indegree count for each course. Seed a queue with every course of indegree 0 — those can be taken in semester 1.\n\nProcess the queue layer by layer: for each course popped, decrement its neighbors' indegrees, enqueuing any that reach 0 (they become available next semester). Count how many layers you process and how many courses you complete.\n\nIf you complete all `n` courses, return the layer count; otherwise a cycle blocked some courses, so return `-1`.",
+    functionName: 'min_semesters',
+    functionSignature: "def min_semesters(n: int, prerequisites: list[list[int]]) -> int:",
+    starter:
+      STARTER_HEADER + "def min_semesters(n: int, prerequisites: list[list[int]]) -> int:\n    pass\n",
+    examples: [
+      { input: [3,[[1,0],[2,1]]], expected: 3 },
+      { input: [3,[]], expected: 1 },
+      { input: [2,[[0,1],[1,0]]], expected: -1 },
+    ],
+    hiddenTests: [
+      { input: [4,[[1,0],[2,0],[3,1],[3,2]]], expected: 3 },
+      { input: [1,[]], expected: 1 },
+      { input: [5,[[1,0],[2,0],[3,0],[4,0]]], expected: 2 },
+    ],
+  },
+  {
+    id: 'shortest-path-unweighted',
+    number: 258,
+    title: "Shortest Path in Unweighted Graph",
+    difficulty: 'Easy',
+    topic: "Graph",
+    statement:
+      "You're given `n` nodes labeled `0..n-1`, a list of undirected `edges`, and two nodes `src` and `dst`. Return the number of edges on the shortest path from `src` to `dst`. If `dst` is unreachable from `src`, return `-1`. If `src == dst`, return `0`.",
+    explanation:
+      "In an unweighted graph, breadth-first search finds shortest paths because it explores nodes in increasing order of distance from the source.\n\nBuild an adjacency list. Start BFS from `src` with distance 0, tracking each node's distance as you first reach it. When you dequeue a node, relax each unvisited neighbor with `dist + 1` and enqueue it. The first time you reach `dst`, that distance is optimal.\n\nIf BFS finishes without ever reaching `dst`, it's disconnected from `src`, so return `-1`. Runs in O(n + e).",
+    functionName: 'shortest_path',
+    functionSignature: "def shortest_path(n: int, edges: list[list[int]], src: int, dst: int) -> int:",
+    starter:
+      STARTER_HEADER + "def shortest_path(n: int, edges: list[list[int]], src: int, dst: int) -> int:\n    pass\n",
+    examples: [
+      { input: [5,[[0,1],[1,2],[2,3],[3,4]],0,4], expected: 4 },
+      { input: [4,[[0,1],[2,3]],0,3], expected: -1 },
+      { input: [6,[[0,1],[0,2],[1,3],[2,3],[3,5]],0,5], expected: 3 },
+    ],
+    hiddenTests: [
+      { input: [3,[[0,1],[1,2],[0,2]],0,2], expected: 1 },
+      { input: [1,[],0,0], expected: 0 },
+      { input: [4,[[0,1],[1,2],[2,3],[0,3]],0,3], expected: 1 },
+    ],
+  },
+  {
+    id: 'reach-all-nodes',
+    number: 259,
+    title: "Reach All Nodes",
+    difficulty: 'Easy',
+    topic: "Graph",
+    statement:
+      "You're given `n` nodes labeled `0..n-1` and a list of directed `roads`, where `roads[i] = [a, b]` means there is a one-way road from `a` to `b`. Starting only at node `0`, return `true` if you can reach every node in the graph by following roads, and `false` otherwise.",
+    explanation:
+      "This is a directed reachability check via a single traversal from the start node.\n\nBuild a directed adjacency list (only `a -> b`, not both ways). Run DFS or BFS from node `0`, marking every node you can reach in a visited set.\n\nAfter the traversal, if the visited set contains all `n` nodes, then every node is reachable from `0` — return `true`. Otherwise some node could never be reached, so return `false`. The traversal touches each node and edge once, giving O(n + e).",
+    functionName: 'can_finish_all',
+    functionSignature: "def can_finish_all(n: int, roads: list[list[int]]) -> bool:",
+    starter:
+      STARTER_HEADER + "def can_finish_all(n: int, roads: list[list[int]]) -> bool:\n    pass\n",
+    examples: [
+      { input: [4,[[0,1],[1,2],[2,3]]], expected: true },
+      { input: [3,[[0,1]]], expected: false },
+      { input: [1,[]], expected: true },
+    ],
+    hiddenTests: [
+      { input: [4,[[0,1],[0,2],[0,3]]], expected: true },
+      { input: [3,[[0,1],[2,0]]], expected: false },
+      { input: [5,[[0,1],[1,2],[1,3],[3,4]]], expected: true },
+    ],
+  },
+  {
+    id: 'minimum-hops',
+    number: 260,
+    title: "Minimum Hops Between Cities",
+    difficulty: 'Medium',
+    topic: "Graph",
+    statement:
+      "You're given `n` cities numbered `0` to `n-1` and a list `edges` where each `[a, b]` is a two-way road connecting cities `a` and `b`. Starting at city `start`, return the fewest roads you must travel to reach city `target`.\n\nEvery road has the same cost (one hop). If `target` cannot be reached from `start`, return `-1`. If `start == target`, the answer is `0`.",
+    explanation:
+      "Since every edge costs the same, the shortest path is measured in number of edges, and breadth-first search finds it. BFS explores the graph in waves: all cities one hop away, then two hops, and so on. The first time you dequeue the target, its recorded distance is optimal.\n\nBuild an adjacency list (roads are undirected, so add both directions). Run BFS from `start`, tracking distance and a visited set so you never revisit a city. Return the distance when you reach `target`, or `-1` if the queue empties first.\n\nTime O(V + E), space O(V + E).",
+    functionName: 'minimum_hops',
+    functionSignature: "def minimum_hops(n: int, edges: list[list[int]], start: int, target: int) -> int:",
+    starter:
+      STARTER_HEADER + "def minimum_hops(n: int, edges: list[list[int]], start: int, target: int) -> int:\n    pass\n",
+    examples: [
+      { input: [6,[[0,1],[1,2],[2,3],[0,4],[4,3],[3,5]],0,5], expected: 3 },
+      { input: [4,[[0,1],[2,3]],0,3], expected: -1 },
+      { input: [1,[],0,0], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [5,[[0,1],[1,2],[2,3],[3,4]],0,4], expected: 4 },
+      { input: [5,[[0,1],[0,2],[1,3],[2,3],[3,4]],0,4], expected: 3 },
+      { input: [3,[[0,1],[1,2],[0,2]],2,0], expected: 1 },
+    ],
+  },
+  {
+    id: 'count-redundant-bridges',
+    number: 261,
+    title: "Count Redundant Bridges",
+    difficulty: 'Medium',
+    topic: "Graph",
+    statement:
+      "A network has `n` nodes numbered `0` to `n-1`. Cables are installed one at a time, given as `connections` where each `[a, b]` links nodes `a` and `b`. A cable is **redundant** if, at the moment it is installed, its two endpoints are already connected (directly or indirectly) by cables installed earlier.\n\nProcess the cables in the given order and return how many of them are redundant.",
+    explanation:
+      "This is a classic union-find (disjoint set union) problem. Maintain a parent array where each node points toward a representative of its connected component. `find(x)` walks to the root (with path compression to keep it fast); two nodes are already connected exactly when they share a root.\n\nFor each cable `[a, b]`: find both roots. If they're equal, the endpoints were already connected, so this cable is redundant — increment the counter. Otherwise, union the two components by pointing one root at the other.\n\nTime O(E · α(n)) which is effectively linear, space O(n).",
+    functionName: 'count_redundant_bridges',
+    functionSignature: "def count_redundant_bridges(n: int, connections: list[list[int]]) -> int:",
+    starter:
+      STARTER_HEADER + "def count_redundant_bridges(n: int, connections: list[list[int]]) -> int:\n    pass\n",
+    examples: [
+      { input: [4,[[0,1],[1,2],[2,3]]], expected: 0 },
+      { input: [3,[[0,1],[1,2],[0,2]]], expected: 1 },
+      { input: [4,[[0,1],[0,1],[2,3],[2,3]]], expected: 2 },
+    ],
+    hiddenTests: [
+      { input: [5,[[0,1],[1,2],[3,4]]], expected: 0 },
+      { input: [3,[]], expected: 0 },
+      { input: [6,[[0,1],[1,2],[2,0],[3,4],[4,5],[5,3]]], expected: 2 },
+    ],
+  },
+  {
+    id: 'has-deadlock',
+    number: 262,
+    title: "Detect Task Deadlock",
+    difficulty: 'Hard',
+    topic: "Graph",
+    statement:
+      "You manage `n` tasks numbered `0` to `n-1`. The list `prerequisites` contains pairs `[a, b]` meaning task `a` must wait for task `b` to finish first (a directed dependency from `a` to `b`).\n\nA deadlock occurs when the dependencies form a cycle, so a group of tasks can never start. Return `true` if the dependency graph contains any cycle, otherwise `false`. A self-dependency `[a, a]` counts as a cycle.",
+    explanation:
+      "Cycle detection in a directed graph uses a three-color DFS. Each node is white (unvisited), gray (currently on the recursion stack), or black (fully explored). If DFS ever reaches a gray node, you've looped back onto the current path — that's a cycle.\n\nBuild an adjacency list from the directed edges. For every unvisited node, run DFS: mark it gray, recurse into neighbors, and if any neighbor is gray (or a deeper call reports a cycle), return true. When all neighbors are exhausted, mark the node black. A self-edge `[a, a]` is detected because `a` is gray when its own neighbor `a` is examined.\n\nTime O(V + E), space O(V + E).",
+    functionName: 'has_deadlock',
+    functionSignature: "def has_deadlock(n: int, prerequisites: list[list[int]]) -> bool:",
+    starter:
+      STARTER_HEADER + "def has_deadlock(n: int, prerequisites: list[list[int]]) -> bool:\n    pass\n",
+    examples: [
+      { input: [3,[[0,1],[1,2]]], expected: false },
+      { input: [3,[[0,1],[1,2],[2,0]]], expected: true },
+      { input: [1,[[0,0]]], expected: true },
+    ],
+    hiddenTests: [
+      { input: [2,[]], expected: false },
+      { input: [4,[[0,1],[1,2],[2,3],[3,1]]], expected: true },
+      { input: [5,[[0,1],[0,2],[1,3],[2,3],[3,4]]], expected: false },
+    ],
+  },
+  {
+    id: 'min-jump-cost-climb',
+    number: 263,
+    title: "Triple-Step Climb Cost",
+    difficulty: 'Medium',
+    topic: "Dynamic Programming",
+    statement:
+      "You are climbing a staircase where `cost[i]` is the fee charged when you stand on step `i`. From any step you may jump forward `1`, `2`, or `3` steps. You may begin by standing on either step `0` or step `1` (paying that step's fee). The top of the staircase is the position just past the last step. Return the minimum total fee needed to reach the top.\n\nIf the list is empty, the top is already reached, so return `0`.",
+    explanation:
+      "Work from the top down. Let `dp[i]` be the minimum fee to reach the top starting from step `i`. From step `i` you pay `cost[i]` and then jump 1, 2, or 3 steps, so `dp[i] = cost[i] + min(dp[i+1], dp[i+2], dp[i+3])`, where any index at or beyond the top contributes `0`.\n\nFill `dp` from the last real step backward. Since you may start on step 0 or step 1, the answer is `min(dp[0], dp[1])` (or just `dp[0]` when there is only one step). This is O(n) time and O(n) space.",
+    functionName: 'min_jump_cost',
+    functionSignature: "def min_jump_cost(cost: list[int]) -> int:",
+    starter:
+      STARTER_HEADER + "def min_jump_cost(cost: list[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[10,15,20]], expected: 10 },
+      { input: [[1,100,1,1,1,100,1,1,100,1]], expected: 4 },
+      { input: [[5]], expected: 5 },
+    ],
+    hiddenTests: [
+      { input: [[0,0,0,0]], expected: 0 },
+      { input: [[1,2,3,4,5,6]], expected: 5 },
+      { input: [[10,15,20,17,2,5]], expected: 17 },
+    ],
+  },
+  {
+    id: 'rob-with-rest',
+    number: 264,
+    title: "Robber's Rest Days",
+    difficulty: 'Medium',
+    topic: "Dynamic Programming",
+    statement:
+      "A row of houses has loot values in `nums`. If you rob house `i`, the alarm forces you to skip the next two houses, so the earliest house you may rob afterward is house `i + 3`. Return the maximum total loot you can collect.\n\nReturn `0` for an empty list.",
+    explanation:
+      "This is the House Robber pattern with a larger cooldown gap. Let `dp[i]` be the best loot considering houses `0..i`.\n\nAt house `i` you either skip it (keeping `dp[i-1]`) or rob it, which forces the previous robbery to be at most house `i-3`: `nums[i] + dp[i-3]`. So `dp[i] = max(dp[i-1], nums[i] + dp[i-3])`, treating out-of-range indices as `0`. The answer is `dp[n-1]`. O(n) time, O(n) space.",
+    functionName: 'rob_with_rest',
+    functionSignature: "def rob_with_rest(nums: list[int]) -> int:",
+    starter:
+      STARTER_HEADER + "def rob_with_rest(nums: list[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[2,7,9,3,1]], expected: 9 },
+      { input: [[1,2,3,1]], expected: 3 },
+      { input: [[10,1,1,10]], expected: 20 },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: 0 },
+      { input: [[5,5,5,5,5,5]], expected: 10 },
+    ],
+  },
+  {
+    id: 'coin-change-ways',
+    number: 265,
+    title: "Coin Change Combinations",
+    difficulty: 'Medium',
+    topic: "Dynamic Programming",
+    statement:
+      "You have unlimited supplies of coins with the denominations listed in `coins`, and you want to make up exactly `amount`. Return the number of distinct combinations of coins that sum to `amount`. Two combinations are the same if they use the same multiset of coins, regardless of order (so `[1,2]` and `[2,1]` count once).\n\nIf `amount` is `0`, there is exactly one combination (use no coins).",
+    explanation:
+      "This is the classic unbounded-knapsack counting problem. Let `dp[a]` be the number of combinations that sum to `a`, and initialize `dp[0] = 1`.\n\nTo count combinations (not permutations), iterate coins in the outer loop and amounts in the inner loop: for each coin `c`, add `dp[a - c]` to `dp[a]` for every `a` from `c` to `amount`. Processing one coin fully before the next guarantees each multiset is counted a single time. The answer is `dp[amount]`. O(len(coins) * amount) time.",
+    functionName: 'coin_ways',
+    functionSignature: "def coin_ways(coins: list[int], amount: int) -> int:",
+    starter:
+      STARTER_HEADER + "def coin_ways(coins: list[int], amount: int) -> int:\n    pass\n",
+    examples: [
+      { input: [[1,2,5],5], expected: 4 },
+      { input: [[2],3], expected: 0 },
+      { input: [[10],10], expected: 1 },
+    ],
+    hiddenTests: [
+      { input: [[1,2,3],4], expected: 4 },
+      { input: [[3,5,7,8,9,10,11],0], expected: 1 },
+    ],
+  },
+  {
+    id: 'longest-non-decreasing-subseq',
+    number: 266,
+    title: "Longest Non-Decreasing Subsequence",
+    difficulty: 'Medium',
+    topic: "Dynamic Programming",
+    statement:
+      "Given an integer array `nums`, return the length of the longest subsequence whose values are non-decreasing (each chosen element is greater than or equal to the previous chosen element). Unlike the strictly increasing version, equal values may be kept together.\n\nA subsequence keeps the original order but may drop elements. Return `0` for an empty array.",
+    explanation:
+      "This is a variant of Longest Increasing Subsequence that allows equal values. The O(n log n) patience-sorting approach keeps a `tails` array where `tails[k]` is the smallest possible tail of a non-decreasing subsequence of length `k+1`.\n\nFor each value `x`, find the first tail strictly greater than `x` using an upper-bound binary search (`bisect_right`). If none exists, `x` extends the longest run so append it; otherwise replace that tail with `x`. Using upper-bound (rather than lower-bound) is what permits equal elements to accumulate. The answer is `len(tails)`.",
+    functionName: 'longest_non_decreasing',
+    functionSignature: "def longest_non_decreasing(nums: list[int]) -> int:",
+    starter:
+      STARTER_HEADER + "def longest_non_decreasing(nums: list[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[1,3,2,3,4]], expected: 4 },
+      { input: [[5,5,5,5]], expected: 4 },
+      { input: [[10,9,8,7]], expected: 1 },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: 0 },
+      { input: [[1,2,2,3,1,4]], expected: 5 },
+    ],
+  },
+  {
+    id: 'delete-and-earn-points',
+    number: 267,
+    title: "Delete and Earn Points",
+    difficulty: 'Hard',
+    topic: "Dynamic Programming",
+    statement:
+      "You are given an array `nums`. In one operation you pick any value `v` present in the array, earn `v` points for every copy of `v` (i.e. `v * count(v)`), and then must delete every element equal to `v - 1` and every element equal to `v + 1` from the array. You may repeat operations until the array is empty. Return the maximum total points you can earn.\n\nReturn `0` for an empty array. All values are non-negative integers.",
+    explanation:
+      "Choosing value `v` earns `v * count(v)` but forbids ever choosing `v-1` or `v+1`. If you total up points by value, this collapses to a House Robber problem over the number line: taking value `v` blocks its adjacent values.\n\nCount occurrences, then let `gain[v] = v * count(v)`. Over values `0..max`, set `dp[v] = max(dp[v-1], dp[v-2] + gain[v])` — either skip `v` or take it and add the best up to `v-2`. The answer is `dp[max]`. This runs in O(n + max) time.",
+    functionName: 'delete_and_earn',
+    functionSignature: "def delete_and_earn(nums: list[int]) -> int:",
+    starter:
+      STARTER_HEADER + "def delete_and_earn(nums: list[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[3,4,2]], expected: 6 },
+      { input: [[2,2,3,3,3,4]], expected: 9 },
+      { input: [[1,1,1,2,4,5,5,5,6]], expected: 18 },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: 0 },
+      { input: [[8]], expected: 8 },
+    ],
+  },
+  {
+    id: 'unique-paths-with-obstacles',
+    number: 268,
+    title: "Unique Paths With Obstacles",
+    difficulty: 'Medium',
+    topic: "Dynamic Programming",
+    statement:
+      "A robot sits in the top-left corner of an `m x n` grid and wants to reach the bottom-right corner. It can only move **right** or **down** one cell at a time.\n\nThe grid is given as a 2D list where `0` marks an open cell and `1` marks an obstacle the robot cannot enter. Return the number of distinct paths from the top-left to the bottom-right cell.\n\nIf the start or the destination cell is itself an obstacle, no path exists and the answer is `0`.",
+    explanation:
+      "This is the classic grid-path count with blockers. Let `dp[i][j]` be the number of ways to reach cell `(i, j)`.\n\nAn obstacle contributes `0` ways. Otherwise a cell is reachable only from the cell above and the cell to its left, so `dp[i][j] = dp[i-1][j] + dp[i][j-1]` (treating out-of-bounds neighbors as `0`). Seed the start cell with `1` when it is open.\n\nFill the table row by row for O(m·n) time. The answer is `dp[m-1][n-1]`.",
+    functionName: 'unique_paths_grid',
+    functionSignature: "def unique_paths_grid(grid: list[list[int]]) -> int:",
+    starter:
+      STARTER_HEADER + "def unique_paths_grid(grid: list[list[int]]) -> int:\n    pass\n",
+    examples: [
+      { input: [[[0,0,0],[0,1,0],[0,0,0]]], expected: 2 },
+      { input: [[[0,1],[0,0]]], expected: 1 },
+    ],
+    hiddenTests: [
+      { input: [[[0,0],[1,1],[0,0]]], expected: 0 },
+      { input: [[[0]]], expected: 1 },
+      { input: [[[1]]], expected: 0 },
+      { input: [[[0,0,0],[0,0,0],[0,0,0]]], expected: 6 },
+    ],
+  },
+  {
+    id: 'minimum-path-sum',
+    number: 269,
+    title: "Minimum Path Sum",
+    difficulty: 'Medium',
+    topic: "Dynamic Programming",
+    statement:
+      "You're given an `m x n` grid of non-negative integers. Starting from the top-left cell and moving only **right** or **down**, reach the bottom-right cell.\n\nThe cost of a path is the sum of all values on the cells it visits (including both endpoints). Return the minimum possible path cost.",
+    explanation:
+      "Let `dp[i][j]` be the cheapest cost to arrive at cell `(i, j)`.\n\nThe first cell costs `grid[0][0]`. Cells in the first row can only be reached from the left, and cells in the first column only from above. Every other cell picks the cheaper of its top and left predecessor: `dp[i][j] = grid[i][j] + min(dp[i-1][j], dp[i][j-1])`.\n\nFilling the grid takes O(m·n) time, and the answer is the bottom-right entry.",
+    functionName: 'min_path_sum',
+    functionSignature: "def min_path_sum(grid: list[list[int]]) -> int:",
+    starter:
+      STARTER_HEADER + "def min_path_sum(grid: list[list[int]]) -> int:\n    pass\n",
+    examples: [
+      { input: [[[1,3,1],[1,5,1],[4,2,1]]], expected: 7 },
+      { input: [[[1,2,3],[4,5,6]]], expected: 12 },
+    ],
+    hiddenTests: [
+      { input: [[[5]]], expected: 5 },
+      { input: [[[1,2],[1,1]]], expected: 3 },
+      { input: [[[1,1,1,1]]], expected: 4 },
+    ],
+  },
+  {
+    id: 'knapsack-max-value',
+    number: 270,
+    title: "0/1 Knapsack Max Value",
+    difficulty: 'Medium',
+    topic: "Dynamic Programming",
+    statement:
+      "You have `n` items. Item `i` has weight `weights[i]` and value `values[i]` (both lists have the same length). You also have a knapsack that can carry a total weight of at most `capacity`.\n\nEach item can be taken **at most once** (0/1 choice). Return the maximum total value you can pack without exceeding the capacity.",
+    explanation:
+      "This is the textbook 0/1 knapsack. Think of a 2D table where `dp[i][c]` is the best value using the first `i` items with capacity budget `c`. For each item you either skip it or take it (if it fits): `dp[i][c] = max(dp[i-1][c], dp[i-1][c-w] + v)`.\n\nBecause each row only reads the row above, you can compress to a single array `dp[0..capacity]` and iterate capacity **downward** for each item so an item isn't reused within the same pass.\n\nRuntime is O(n·capacity).",
+    functionName: 'knapsack_max_value',
+    functionSignature: "def knapsack_max_value(weights: list[int], values: list[int], capacity: int) -> int:",
+    starter:
+      STARTER_HEADER + "def knapsack_max_value(weights: list[int], values: list[int], capacity: int) -> int:\n    pass\n",
+    examples: [
+      { input: [[1,3,4,5],[1,4,5,7],7], expected: 9 },
+      { input: [[2,3,4],[3,4,5],5], expected: 7 },
+    ],
+    hiddenTests: [
+      { input: [[1,2,3],[6,10,12],5], expected: 22 },
+      { input: [[4,5,6],[10,20,30],3], expected: 0 },
+      { input: [[1],[100],0], expected: 0 },
+    ],
+  },
+  {
+    id: 'longest-common-substring',
+    number: 271,
+    title: "Longest Common Substring",
+    difficulty: 'Medium',
+    topic: "Dynamic Programming",
+    statement:
+      "Given two strings `a` and `b`, return the length of the longest string that appears as a **contiguous** substring in both.\n\nUnlike a subsequence, the matched characters must be consecutive in each string. If the two strings share no common substring, return `0`.",
+    explanation:
+      "Be careful: this is a *substring* (contiguous), not a subsequence. Let `dp[i][j]` be the length of the longest common substring that **ends exactly at** `a[i-1]` and `b[j-1]`.\n\nIf `a[i-1] == b[j-1]`, then `dp[i][j] = dp[i-1][j-1] + 1`; otherwise the run breaks and `dp[i][j] = 0`. Track the maximum value seen anywhere in the table — that's the answer, since the best substring can end at any pair of positions.\n\nO(m·n) time and space.",
+    functionName: 'longest_common_substring',
+    functionSignature: "def longest_common_substring(a: str, b: str) -> int:",
+    starter:
+      STARTER_HEADER + "def longest_common_substring(a: str, b: str) -> int:\n    pass\n",
+    examples: [
+      { input: ["abcde","abfde"], expected: 2 },
+      { input: ["ABABC","BABCA"], expected: 4 },
+    ],
+    hiddenTests: [
+      { input: ["abc","xyz"], expected: 0 },
+      { input: ["","abc"], expected: 0 },
+      { input: ["aaaa","aa"], expected: 2 },
+    ],
+  },
+  {
+    id: 'min-deletions-to-equal',
+    number: 272,
+    title: "Minimum Deletions to Make Equal",
+    difficulty: 'Hard',
+    topic: "Dynamic Programming",
+    statement:
+      "Given two strings `a` and `b`, you may delete characters from either string. Return the **minimum total number of deletions** (counting deletions from both strings) required so that the two strings become identical.\n\nDeleting a character removes it and closes the gap; the relative order of the remaining characters is preserved.",
+    explanation:
+      "The characters that survive in both strings must form a common subsequence, and to minimize deletions you want to keep as many as possible — the **longest common subsequence** (LCS).\n\nCompute the LCS length with the standard 2D DP: if `a[i-1] == b[j-1]` then `dp[i][j] = dp[i-1][j-1] + 1`, else `dp[i][j] = max(dp[i-1][j], dp[i][j-1])`.\n\nEverything not in the LCS must be deleted, so the answer is `(len(a) - lcs) + (len(b) - lcs)`. Runtime O(m·n).",
+    functionName: 'min_deletions_to_equal',
+    functionSignature: "def min_deletions_to_equal(a: str, b: str) -> int:",
+    starter:
+      STARTER_HEADER + "def min_deletions_to_equal(a: str, b: str) -> int:\n    pass\n",
+    examples: [
+      { input: ["sea","eat"], expected: 2 },
+      { input: ["leetcode","etco"], expected: 4 },
+    ],
+    hiddenTests: [
+      { input: ["abc","abc"], expected: 0 },
+      { input: ["","abc"], expected: 3 },
+      { input: ["a","b"], expected: 2 },
+    ],
+  },
+  {
+    id: 'kth-largest-after-each',
+    number: 273,
+    title: "Kth Largest After Each Number",
+    difficulty: 'Medium',
+    topic: "Heap",
+    statement:
+      "You process a stream of integers `nums` one at a time. For a fixed integer `k`, after reading each number report the `k`-th largest value seen so far.\n\nReturn a list `out` of the same length as `nums`, where `out[i]` is the `k`-th largest value among `nums[0..i]` (inclusive). If fewer than `k` numbers have been seen at position `i`, use `null` for that entry.\n\nDuplicates count as distinct elements when ranking. For example, in `[5, 5, 5]` the 2nd largest is `5`.",
+    explanation:
+      "A min-heap of size `k` is the classic tool for tracking the k-th largest.\n\nPush every incoming number onto a min-heap. Whenever the heap grows past size `k`, pop the smallest — this keeps only the `k` largest values seen so far. Once the heap holds exactly `k` elements, its root (the smallest of those k) is precisely the k-th largest overall. Before the heap reaches size `k`, record `null`.\n\nEach step is O(log k), giving O(n log k) total time.",
+    functionName: 'kth_largest_after_each',
+    functionSignature: "def kth_largest_after_each(k: int, nums: list[int]) -> list:",
+    starter:
+      STARTER_HEADER + "def kth_largest_after_each(k: int, nums: list[int]) -> list:\n    pass\n",
+    examples: [
+      { input: [2,[4,5,8,2]], expected: [null,4,5,5] },
+      { input: [1,[3,1,2]], expected: [3,3,3] },
+      { input: [3,[1,2]], expected: [null,null] },
+    ],
+    hiddenTests: [
+      { input: [2,[10,20,30,40,50]], expected: [null,10,20,30,40] },
+      { input: [3,[5,5,5,5]], expected: [null,null,5,5] },
+      { input: [1,[-1,-2,-3]], expected: [-1,-1,-1] },
+      { input: [2,[7,7,3,9,9]], expected: [null,7,7,7,9] },
+    ],
+  },
+  {
+    id: 'k-way-merge-sorted-lists',
+    number: 274,
+    title: "K-Way Merge Into One Sorted List",
+    difficulty: 'Medium',
+    topic: "Heap",
+    statement:
+      "You're given `lists`, a list of individually sorted (non-decreasing) integer lists. Merge them all into a single non-decreasing list and return it.\n\nAny of the inner lists may be empty, and `lists` itself may be empty; in those cases return an empty list `[]`. The result must be fully sorted in non-decreasing order, and every value from every input list must appear (duplicates included).",
+    explanation:
+      "Concatenating and sorting works but ignores the fact that each list is already sorted. A k-way merge with a min-heap does better.\n\nSeed a min-heap with the first element of each non-empty list, tagged with which list it came from and its index. Repeatedly pop the smallest `(value, list_index, elem_index)`, append the value to the output, and push the next element from that same list (if any). Tagging with `list_index` keeps comparisons well-defined even when values tie.\n\nWith `N` total elements across `k` lists, this runs in O(N log k) time.",
+    functionName: 'merge_sorted_lists',
+    functionSignature: "def merge_sorted_lists(lists: list[list[int]]) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def merge_sorted_lists(lists: list[list[int]]) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [[[1,4,5],[1,3,4],[2,6]]], expected: [1,1,2,3,4,4,5,6] },
+      { input: [[]], expected: [] },
+      { input: [[[5],[1,2,3],[4]]], expected: [1,2,3,4,5] },
+    ],
+    hiddenTests: [
+      { input: [[[],[]]], expected: [] },
+      { input: [[[-3,-1],[-2,0,2]]], expected: [-3,-2,-1,0,2] },
+      { input: [[[1,1,1],[1,1]]], expected: [1,1,1,1,1] },
+      { input: [[[10],[],[5,15]]], expected: [5,10,15] },
+    ],
+  },
+  {
+    id: 'top-k-frequent-words',
+    number: 275,
+    title: "Top K Frequent Words",
+    difficulty: 'Easy',
+    topic: "Heap",
+    statement:
+      "Given a list of strings `words` and an integer `k`, return the `k` most frequently occurring words.\n\nThe answer must be ordered by frequency from highest to lowest. When two words have the same frequency, the one that is smaller in lexicographic (dictionary / alphabetical) order comes first. It is guaranteed that `k` is at most the number of distinct words.",
+    explanation:
+      "Count occurrences with a hash map, then select the top `k` by a two-part ranking.\n\nThe ranking key is `(-count, word)`: higher counts sort first (via the negation), and for equal counts the lexicographically smaller word wins. Sorting the distinct words by this key and taking the first `k` gives the answer. A bounded heap of size `k` using the same comparison achieves the same result in O(n log k).\n\nDefining the tie-break explicitly makes the output deterministic.",
+    functionName: 'top_k_frequent_words',
+    functionSignature: "def top_k_frequent_words(words: list[str], k: int) -> list[str]:",
+    starter:
+      STARTER_HEADER + "def top_k_frequent_words(words: list[str], k: int) -> list[str]:\n    pass\n",
+    examples: [
+      { input: [["i","love","leetcode","i","love","coding"],2], expected: ["i","love"] },
+      { input: [["the","day","is","sunny","the","the","the","sunny","is","is"],4], expected: ["the","is","sunny","day"] },
+      { input: [["a","b","c"],2], expected: ["a","b"] },
+    ],
+    hiddenTests: [
+      { input: [["apple","apple","banana"],1], expected: ["apple"] },
+      { input: [["z","z","a","a","m"],2], expected: ["a","z"] },
+      { input: [["x"],1], expected: ["x"] },
+      { input: [["b","a","c","a","b"],3], expected: ["a","b","c"] },
+    ],
+  },
+  {
+    id: 'sjf-total-waiting-time',
+    number: 276,
+    title: "Shortest-Job-First Total Waiting Time",
+    difficulty: 'Hard',
+    topic: "Heap",
+    statement:
+      "A single machine must run `jobs`, where each job is a pair `[arrival, duration]`. The machine runs one job at a time and, once started, runs it to completion (no preemption). At every moment the machine becomes free, it picks — among all jobs that have already arrived and are still unstarted — the one with the **shortest duration**; if several tie on duration, it picks the one that arrived earliest.\n\nThe machine starts at time `0`. If no job has arrived yet when the machine is free, it idles until the next arrival. A job's waiting time is `(time it starts) - (its arrival)`.\n\nReturn the total waiting time summed over all jobs.",
+    explanation:
+      "This is the classic shortest-job-first (non-preemptive) simulation, and a min-heap keyed by duration makes it efficient.\n\nSort jobs by arrival so you can release them into a ready set as the clock advances. Maintain a current `time`. At each free moment, push every job whose arrival is `<= time` into a min-heap ordered by `(duration, arrival)`. If the heap is non-empty, pop the best job, add `time - arrival` to the total, and advance `time` by its duration. If the heap is empty but jobs remain, jump `time` forward to the next arrival.\n\nEach job is pushed and popped once, so the simulation is O(n log n).",
+    functionName: 'min_total_waiting',
+    functionSignature: "def min_total_waiting(jobs: list[list[int]]) -> int:",
+    starter:
+      STARTER_HEADER + "def min_total_waiting(jobs: list[list[int]]) -> int:\n    pass\n",
+    examples: [
+      { input: [[[0,3],[1,9],[2,6]]], expected: 9 },
+      { input: [[[0,1],[0,2],[0,3]]], expected: 4 },
+      { input: [[[0,5]]], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [[[0,4],[10,2]]], expected: 0 },
+      { input: [[[0,10],[1,1],[2,1]]], expected: 18 },
+      { input: [[[5,3],[5,3],[5,3]]], expected: 9 },
+      { input: [[[0,2],[3,1],[3,4]]], expected: 1 },
+    ],
+  },
+  {
+    id: 'subsets-of-size-k',
+    number: 277,
+    title: "Subsets of a Fixed Size",
+    difficulty: 'Medium',
+    topic: "Backtracking",
+    statement:
+      "Given a list of distinct integers `nums` and an integer `k`, return every subset of `nums` that contains exactly `k` elements.\n\nEach subset must list its elements in the same relative order they appear in `nums`. Return the list of subsets in lexicographic order by the index positions chosen — that is, generate them by picking indices in increasing order and never revisiting an earlier index. When `k` is `0`, return `[[]]` (a list containing the single empty subset).\n\nYou may assume `0 <= k <= len(nums)`.",
+    explanation:
+      "This is a classic combination-generation problem. Use backtracking: keep a `combo` buffer and a `start` index. At each step, if `combo` has reached size `k`, record a copy and return. Otherwise loop `i` from `start` to the end, append `nums[i]`, recurse with `i + 1` (so you never reuse an index and always move forward), then pop to undo.\n\nBecause you always advance the start index, elements stay in their original order and the subsets come out in a canonical, deterministic sequence.",
+    functionName: 'subsets_of_size',
+    functionSignature: "def subsets_of_size(nums: list[int], k: int) -> list[list[int]]:",
+    starter:
+      STARTER_HEADER + "def subsets_of_size(nums: list[int], k: int) -> list[list[int]]:\n    pass\n",
+    examples: [
+      { input: [[1,2,3,4],2], expected: [[1,2],[1,3],[1,4],[2,3],[2,4],[3,4]] },
+      { input: [[1,2,3],3], expected: [[1,2,3]] },
+      { input: [[1,2,3],0], expected: [[]] },
+    ],
+    hiddenTests: [
+      { input: [[5,6],1], expected: [[5],[6]] },
+      { input: [[1,2,3,4,5],4], expected: [[1,2,3,4],[1,2,3,5],[1,2,4,5],[1,3,4,5],[2,3,4,5]] },
+      { input: [[7],1], expected: [[7]] },
+    ],
+  },
+  {
+    id: 'unique-permutations',
+    number: 278,
+    title: "Unique Permutations",
+    difficulty: 'Medium',
+    topic: "Backtracking",
+    statement:
+      "Given a list of integers `nums` that may contain duplicate values, return all of its distinct permutations — no permutation may appear twice.\n\nReturn the permutations in ascending lexicographic order (compare them element by element as if they were number sequences). For example, `[1,1,2]` comes before `[1,2,1]`, which comes before `[2,1,1]`.",
+    explanation:
+      "Plain permutation backtracking would emit duplicate arrangements when equal values are present. The fix is two-fold.\n\nFirst, sort `nums` so equal values are adjacent and output naturally lands in lexicographic order. Then backtrack with a `used` boolean array. At each level, iterate over all indices; skip any index already used. Crucially, skip index `i` when `nums[i] == nums[i-1]` and `nums[i-1]` is NOT currently used — this enforces that equal values are always consumed left-to-right, so each distinct multiset arrangement is produced exactly once.\n\nAppend, recurse, then undo (pop and mark unused).",
+    functionName: 'unique_permutations',
+    functionSignature: "def unique_permutations(nums: list[int]) -> list[list[int]]:",
+    starter:
+      STARTER_HEADER + "def unique_permutations(nums: list[int]) -> list[list[int]]:\n    pass\n",
+    examples: [
+      { input: [[1,1,2]], expected: [[1,1,2],[1,2,1],[2,1,1]] },
+      { input: [[1,2,3]], expected: [[1,2,3],[1,3,2],[2,1,3],[2,3,1],[3,1,2],[3,2,1]] },
+      { input: [[2,2]], expected: [[2,2]] },
+    ],
+    hiddenTests: [
+      { input: [[1]], expected: [[1]] },
+      { input: [[3,3,0,3]], expected: [[0,3,3,3],[3,0,3,3],[3,3,0,3],[3,3,3,0]] },
+    ],
+  },
+  {
+    id: 'combination-sum-reuse',
+    number: 279,
+    title: "Combination Sum With Reuse",
+    difficulty: 'Medium',
+    topic: "Backtracking",
+    statement:
+      "Given a list of distinct positive integers `candidates` and a positive integer `target`, return all unique combinations of candidates whose values sum to `target`. Each candidate may be used an unlimited number of times.\n\nTwo combinations are the same if they contain the same multiset of numbers, so do not return duplicates. Within each combination, list the numbers in non-decreasing order. Return the overall list of combinations in ascending lexicographic order (compare them element by element). If no combination sums to `target`, return an empty list.",
+    explanation:
+      "Sort `candidates` first. Backtrack with a `start` index and a `remaining` amount. When `remaining` hits `0`, record a copy of the current path.\n\nTo allow reuse while avoiding duplicate combinations, when you recurse after choosing `candidates[i]` pass `i` again (not `i + 1`) — you can pick the same value repeatedly, but never step back to a smaller index, so each multiset is generated once and stays sorted.\n\nBecause the array is sorted, once `candidates[i] > remaining` you can `break` the loop early — every later candidate is at least as large. This keeps output in lexicographic order and prunes dead branches.",
+    functionName: 'combination_sum',
+    functionSignature: "def combination_sum(candidates: list[int], target: int) -> list[list[int]]:",
+    starter:
+      STARTER_HEADER + "def combination_sum(candidates: list[int], target: int) -> list[list[int]]:\n    pass\n",
+    examples: [
+      { input: [[2,3,6,7],7], expected: [[2,2,3],[7]] },
+      { input: [[2,3,5],8], expected: [[2,2,2,2],[2,3,3],[3,5]] },
+      { input: [[2],1], expected: [] },
+    ],
+    hiddenTests: [
+      { input: [[3,4,5],9], expected: [[3,3,3],[4,5]] },
+      { input: [[5],10], expected: [[5,5]] },
+    ],
+  },
+  {
+    id: 'partition-k-equal-subsets',
+    number: 280,
+    title: "Partition Into K Equal Sum Subsets",
+    difficulty: 'Hard',
+    topic: "Backtracking",
+    statement:
+      "Given a list of positive integers `nums` and an integer `k`, decide whether you can split all of the numbers into exactly `k` non-empty groups such that every group has the same sum. Each number must belong to exactly one group.\n\nReturn `true` if such a partition exists, otherwise `false`.",
+    explanation:
+      "First reject the impossible cases: if the total is not divisible by `k`, no partition exists, so the per-group target is `total // k`. If any single number exceeds `target`, fail immediately.\n\nSort descending (large numbers first) so bad branches are pruned early, and use a `used` array. Fill one group at a time: keep a running `cur_sum` and a `count` of completed groups. When `cur_sum` reaches `target`, start a fresh group (reset sum, increment count, restart the index at 0). When `count == k`, everything fit — return true.\n\nTwo key optimizations make this tractable: pass a `start` index so a group's members are chosen in increasing index order (avoids permuted duplicates), and if placing an item into an empty group (`cur_sum == 0`) fails, break — that item can never be placed anywhere, so the whole attempt is doomed.",
+    functionName: 'can_partition_k_subsets',
+    functionSignature: "def can_partition_k_subsets(nums: list[int], k: int) -> bool:",
+    starter:
+      STARTER_HEADER + "def can_partition_k_subsets(nums: list[int], k: int) -> bool:\n    pass\n",
+    examples: [
+      { input: [[4,3,2,3,5,2,1],4], expected: true },
+      { input: [[1,2,3,4],3], expected: false },
+      { input: [[1,1,1,1],2], expected: true },
+    ],
+    hiddenTests: [
+      { input: [[2,2,2,2,3,4,5],4], expected: false },
+      { input: [[10,10,10,7,7,7,7,7,7,6,6,6],3], expected: true },
+      { input: [[4,3,2,3,5,2,1],1], expected: true },
+    ],
+  },
+  {
+    id: 'max-events-attended',
+    number: 281,
+    title: "Conference Talk Attendance",
+    difficulty: 'Medium',
+    topic: "Greedy",
+    statement:
+      "You're given a list of `events`, where each event is a pair `[start, end]` meaning that event runs on every integer day from `start` through `end` (inclusive). To attend an event you must pick exactly one day within its `[start, end]` window, and you can attend at most one event per day.\n\nReturn the maximum number of events you can attend.",
+    explanation:
+      "This is a classic interval-scheduling problem solved with a greedy heap. Sort events by start day and sweep the calendar day by day.\n\nFor the current day, push the end days of all events whose window has started into a min-heap. Discard any event whose end day has already passed (it can never be attended now). Then greedily attend the available event with the earliest end day — it's the most 'urgent' one, so consuming today's slot on it wastes the least future flexibility.\n\nAdvance the day and repeat until no events remain. Using a min-heap keyed on end day gives O(n log n) time.",
+    functionName: 'max_events_attended',
+    functionSignature: "def max_events_attended(events: list[list[int]]) -> int:",
+    starter:
+      STARTER_HEADER + "def max_events_attended(events: list[list[int]]) -> int:\n    pass\n",
+    examples: [
+      { input: [[[1,2],[2,3],[3,4]]], expected: 3 },
+      { input: [[[1,2],[2,3],[3,4],[1,2]]], expected: 4 },
+    ],
+    hiddenTests: [
+      { input: [[[1,4],[4,4],[2,2],[3,4],[1,1]]], expected: 4 },
+      { input: [[[1,1],[1,1],[1,1]]], expected: 1 },
+      { input: [[[1,100000]]], expected: 1 },
+      { input: [[[1,2],[1,2],[1,2]]], expected: 2 },
+    ],
+  },
+  {
+    id: 'can-finish-circuit',
+    number: 282,
+    title: "Complete the Fuel Loop",
+    difficulty: 'Medium',
+    topic: "Greedy",
+    statement:
+      "There are `n` fuel stations arranged in a circle. `gas[i]` is the amount of fuel available at station `i`, and `cost[i]` is the fuel needed to travel from station `i` to the next station (station `i+1`, wrapping around from the last back to the first).\n\nYou start with an empty tank at some station and drive clockwise, filling up at each station you visit. Return the smallest starting index from which you can drive all the way around the circuit exactly once without the tank ever going negative. If no such start exists, return `-1`.",
+    explanation:
+      "Two greedy facts make this O(n).\n\nFirst, feasibility: if the total fuel `sum(gas)` is at least the total cost `sum(cost)`, a valid start is guaranteed; otherwise return -1.\n\nSecond, finding it: sweep once tracking a running tank of `gas[i] - cost[i]`. Whenever the running tank drops below zero at station `i`, none of the stations from the current candidate start through `i` can be the answer (they all fail to reach past `i`), so reset the candidate start to `i + 1` and zero the tank.\n\nBecause a solution exists whenever the total is non-negative, the last candidate start you land on is the unique smallest valid start.",
+    functionName: 'can_finish_circuit',
+    functionSignature: "def can_finish_circuit(gas: list[int], cost: list[int]) -> int:",
+    starter:
+      STARTER_HEADER + "def can_finish_circuit(gas: list[int], cost: list[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[1,2,3,4,5],[3,4,5,1,2]], expected: 3 },
+      { input: [[2,3,4],[3,4,3]], expected: -1 },
+    ],
+    hiddenTests: [
+      { input: [[5,1,2,3,4],[4,4,1,5,1]], expected: 4 },
+      { input: [[3,3,4],[3,4,4]], expected: -1 },
+      { input: [[4],[3]], expected: 0 },
+      { input: [[2],[2]], expected: 0 },
+    ],
+  },
+  {
+    id: 'max-reachable-index',
+    number: 283,
+    title: "Farthest Stepping Stone",
+    difficulty: 'Easy',
+    topic: "Greedy",
+    statement:
+      "You're given a list of non-negative integers `nums`. You start on index `0`. From any index `i` you can jump forward to any index between `i+1` and `i + nums[i]` (a jump of `0` means you're stuck there).\n\nReturn the farthest index you can possibly reach starting from index `0`. If you can already reach the last index, return the last index.",
+    explanation:
+      "Greedily track the farthest index reachable so far. Scan left to right; at each index `i` that is itself reachable (`i <= farthest`), update `farthest = max(farthest, i + nums[i])`.\n\nIf `farthest` ever reaches or passes the last index, you're done — return the last index. If you advance past `farthest` without reaching the end, you're blocked, and `farthest` is the answer (clamped to the last index).\n\nOne pass, O(n) time, O(1) space.",
+    functionName: 'max_reachable_index',
+    functionSignature: "def max_reachable_index(nums: list[int]) -> int:",
+    starter:
+      STARTER_HEADER + "def max_reachable_index(nums: list[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[2,3,1,1,4]], expected: 4 },
+      { input: [[3,2,1,0,4]], expected: 3 },
+    ],
+    hiddenTests: [
+      { input: [[0,1,2]], expected: 0 },
+      { input: [[1,1,0,1]], expected: 2 },
+      { input: [[5]], expected: 0 },
+      { input: [[2,0,0]], expected: 2 },
+    ],
+  },
+  {
+    id: 'max-tasks-assigned',
+    number: 284,
+    title: "Match Workers to Jobs",
+    difficulty: 'Easy',
+    topic: "Greedy",
+    statement:
+      "You have a list `workers`, where `workers[i]` is the strength of worker `i`, and a list `tasks`, where `tasks[j]` is the strength required to complete task `j`.\n\nEach worker can be assigned at most one task, each task to at most one worker, and a worker can complete a task only if their strength is greater than or equal to the task's requirement. Return the maximum number of tasks that can be assigned.",
+    explanation:
+      "Sort both lists ascending. Walk through workers from weakest to strongest, keeping a pointer at the smallest still-unassigned task.\n\nFor each worker, if their strength meets the current smallest remaining task, assign it and advance the task pointer. Handing the easiest available task to each capable worker never blocks a better matching — any stronger worker who could have taken that task can instead take a harder one later.\n\nThis two-pointer greedy runs in O(n log n) for the sorts plus O(n) for the sweep.",
+    functionName: 'max_tasks_assigned',
+    functionSignature: "def max_tasks_assigned(workers: list[int], tasks: list[int]) -> int:",
+    starter:
+      STARTER_HEADER + "def max_tasks_assigned(workers: list[int], tasks: list[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[3,2,1],[1,1,3]], expected: 3 },
+      { input: [[1,1,1],[2,2,2]], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [[5,5],[1,10]], expected: 1 },
+      { input: [[10],[]], expected: 0 },
+      { input: [[],[1,2]], expected: 0 },
+      { input: [[4,2,8],[3,3,3]], expected: 2 },
+    ],
+  },
+  {
+    id: 'rotate-image-counterclockwise',
+    number: 285,
+    title: "Rotate Image Counterclockwise",
+    difficulty: 'Medium',
+    topic: "Matrix",
+    statement:
+      "You're given an `n x n` matrix of integers. Rotate the matrix by 90 degrees **counterclockwise** and return the resulting matrix.\n\nUnlike a clockwise rotation, the top row of the input becomes the rightmost column of the output. You may build and return a new matrix (an in-place solution is not required).\n\nFor example, the value originally at `matrix[i][j]` ends up at position `result[n-1-j][i]`.",
+    explanation:
+      "A counterclockwise rotation maps `result[i][j] = matrix[j][n-1-i]`.\n\nThe cleanest way to see it: rotating counterclockwise is the same as **transposing** the matrix and then **reversing the order of the rows** (i.e. flipping top-to-bottom). Equivalently, reverse each row first, then transpose.\n\nA direct index formula also works: for each output cell `(i, j)`, pull the value from `matrix[j][n-1-i]`. This runs in O(n^2) time.",
+    functionName: 'rotate_ccw',
+    functionSignature: "def rotate_ccw(matrix: list[list[int]]) -> list[list[int]]:",
+    starter:
+      STARTER_HEADER + "def rotate_ccw(matrix: list[list[int]]) -> list[list[int]]:\n    pass\n",
+    examples: [
+      { input: [[[1,2],[3,4]]], expected: [[2,4],[1,3]] },
+      { input: [[[1,2,3],[4,5,6],[7,8,9]]], expected: [[3,6,9],[2,5,8],[1,4,7]] },
+    ],
+    hiddenTests: [
+      { input: [[[5]]], expected: [[5]] },
+      { input: [[[1,2,3,4],[5,6,7,8],[9,10,11,12],[13,14,15,16]]], expected: [[4,8,12,16],[3,7,11,15],[2,6,10,14],[1,5,9,13]] },
+    ],
+  },
+  {
+    id: 'counterclockwise-spiral-order',
+    number: 286,
+    title: "Counterclockwise Spiral Order",
+    difficulty: 'Medium',
+    topic: "Matrix",
+    statement:
+      "Given an `m x n` matrix, return all of its elements in **counterclockwise spiral order**, as a flat list.\n\nStart at the top-left corner and move **down** the left column first. Then go **right** along the bottom row, **up** the right column, and **left** across the top row, spiraling inward until every element has been visited.",
+    explanation:
+      "This is the mirror image of the usual (clockwise) spiral. Maintain four boundaries: `top`, `bottom`, `left`, `right`.\n\nRepeat while the region is non-empty, in this order:\n1. Walk **down** the `left` column (top -> bottom), then `left += 1`.\n2. Walk **right** along the `bottom` row (left -> right), then `bottom -= 1`.\n3. If a column remains, walk **up** the `right` column (bottom -> top), then `right -= 1`.\n4. If a row remains, walk **left** along the `top` row (right -> left), then `top += 1`.\n\nThe two guards on steps 3 and 4 prevent re-visiting cells in thin (single-row or single-column) leftovers. O(m*n) time.",
+    functionName: 'spiral_ccw',
+    functionSignature: "def spiral_ccw(matrix: list[list[int]]) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def spiral_ccw(matrix: list[list[int]]) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [[[1,2,3],[4,5,6],[7,8,9]]], expected: [1,4,7,8,9,6,3,2,5] },
+      { input: [[[1,2],[3,4]]], expected: [1,3,4,2] },
+      { input: [[[1,2,3,4]]], expected: [1,2,3,4] },
+    ],
+    hiddenTests: [
+      { input: [[[1],[2],[3]]], expected: [1,2,3] },
+      { input: [[[1,2,3,4],[5,6,7,8],[9,10,11,12]]], expected: [1,5,9,10,11,12,8,4,3,2,6,7] },
+    ],
+  },
+  {
+    id: 'flood-zero-cells',
+    number: 287,
+    title: "Flood Zero Cells",
+    difficulty: 'Easy',
+    topic: "Matrix",
+    statement:
+      "You're given an `m x n` matrix and an integer `fill`. For every cell that originally contains `0`, set that cell's entire row and entire column to the value `fill`. Return the modified matrix.\n\nImportant: the decision about which cells to flood must be based on the **original** matrix. A `fill` value written into a cell must not itself trigger further rows or columns to be flooded.",
+    explanation:
+      "This is a variation of \"Set Matrix Zeroes\". The trap is that if you overwrite cells as you go, freshly written `fill` values (or new zeros) could be misread as original markers.\n\nSafe two-pass approach:\n1. Scan the whole matrix once and record the set of row indices and the set of column indices that contain at least one original `0`.\n2. Scan again: for every cell whose row is marked or whose column is marked, write `fill`.\n\nThis uses O(m + n) extra space for the two index sets and runs in O(m*n) time.",
+    functionName: 'flood_zero_cells',
+    functionSignature: "def flood_zero_cells(matrix: list[list[int]], fill: int) -> list[list[int]]:",
+    starter:
+      STARTER_HEADER + "def flood_zero_cells(matrix: list[list[int]], fill: int) -> list[list[int]]:\n    pass\n",
+    examples: [
+      { input: [[[1,1,1],[1,0,1],[1,1,1]],9], expected: [[1,9,1],[9,9,9],[1,9,1]] },
+      { input: [[[0,1,2,0],[3,4,5,2],[1,3,1,5]],-1], expected: [[-1,-1,-1,-1],[-1,4,5,-1],[-1,3,1,-1]] },
+    ],
+    hiddenTests: [
+      { input: [[[1,2,3],[4,5,6]],7], expected: [[1,2,3],[4,5,6]] },
+      { input: [[[0]],9], expected: [[9]] },
+    ],
+  },
+  {
+    id: 'search-sorted-matrix-staircase',
+    number: 288,
+    title: "Search a Row-and-Column Sorted Matrix",
+    difficulty: 'Medium',
+    topic: "Matrix",
+    statement:
+      "You're given an `m x n` matrix of **distinct** integers with two sorting guarantees:\n\n- each row is sorted in strictly increasing order from left to right, and\n- each column is sorted in strictly increasing order from top to bottom.\n\nNote that, unlike a fully row-major sorted matrix, the first element of a row is **not** necessarily larger than the last element of the previous row.\n\nGiven a `target`, return `[row, col]` of the cell containing it, or `[-1, -1]` if the target is not present. Because all values are distinct, at most one position matches.",
+    explanation:
+      "A brute-force scan is O(m*n). You can do better by exploiting both sort orders with a **staircase search**.\n\nStart at the top-right corner `(0, n-1)`:\n- If the current value equals `target`, return its coordinates.\n- If the current value is **greater** than `target`, everything below in this column is even larger, so move **left** (`col -= 1`).\n- If the current value is **less** than `target`, everything to the left in this row is even smaller, so move **down** (`row += 1`).\n\nEach step eliminates a full row or column, giving O(m + n) time. If you walk off the grid, the target is absent.",
+    functionName: 'search_staircase',
+    functionSignature: "def search_staircase(matrix: list[list[int]], target: int) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def search_staircase(matrix: list[list[int]], target: int) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [[[1,4,7,11],[2,5,8,12],[3,6,9,16],[10,13,14,17]],5], expected: [1,1] },
+      { input: [[[1,4,7,11],[2,5,8,12],[3,6,9,16],[10,13,14,17]],20], expected: [-1,-1] },
+    ],
+    hiddenTests: [
+      { input: [[[1,3,5],[7,9,11],[13,15,17]],15], expected: [2,1] },
+      { input: [[[5]],5], expected: [0,0] },
+      { input: [[[1,2],[3,4]],3], expected: [1,0] },
+    ],
+  },
+  {
+    id: 'total-covered-length',
+    number: 289,
+    title: "Total Covered Length",
+    difficulty: 'Easy',
+    topic: "Interval",
+    statement:
+      "You're given a list of `intervals`, where each `intervals[i] = [start, end]` represents the closed segment `[start, end]` on a number line (with `start <= end`). Overlapping or touching segments cover the same ground.\n\nReturn the **total length of the number line covered** by at least one interval. Length is measured as `end - start` for a merged block; a single point like `[3, 3]` contributes length `0`.\n\nIf `intervals` is empty, return `0`.",
+    explanation:
+      "Overlapping segments must be counted once, not twice — so first sort the intervals by start.\n\nSweep through them keeping a running merged block `[cur_start, cur_end]`. For each next interval: if it starts at or before `cur_end`, extend the block with `cur_end = max(cur_end, e)`. Otherwise the block is finished — add `cur_end - cur_start` to the total and begin a new block. Add the final block at the end.\n\nSorting dominates at O(n log n) time, O(1) extra space beyond the sort.",
+    functionName: 'total_covered_length',
+    functionSignature: "def total_covered_length(intervals: list[list[int]]) -> int:",
+    starter:
+      STARTER_HEADER + "def total_covered_length(intervals: list[list[int]]) -> int:\n    pass\n",
+    examples: [
+      { input: [[[1,4],[2,6],[8,10]]], expected: 7 },
+      { input: [[[1,3],[3,5]]], expected: 4 },
+      { input: [[]], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [[[1,10]]], expected: 9 },
+      { input: [[[5,7],[1,3],[2,4]]], expected: 5 },
+      { input: [[[0,0],[1,1]]], expected: 0 },
+      { input: [[[1,5],[2,3],[4,8],[10,12]]], expected: 9 },
+    ],
+  },
+  {
+    id: 'interval-intersections',
+    number: 290,
+    title: "Interval List Intersections",
+    difficulty: 'Medium',
+    topic: "Interval",
+    statement:
+      "You're given two lists of closed intervals, `a` and `b`. Each list is **pairwise disjoint and sorted** in increasing order of start (so within one list no two intervals overlap). Each interval is `[start, end]` with `start <= end`, representing the closed range `[start, end]`.\n\nReturn the list of intervals formed by the **intersection** of `a` and `b`. Two closed intervals intersect if they share at least one point; touching at a single point counts (e.g. `[1, 3]` and `[3, 5]` intersect at `[3, 3]`).\n\nReturn the intersections as a list of `[start, end]` pairs in increasing order of start. If there are no intersections, return an empty list.",
+    explanation:
+      "Because both lists are sorted and internally disjoint, use two pointers `i` and `j`.\n\nFor the current `a[i]` and `b[j]`, their overlap is `[max(starts), min(ends)]`. If `max(starts) <= min(ends)` the overlap is non-empty — record it. Then advance the pointer whose interval **ends first**, since that interval can't intersect anything further right.\n\nEach step advances one pointer, so this is O(m + n) time and O(1) extra space (aside from the output).",
+    functionName: 'interval_intersections',
+    functionSignature: "def interval_intersections(a: list[list[int]], b: list[list[int]]) -> list[list[int]]:",
+    starter:
+      STARTER_HEADER + "def interval_intersections(a: list[list[int]], b: list[list[int]]) -> list[list[int]]:\n    pass\n",
+    examples: [
+      { input: [[[0,2],[5,10],[13,23],[24,25]],[[1,5],[8,12],[15,24],[25,26]]], expected: [[1,2],[5,5],[8,10],[15,23],[24,24],[25,25]] },
+      { input: [[[1,7]],[[3,10]]], expected: [[3,7]] },
+      { input: [[[0,5]],[[6,10]]], expected: [] },
+    ],
+    hiddenTests: [
+      { input: [[[1,3],[5,9]],[]], expected: [] },
+      { input: [[],[[4,8],[10,12]]], expected: [] },
+      { input: [[[1,4],[6,9]],[[2,3],[7,8]]], expected: [[2,3],[7,8]] },
+    ],
+  },
+  {
+    id: 'max-simultaneous-events',
+    number: 291,
+    title: "Maximum Simultaneous Events",
+    difficulty: 'Hard',
+    topic: "Interval",
+    statement:
+      "You're given a list of `intervals`, where each `intervals[i] = [start, end]` is a **closed** time interval `[start, end]` (with `start <= end`) during which one event is running.\n\nAn event is considered active at every time `t` with `start <= t <= end`. Because the intervals are closed, two events touching at a single instant (one ending exactly when another starts) are both active at that instant and count as overlapping.\n\nReturn the **maximum number of events that are active at the same time** at any single instant. If `intervals` is empty, return `0`.",
+    explanation:
+      "This is the classic 'max concurrent intervals' / minimum-rooms count.\n\nSeparate all start times into one sorted array and all end times into another. Walk a two-pointer sweep: compare the next start with the next end. Because intervals are **closed**, a start at time `t` overlaps an end at time `t`, so use `starts[i] <= ends[j]`: when true, a new event begins — increment the active counter and update the best; otherwise an event has ended — decrement the counter and advance the end pointer.\n\nTrack the peak of the active counter. Sorting dominates at O(n log n) time, O(n) space.",
+    functionName: 'max_simultaneous_events',
+    functionSignature: "def max_simultaneous_events(intervals: list[list[int]]) -> int:",
+    starter:
+      STARTER_HEADER + "def max_simultaneous_events(intervals: list[list[int]]) -> int:\n    pass\n",
+    examples: [
+      { input: [[[1,4],[2,5],[9,12],[5,9],[5,12]]], expected: 3 },
+      { input: [[[1,2],[3,4],[5,6]]], expected: 1 },
+      { input: [[[1,5],[5,10]]], expected: 2 },
+    ],
+    hiddenTests: [
+      { input: [[[1,10],[2,9],[3,8]]], expected: 3 },
+      { input: [[[0,30],[5,10],[15,20]]], expected: 2 },
+      { input: [[[7,7]]], expected: 1 },
+    ],
+  },
+  {
+    id: 'count-words-with-prefix',
+    number: 292,
+    title: "Count Words With Prefix",
+    difficulty: 'Medium',
+    topic: "Trie",
+    statement:
+      "You're given a list of lowercase words `words` and a list of query strings `queries`. For each query, count how many words in `words` start with that query string as a prefix, and return the counts in a list, one per query (same order as the queries).\n\nA word counts if the query is a prefix of it. A word is always a prefix of itself. The empty string `\"\"` is a prefix of every word, so a `\"\"` query returns the total number of words. Words may repeat; count each occurrence.\n\nBuild a prefix tree (trie) where each node stores how many words pass through it, so each query is answered by walking down the tree in time proportional to the query length.",
+    explanation:
+      "Insert every word into a trie. As you walk each character during insertion, increment a `count` field on the node you land on — that count is exactly the number of inserted words that share the path (i.e. the prefix) up to that node. Also increment a count at the root itself for the empty prefix.\n\nTo answer a query, walk the trie following the query's characters. If you fall off the tree (a character is missing), the answer is 0. Otherwise the `count` stored on the final node is your answer.\n\nBuilding the trie is O(total characters in words); each query is O(length of query).",
+    functionName: 'count_words_with_prefix',
+    functionSignature: "def count_words_with_prefix(words: list[str], queries: list[str]) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def count_words_with_prefix(words: list[str], queries: list[str]) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [["apple","app","apricot","banana"],["ap","app","b","xyz"]], expected: [3,2,1,0] },
+      { input: [["cat","car","card"],["ca","car","cart"]], expected: [3,2,0] },
+    ],
+    hiddenTests: [
+      { input: [[],["a",""]], expected: [0,0] },
+      { input: [["dog"],[""]], expected: [1] },
+      { input: [["a","ab","abc"],["a","ab","abc","abcd"]], expected: [3,2,1,0] },
+      { input: [["xyz","xy"],["x","xy","xyz","xyzz"]], expected: [2,2,1,0] },
+    ],
+  },
+  {
+    id: 'wildcard-word-dictionary',
+    number: 293,
+    title: "Wildcard Word Dictionary",
+    difficulty: 'Hard',
+    topic: "Trie",
+    statement:
+      "Design a word dictionary that supports adding words and searching with a wildcard. You're given a list of `operations`, each a two-element list. Process them in order and return a list with one result per operation.\n\nOperations:\n- `[\"add\", word]` — add `word` (lowercase letters) to the dictionary. Append `null` to the results for this operation.\n- `[\"search\", pattern]` — return `true` if any word already in the dictionary matches `pattern`, otherwise `false`. In a pattern, a `.` matches any single letter; every other character must match exactly. The pattern matches a word only if their lengths are equal.\n\nReturn the results list (with `null` entries for every add and a boolean for every search).",
+    explanation:
+      "Store the added words in a trie, marking the node at the end of each word as a word-ending.\n\nFor a plain letter in the search pattern, descend into that child if it exists, else fail. For a `.`, you must try every child of the current node — recurse into each and succeed if any branch matches the rest of the pattern. When you've consumed the whole pattern, the match succeeds only if the current node is marked as a word-ending (this enforces equal lengths automatically).\n\nUse depth-first search with backtracking for the wildcard branches. Each add is O(word length); a search with `w` wildcards can branch but is efficient in practice.",
+    functionName: 'wildcard_word_search',
+    functionSignature: "def wildcard_word_search(operations: list[list[str]]) -> list:",
+    starter:
+      STARTER_HEADER + "def wildcard_word_search(operations: list[list[str]]) -> list:\n    pass\n",
+    examples: [
+      { input: [[["add","bad"],["add","dad"],["add","mad"],["search","pad"],["search","bad"],["search",".ad"],["search","b.."]]], expected: [null,null,null,false,true,true,true] },
+      { input: [[["add","a"],["search","a"],["search","."],["search","aa"]]], expected: [null,true,true,false] },
+    ],
+    hiddenTests: [
+      { input: [[["search","x"]]], expected: [false] },
+      { input: [[["add","word"],["search","w.rd"],["search","wor."],["search",".ord"],["search","word"],["search","...."],["search","....."]]], expected: [null,true,true,true,true,true,false] },
+      { input: [[["add","ab"],["add","abc"],["search","ab"],["search","a.c"],["search","a."]]], expected: [null,null,true,true,true] },
+    ],
+  },
+  {
+    id: 'single-number-iii',
+    number: 294,
+    title: "Lone Number in Triples",
+    difficulty: 'Medium',
+    topic: "Binary",
+    statement:
+      "You're given a list of integers `nums` where every value appears exactly three times, except for one value that appears exactly once. Return that single value.\n\nYou must solve it with constant extra space (do not build a counting dictionary or sort — use bitwise logic).",
+    explanation:
+      "With a hash map this is trivial, but the constant-space bit trick is the point.\n\nTrack two bitmasks, `ones` and `twos`, representing bits that have been seen once and twice (mod 3). For each number update:\n\n- `ones = (ones ^ n) & ~twos`\n- `twos = (twos ^ n) & ~ones`\n\nAfter processing everything, bits belonging to a count that is a multiple of three cancel out, and `ones` holds exactly the bits of the unique number. This works for negatives too because Python's integers behave like the two's-complement pattern under these masks.\n\nO(n) time, O(1) space.",
+    functionName: 'single_number_iii',
+    functionSignature: "def single_number_iii(nums: list[int]) -> int:",
+    starter:
+      STARTER_HEADER + "def single_number_iii(nums: list[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[2,2,3,2]], expected: 3 },
+      { input: [[0,1,0,1,0,1,99]], expected: 99 },
+      { input: [[5]], expected: 5 },
+    ],
+    hiddenTests: [
+      { input: [[-2,-2,1,1,-3,1,-3,-3,9,-2]], expected: 9 },
+      { input: [[30000,500,100,30000,100,30000,100]], expected: 500 },
+      { input: [[7,7,7,-8]], expected: -8 },
+    ],
+  },
+  {
+    id: 'power-of-four',
+    number: 295,
+    title: "Is It a Power of Four",
+    difficulty: 'Easy',
+    topic: "Binary",
+    statement:
+      "Given an integer `n`, return `True` if `n` is a power of four (that is, `n == 4 ** k` for some non-negative integer `k`), and `False` otherwise.\n\nDo not use loops or recursion — solve it with bitwise reasoning.",
+    explanation:
+      "A power of four is a special power of two. First, a positive number is a power of two exactly when it has a single set bit, which you can test with `n > 0 and (n & (n - 1)) == 0`.\n\nAmong powers of two, the ones that are also powers of four have their single set bit at an even position (bit 0, 2, 4, ...). The hex mask `0x55555555` (binary `...0101 0101`) has 1s exactly at those even positions. So a power-of-two `n` is a power of four when `n & 0x55555555` is non-zero.\n\nCombine both checks. O(1) time and space.",
+    functionName: 'is_power_of_four',
+    functionSignature: "def is_power_of_four(n: int) -> bool:",
+    starter:
+      STARTER_HEADER + "def is_power_of_four(n: int) -> bool:\n    pass\n",
+    examples: [
+      { input: [16], expected: true },
+      { input: [5], expected: false },
+      { input: [1], expected: true },
+    ],
+    hiddenTests: [
+      { input: [0], expected: false },
+      { input: [8], expected: false },
+      { input: [64], expected: true },
+      { input: [-4], expected: false },
+    ],
+  },
+  {
+    id: 'max-xor-pair',
+    number: 296,
+    title: "Maximum XOR of Two Numbers",
+    difficulty: 'Hard',
+    topic: "Binary",
+    statement:
+      "Given a list of non-negative integers `nums`, return the maximum value of `nums[i] ^ nums[j]` (bitwise XOR) over all pairs of indices, where `i` and `j` may be equal.\n\nSince a pair may reuse an index, a single-element list yields `0`. Aim for better than the O(n²) brute force.",
+    explanation:
+      "Build the answer one bit at a time, from the most significant bit down. Maintain `max_xor`, the best prefix found so far, and a growing `mask` covering the bits considered.\n\nAt bit `i`, greedily assume the answer can have a 1 there: form `candidate = max_xor | (1 << i)`. Collect the masked prefixes `n & mask` of all numbers into a set. If there exist two prefixes `a`, `b` in the set with `a ^ b == candidate` (equivalently, for some prefix `p`, `candidate ^ p` is also in the set), then that bit is achievable — set `max_xor = candidate`.\n\nAfter scanning all bit positions, `max_xor` is the maximum. This is O(32 * n) time using the prefix-set idea (the same principle behind the bitwise-trie solution).",
+    functionName: 'max_xor_pair',
+    functionSignature: "def max_xor_pair(nums: list[int]) -> int:",
+    starter:
+      STARTER_HEADER + "def max_xor_pair(nums: list[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[3,10,5,25,2,8]], expected: 28 },
+      { input: [[0]], expected: 0 },
+      { input: [[2,4]], expected: 6 },
+    ],
+    hiddenTests: [
+      { input: [[8,10,2]], expected: 10 },
+      { input: [[14,70,53,83,49,91,36,80,92,51,66,70]], expected: 127 },
+      { input: [[1,2,3,4]], expected: 7 },
+    ],
+  },
+  {
+    id: 'first-non-repeating-character',
+    number: 297,
+    title: "First Non-Repeating Character",
+    difficulty: 'Easy',
+    topic: "Hash Table",
+    statement:
+      "Given a string `s` made of lowercase English letters, return the index of the first character that appears exactly once in the string. If no such character exists (or the string is empty), return `-1`.",
+    explanation:
+      "Count how many times each character appears using a dictionary (or `collections.Counter`) in one pass. Then scan the string left to right and return the index of the first character whose count is 1.\n\nBecause you walk the original string in order, the first count-1 character you hit is guaranteed to be the earliest unique one. Two passes total, O(n) time and O(1) extra space (at most 26 distinct letters).",
+    functionName: 'first_unique_char_index',
+    functionSignature: "def first_unique_char_index(s: str) -> int:",
+    starter:
+      STARTER_HEADER + "def first_unique_char_index(s: str) -> int:\n    pass\n",
+    examples: [
+      { input: ["leetcode"], expected: 0 },
+      { input: ["loveleetcode"], expected: 2 },
+      { input: ["aabb"], expected: -1 },
+    ],
+    hiddenTests: [
+      { input: [""], expected: -1 },
+      { input: ["z"], expected: 0 },
+      { input: ["abcabd"], expected: 2 },
+    ],
+  },
+  {
+    id: 'group-by-letter-set',
+    number: 298,
+    title: "Group by Letter Set",
+    difficulty: 'Medium',
+    topic: "Hash Table",
+    statement:
+      "You are given a list of lowercase words. Group together all words that use the exact same **set of distinct letters** (ignoring how many times each letter appears and their order). For example `\"abc\"`, `\"cba\"`, and `\"bca\"` all share the letter set `{a, b, c}`, while `\"a\"`, `\"aa\"`, and `\"aaa\"` all share the letter set `{a}`.\n\nReturn a list of groups. Within each group, keep the words in the order they appeared in the input. The groups themselves must be ordered by the first appearance of any word belonging to that group.",
+    explanation:
+      "For each word, compute a canonical signature of its distinct letters: take `set(word)`, sort those characters, and join them into a string (e.g. `\"bca\"` -> `\"abc\"`). This signature is identical for all words sharing the same letter set.\n\nUse a dictionary mapping signature -> list of words, and separately track the order in which signatures first appear so the output group order is deterministic. Append each word to its signature's bucket, then emit the buckets in first-seen order.\n\nO(total characters) time.",
+    functionName: 'group_by_signature',
+    functionSignature: "def group_by_signature(words: list[str]) -> list[list[str]]:",
+    starter:
+      STARTER_HEADER + "def group_by_signature(words: list[str]) -> list[list[str]]:\n    pass\n",
+    examples: [
+      { input: [["abc","cba","bca","xyz"]], expected: [["abc","cba","bca"],["xyz"]] },
+      { input: [["a","aa","aaa","b"]], expected: [["a","aa","aaa"],["b"]] },
+      { input: [["dog","god","cat"]], expected: [["dog","god"],["cat"]] },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: [] },
+      { input: [["listen","silent","enlist","google"]], expected: [["listen","silent","enlist"],["google"]] },
+    ],
+  },
+  {
+    id: 'dedup-keep-order',
+    number: 299,
+    title: "Dedup Keep Order",
+    difficulty: 'Easy',
+    topic: "Hash Table",
+    statement:
+      "Given a list of integers `nums`, remove duplicate values while preserving the order of their **first** appearance. Return the resulting list.\n\nFor example, `[1, 2, 2, 3, 1, 4]` becomes `[1, 2, 3, 4]`: each value is kept the first time it is seen and skipped on any later occurrence.",
+    explanation:
+      "Maintain a `set` of values you have already emitted. Walk the list once; for each number, if it is not in the set, add it to the set and append it to the output. If it is already in the set, skip it.\n\nThe set gives O(1) membership checks, so the whole thing is O(n) time and O(n) space. Sorting or nested scanning is unnecessary and would lose the first-appearance ordering.",
+    functionName: 'dedup_keep_order',
+    functionSignature: "def dedup_keep_order(nums: list[int]) -> list[int]:",
+    starter:
+      STARTER_HEADER + "def dedup_keep_order(nums: list[int]) -> list[int]:\n    pass\n",
+    examples: [
+      { input: [[1,2,2,3,1,4]], expected: [1,2,3,4] },
+      { input: [[5,5,5,5]], expected: [5] },
+      { input: [[1,2,3]], expected: [1,2,3] },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: [] },
+      { input: [[4,3,4,3,2,1]], expected: [4,3,2,1] },
+    ],
+  },
+  {
+    id: 'longest-balanced-binary-run',
+    number: 300,
+    title: "Longest Balanced Binary Run",
+    difficulty: 'Hard',
+    topic: "Hash Table",
+    statement:
+      "Given a list `nums` containing only `0`s and `1`s, return the length of the longest **contiguous** subarray that has an equal number of `0`s and `1`s. If no such subarray exists, return `0`.\n\nFor example, in `[0, 0, 1, 0, 0, 0, 1, 1]` the longest balanced run has length `6` (the subarray from index 2 through index 7 contains three `0`s and three `1`s).",
+    explanation:
+      "Turn each `0` into `-1` and each `1` into `+1`, then track a running sum (call it the balance). A subarray has equal numbers of `0`s and `1`s exactly when the balance is the same at its two endpoints.\n\nUse a dictionary mapping each balance value to the **earliest** index at which it occurred, seeded with `{0: -1}` so subarrays starting at index 0 are handled. As you scan, if the current balance was seen before at index `j`, the subarray `(j, i]` is balanced and has length `i - j`; keep the maximum. Otherwise record the current index as the first time you saw this balance.\n\nOne pass, O(n) time and O(n) space.",
+    functionName: 'max_equal_subarray',
+    functionSignature: "def max_equal_subarray(nums: list[int]) -> int:",
+    starter:
+      STARTER_HEADER + "def max_equal_subarray(nums: list[int]) -> int:\n    pass\n",
+    examples: [
+      { input: [[0,1]], expected: 2 },
+      { input: [[0,1,0]], expected: 2 },
+      { input: [[0,0,1,0,0,0,1,1]], expected: 6 },
+    ],
+    hiddenTests: [
+      { input: [[1,1,1,1]], expected: 0 },
+      { input: [[]], expected: 0 },
+      { input: [[0,1,1,0,1,1,1,0]], expected: 4 },
+    ],
+  },
 ];
 
 // Group by topic for filter UI

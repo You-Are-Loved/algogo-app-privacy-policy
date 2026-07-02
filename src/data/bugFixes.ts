@@ -943,6 +943,875 @@ const pythonProblems: BugFixProblem[] = [
       { input: [[4, 8, 6, 2], 3], expected: [8, 6, 4] },
     ],
   },
+  {
+    id: 'py-running-max',
+    number: 35,
+    language: 'python',
+    title: "Running Maximum",
+    difficulty: 'Easy',
+    topic: "Accumulation",
+    statement:
+      "Return a list where each element is the maximum of the input list seen so far (a running/prefix maximum). For input [1, 3, 2, 5, 4] the result is [1, 3, 3, 5, 5].",
+    functionName: 'running_max',
+    functionSignature: "def running_max(nums: list[int]) -> list[int]:",
+    buggyCode:
+      "def running_max(nums):\n    result = []\n    best = 0\n    for x in nums:\n        if x > best:\n            best = x\n        result.append(best)\n    return result\n",
+    hint: "What if every number is negative? What does the running max start at?",
+    explanation:
+      "The accumulator `best` was seeded with 0, so any list of negative numbers reported 0 instead of the real running max. Seed with None and take the first element on the first iteration: `best = None` then `if best is None or x > best:`. (Or seed with `nums[0]` after guarding the empty case.)",
+    examples: [
+      { input: [[1,3,2,5,4]], expected: [1,3,3,5,5] },
+      { input: [[-5,-2,-8]], expected: [-5,-2,-2] },
+      { input: [[3]], expected: [3] },
+    ],
+    hiddenTests: [
+      { input: [[-1,-1,-1]], expected: [-1,-1,-1] },
+      { input: [[0,-3,2]], expected: [0,0,2] },
+    ],
+  },
+  {
+    id: 'py-reverse-segment',
+    number: 36,
+    language: 'python',
+    title: "Reverse a Segment",
+    difficulty: 'Medium',
+    topic: "Two Pointers",
+    statement:
+      "Return a NEW list equal to arr but with the elements between indices i and j (inclusive) reversed in place. Do not mutate the input. For arr=[1,2,3,4,5], i=1, j=3 the result is [1,4,3,2,5].",
+    functionName: 'reverse_segment',
+    functionSignature: "def reverse_segment(arr: list[int], i: int, j: int) -> list[int]:",
+    buggyCode:
+      "def reverse_segment(arr, i, j):\n    arr = list(arr)\n    while i < j:\n        arr[i], arr[j] = arr[j], arr[i]\n        i += 1\n    return arr\n",
+    hint: "You move one pointer inward each step — but there are two pointers.",
+    explanation:
+      "The loop advanced `i` toward `j` but never moved `j` inward, so after the first swap the two pointers just marched past each other and the middle never got reversed correctly. Add `j -= 1` inside the loop so both pointers converge.",
+    examples: [
+      { input: [[1,2,3,4,5],1,3], expected: [1,4,3,2,5] },
+      { input: [[1,2,3],0,2], expected: [3,2,1] },
+      { input: [[5],0,0], expected: [5] },
+    ],
+    hiddenTests: [
+      { input: [[9,8,7,6],0,3], expected: [6,7,8,9] },
+      { input: [[1,2,3,4,5,6],2,4], expected: [1,2,5,4,3,6] },
+    ],
+  },
+  {
+    id: 'py-count-pairs',
+    number: 37,
+    language: 'python',
+    title: "Count Pairs That Sum to Target",
+    difficulty: 'Medium',
+    topic: "Loops",
+    statement:
+      "Return the number of unordered index pairs (i, j) with i < j such that nums[i] + nums[j] equals target. Each pair is counted once and an element is never paired with itself.",
+    functionName: 'count_pairs',
+    functionSignature: "def count_pairs(nums: list[int], target: int) -> int:",
+    buggyCode:
+      "def count_pairs(nums, target):\n    count = 0\n    n = len(nums)\n    for i in range(n):\n        for j in range(i, n):\n            if nums[i] + nums[j] == target:\n                count += 1\n    return count\n",
+    hint: "When i equals j you are pairing an element with itself.",
+    explanation:
+      "The inner loop started at `range(i, n)`, which includes j == i — pairing each element with itself (and counting nums[i]+nums[i]). Start the inner loop at `i + 1` so only distinct pairs with i < j are counted.",
+    examples: [
+      { input: [[1,2,3,4],5], expected: 2 },
+      { input: [[2,2,2],4], expected: 3 },
+      { input: [[3],6], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [[1,1,1],2], expected: 3 },
+      { input: [[0,0,0,0],0], expected: 6 },
+    ],
+  },
+  {
+    id: 'py-window-sums',
+    number: 38,
+    language: 'python',
+    title: "Sliding Window Sums",
+    difficulty: 'Hard',
+    topic: "Sliding Window",
+    statement:
+      "Return the sum of every contiguous window of size k, in order. Maintain a running window total: add the entering element and subtract the leaving one. For nums=[1,2,3,4,5], k=3 the result is [6,9,12].",
+    functionName: 'window_sums',
+    functionSignature: "def window_sums(nums: list[int], k: int) -> list[int]:",
+    buggyCode:
+      "def window_sums(nums, k):\n    result = []\n    window = 0\n    for i in range(len(nums)):\n        window += nums[i]\n        if i >= k - 1:\n            result.append(window)\n            window -= nums[i - k]\n    return result\n",
+    hint: "At index i the window covers i-k+1 .. i. Which element actually leaves next?",
+    explanation:
+      "When the window is full at index i it spans indices i-k+1 through i. The element that should leave to slide forward is at i-k+1, not i-k (which is one position too far back, an off-by-one). Change the subtraction to `window -= nums[i - k + 1]`.",
+    examples: [
+      { input: [[1,2,3,4,5],3], expected: [6,9,12] },
+      { input: [[4,2,1,7],2], expected: [6,3,8] },
+      { input: [[5],1], expected: [5] },
+    ],
+    hiddenTests: [
+      { input: [[1,1,1,1],4], expected: [4] },
+      { input: [[2,4,6,8,10],2], expected: [6,10,14,18] },
+    ],
+  },
+  {
+    id: 'py-factorial-loop',
+    number: 39,
+    language: 'python',
+    title: "Factorial by Loop",
+    difficulty: 'Easy',
+    topic: "Ranges",
+    statement:
+      "Return n! (n factorial), the product of every integer from 1 through n. By definition 0! is 1.",
+    functionName: 'factorial',
+    functionSignature: "def factorial(n: int) -> int:",
+    buggyCode:
+      "def factorial(n):\n    result = 1\n    for i in range(1, n):\n        result *= i\n    return result\n",
+    hint: "range(1, n) stops before n. Does n itself get multiplied in?",
+    explanation:
+      "`range(1, n)` yields 1..n-1, so the final factor n was never multiplied in (an off-by-one on the upper bound). Use `range(1, n + 1)` to include n.",
+    examples: [
+      { input: [5], expected: 120 },
+      { input: [0], expected: 1 },
+      { input: [1], expected: 1 },
+    ],
+    hiddenTests: [
+      { input: [6], expected: 720 },
+      { input: [4], expected: 24 },
+    ],
+  },
+  {
+    id: 'py-chunk-list',
+    number: 40,
+    language: 'python',
+    title: "Chunk a List",
+    difficulty: 'Medium',
+    topic: "Ranges",
+    statement:
+      "Split a list into consecutive chunks of size k and return the list of chunks. The final chunk may be shorter if the list does not divide evenly. For [1,2,3,4,5], k=2 the result is [[1,2],[3,4],[5]].",
+    functionName: 'chunk',
+    functionSignature: "def chunk(lst: list, k: int) -> list:",
+    buggyCode:
+      "def chunk(lst, k):\n    result = []\n    for i in range(0, len(lst)):\n        result.append(lst[i:i + k])\n    return result\n",
+    hint: "The loop advances one index at a time, so the slices overlap. What step should range use?",
+    explanation:
+      "The loop stepped by 1, producing overlapping slices at every start index. Chunking needs the loop to jump k elements each iteration: `range(0, len(lst), k)`.",
+    examples: [
+      { input: [[1,2,3,4,5],2], expected: [[1,2],[3,4],[5]] },
+      { input: [[1,2,3,4],2], expected: [[1,2],[3,4]] },
+      { input: [[1,2,3],1], expected: [[1],[2],[3]] },
+    ],
+    hiddenTests: [
+      { input: [[],3], expected: [] },
+      { input: [[1,2,3,4,5,6,7],3], expected: [[1,2,3],[4,5,6],[7]] },
+    ],
+  },
+  {
+    id: 'py-max-subarray',
+    number: 41,
+    language: 'python',
+    title: "Maximum Subarray Sum",
+    difficulty: 'Hard',
+    topic: "Accumulation",
+    statement:
+      "Return the largest sum obtainable from any contiguous non-empty subarray (Kadane's algorithm). The array has at least one element and may be entirely negative.",
+    functionName: 'max_subarray',
+    functionSignature: "def max_subarray(nums: list[int]) -> int:",
+    buggyCode:
+      "def max_subarray(nums):\n    best = 0\n    current = 0\n    for x in nums:\n        current = max(x, current + x)\n        best = max(best, current)\n    return best\n",
+    hint: "The subarray must be non-empty. What does best return for an all-negative array?",
+    explanation:
+      "Seeding `best = 0` implicitly allows the 'empty' subarray with sum 0, so an all-negative array returns 0 instead of its largest (least negative) element. Seed both accumulators from the first element — `best = current = nums[0]` — and iterate over the rest (`nums[1:]`).",
+    examples: [
+      { input: [[-2,1,-3,4,-1,2,1,-5,4]], expected: 6 },
+      { input: [[-3,-1,-2]], expected: -1 },
+      { input: [[5,4,-1,7,8]], expected: 23 },
+    ],
+    hiddenTests: [
+      { input: [[-1]], expected: -1 },
+      { input: [[-2,-3,-1,-5]], expected: -1 },
+    ],
+  },
+  {
+    id: 'py-capitalize-each-word',
+    number: 42,
+    language: 'python',
+    title: "Capitalize Each Word",
+    difficulty: 'Easy',
+    topic: "Strings",
+    statement:
+      "Return the string with the first letter of every space-separated word capitalized and the rest lowercased, words rejoined with single spaces. Right now nothing gets capitalized and the output looks broken.",
+    functionName: 'capitalize_words',
+    functionSignature: "def capitalize_words(s: str) -> str:",
+    buggyCode:
+      "def capitalize_words(s: str) -> str:\n    words = s.split(\" \")\n    result = []\n    for w in words:\n        result.append(w.capitalize)\n    return \" \".join(result)\n",
+    hint: "Look at what you actually appended to the result list.",
+    explanation:
+      "The bug is w.capitalize (a reference to the method object) instead of w.capitalize() (a call). Appending the method object means join() gets method objects, not strings — and it never capitalizes anything. Add the parentheses to call it.",
+    examples: [
+      { input: ["hello world"], expected: "Hello World" },
+      { input: ["the QUICK brown"], expected: "The Quick Brown" },
+    ],
+    hiddenTests: [
+      { input: ["a"], expected: "A" },
+      { input: [""], expected: "" },
+    ],
+  },
+  {
+    id: 'py-reverse-string-step',
+    number: 43,
+    language: 'python',
+    title: "Reverse a String",
+    difficulty: 'Easy',
+    topic: "Slicing",
+    statement:
+      "Return the input string reversed. The function keeps handing back the string unchanged.",
+    functionName: 'reverse_string',
+    functionSignature: "def reverse_string(s: str) -> str:",
+    buggyCode:
+      "def reverse_string(s: str) -> str:\n    return s[::1]\n",
+    hint: "Check the sign of the slice step.",
+    explanation:
+      "The slice step is +1, which walks the string forward and just copies it. A step of -1 (s[::-1]) walks from the end to the start, producing the reversed string.",
+    examples: [
+      { input: ["abc"], expected: "cba" },
+      { input: ["hello"], expected: "olleh" },
+    ],
+    hiddenTests: [
+      { input: ["racecar"], expected: "racecar" },
+      { input: [""], expected: "" },
+    ],
+  },
+  {
+    id: 'py-count-vowels-membership',
+    number: 44,
+    language: 'python',
+    title: "Count the Vowels",
+    difficulty: 'Medium',
+    topic: "Strings",
+    statement:
+      "Count how many characters in the string are vowels (a, e, i, o, u), case-insensitive. The count is always way too high.",
+    functionName: 'count_vowels',
+    functionSignature: "def count_vowels(s: str) -> int:",
+    buggyCode:
+      "def count_vowels(s: str) -> int:\n    count = 0\n    for ch in s.lower():\n        if ch == \"a\" or \"e\" or \"i\" or \"o\" or \"u\":\n            count += 1\n    return count\n",
+    hint: "Each part of an 'or' chain is evaluated on its own — is a bare string truthy?",
+    explanation:
+      "The condition ch == \"a\" or \"e\" or \"i\" or ... does not compare ch to each vowel. Python evaluates it as (ch == \"a\") or (\"e\") or ..., and non-empty strings like \"e\" are always truthy, so the whole condition is always true and every character is counted. Use a single membership test: if ch in \"aeiou\".",
+    examples: [
+      { input: ["hello"], expected: 2 },
+      { input: ["xyz"], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: ["AEIOU"], expected: 5 },
+      { input: ["Programming"], expected: 3 },
+    ],
+  },
+  {
+    id: 'py-replace-char-immutable',
+    number: 45,
+    language: 'python',
+    title: "Strings Can't Be Item-Assigned",
+    difficulty: 'Medium',
+    topic: "Immutability",
+    statement:
+      "Return a copy of the string with the character at the given index replaced by ch. The current code crashes.",
+    functionName: 'replace_char',
+    functionSignature: "def replace_char(s: str, index: int, ch: str) -> str:",
+    buggyCode:
+      "def replace_char(s: str, index: int, ch: str) -> str:\n    s[index] = ch\n    return s\n",
+    hint: "Strings are immutable — you can't assign to one of their positions.",
+    explanation:
+      "s[index] = ch raises TypeError because strings do not support item assignment. Build a new string instead by slicing around the target index: s[:index] + ch + s[index + 1:].",
+    examples: [
+      { input: ["cat",0,"b"], expected: "bat" },
+      { input: ["hello",4,"p"], expected: "hellp" },
+    ],
+    hiddenTests: [
+      { input: ["a",0,"z"], expected: "z" },
+    ],
+  },
+  {
+    id: 'py-truncate-ellipsis',
+    number: 46,
+    language: 'python',
+    title: "Truncate With Ellipsis",
+    difficulty: 'Medium',
+    topic: "Slicing",
+    statement:
+      "If the string fits within width characters, return it unchanged. Otherwise, shorten it so the result (including a trailing '...') is exactly width characters long. The truncated results are coming out too long.",
+    functionName: 'truncate',
+    functionSignature: "def truncate(s: str, width: int) -> str:",
+    buggyCode:
+      "def truncate(s: str, width: int) -> str:\n    if len(s) <= width:\n        return s\n    return s[:width] + \"...\"\n",
+    hint: "The '...' adds three characters on top of the slice.",
+    explanation:
+      "s[:width] already produces width characters, and appending '...' makes the result width + 3 long. Leave room for the ellipsis by slicing to width - 3: s[:width - 3] + \"...\".",
+    examples: [
+      { input: ["hello world",8], expected: "hello..." },
+      { input: ["hi",5], expected: "hi" },
+    ],
+    hiddenTests: [
+      { input: ["abcdef",6], expected: "abcdef" },
+      { input: ["abcdefg",6], expected: "abc..." },
+    ],
+  },
+  {
+    id: 'py-run-length-encode',
+    number: 47,
+    language: 'python',
+    title: "Run-Length Encode",
+    difficulty: 'Hard',
+    topic: "Strings",
+    statement:
+      "Encode a string by replacing each run of identical characters with the character followed by its count, e.g. 'aaabb' -> 'a3b2'. An empty string returns ''. The last run keeps going missing from the output.",
+    functionName: 'rle_encode',
+    functionSignature: "def rle_encode(s: str) -> str:",
+    buggyCode:
+      "def rle_encode(s: str) -> str:\n    if not s:\n        return \"\"\n    result = \"\"\n    count = 1\n    for i in range(1, len(s)):\n        if s[i] == s[i - 1]:\n            count += 1\n        else:\n            result += s[i - 1] + str(count)\n            count = 1\n    return result\n",
+    hint: "A run is only written out when a different character appears — what about the final run?",
+    explanation:
+      "The loop only flushes a run when it sees a change of character, so the final run (which has no character after it to trigger the else branch) is never appended. After the loop, append the last character and its count: result += s[-1] + str(count).",
+    examples: [
+      { input: ["aaabb"], expected: "a3b2" },
+      { input: ["abc"], expected: "a1b1c1" },
+    ],
+    hiddenTests: [
+      { input: ["a"], expected: "a1" },
+      { input: [""], expected: "" },
+    ],
+  },
+  {
+    id: 'py-interleave-strings',
+    number: 48,
+    language: 'python',
+    title: "Interleave Two Strings",
+    difficulty: 'Medium',
+    topic: "Strings",
+    statement:
+      "Interleave two strings character by character (a[0], b[0], a[1], b[1], ...). When one string is longer, append its remaining characters at the end. The leftover tail keeps getting dropped.",
+    functionName: 'interleave',
+    functionSignature: "def interleave(a: str, b: str) -> str:",
+    buggyCode:
+      "def interleave(a: str, b: str) -> str:\n    result = \"\"\n    n = min(len(a), len(b))\n    for i in range(n):\n        result += a[i] + b[i]\n    return result\n",
+    hint: "The loop stops at the shorter length — where do the extra characters go?",
+    explanation:
+      "The loop only runs up to the shorter string's length, so any tail from the longer string is never added. After the loop, append the leftovers with slicing: result += a[n:] + b[n:] (only one of these is non-empty).",
+    examples: [
+      { input: ["abc","xyz"], expected: "axbycz" },
+      { input: ["ab","wxyz"], expected: "awbxyz" },
+    ],
+    hiddenTests: [
+      { input: ["abcd","xy"], expected: "axbycd" },
+      { input: ["","hi"], expected: "hi" },
+    ],
+  },
+  {
+    id: 'py-mutable-default-parity',
+    number: 49,
+    language: 'python',
+    title: "Parity Groups Leak Between Calls",
+    difficulty: 'Medium',
+    topic: "Mutable Default Arguments",
+    statement:
+      "Split a list of integers into their even and odd members, returning {'even': [...], 'odd': [...]} in original order. Calling it a second time is wrong: results from earlier calls keep showing up.",
+    functionName: 'group_by_parity',
+    functionSignature: "def group_by_parity(nums: list[int], groups: dict = None) -> dict:",
+    buggyCode:
+      "def group_by_parity(nums, groups={'even': [], 'odd': []}):\n    for n in nums:\n        if n % 2 == 0:\n            groups['even'].append(n)\n        else:\n            groups['odd'].append(n)\n    return groups\n",
+    hint: "A default argument is created once, when the function is defined — not on each call.",
+    explanation:
+      "The default dict (and its inner lists) is a single object shared across every call, so appended values accumulate between invocations. Use groups=None and build a fresh {'even': [], 'odd': []} inside the function when none is passed.",
+    examples: [
+      { input: [[1,2,3,4]], expected: {"even":[2,4],"odd":[1,3]} },
+      { input: [[5,6]], expected: {"even":[6],"odd":[5]} },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: {"even":[],"odd":[]} },
+      { input: [[2,4,6]], expected: {"even":[2,4,6],"odd":[]} },
+    ],
+  },
+  {
+    id: 'py-word-count-keyerror',
+    number: 50,
+    language: 'python',
+    title: "Counting Without a Default",
+    difficulty: 'Easy',
+    topic: "Dictionaries",
+    statement:
+      "Given a list of words, return a dict mapping each word to how many times it appears. It crashes the moment it sees a new word.",
+    functionName: 'word_count',
+    functionSignature: "def word_count(words: list[str]) -> dict:",
+    buggyCode:
+      "def word_count(words):\n    counts = {}\n    for w in words:\n        counts[w] = counts[w] + 1\n    return counts\n",
+    hint: "The first time you see a word, it isn't in the dict yet.",
+    explanation:
+      "counts[w] raises KeyError for any word not already present. Read the current tally with counts.get(w, 0) so a missing word starts at 0 before you add one.",
+    examples: [
+      { input: [["a","b","a"]], expected: {"a":2,"b":1} },
+      { input: [["x"]], expected: {"x":1} },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: {} },
+      { input: [["z","z","z"]], expected: {"z":3} },
+    ],
+  },
+  {
+    id: 'py-common-items-dedupe',
+    number: 51,
+    language: 'python',
+    title: "Intersection Keeps Duplicates",
+    difficulty: 'Medium',
+    topic: "Sets",
+    statement:
+      "Return the values that appear in both lists, each listed once, in the order they first appear in the first list. Repeated matches are being emitted more than once.",
+    functionName: 'common_items',
+    functionSignature: "def common_items(a: list[int], b: list[int]) -> list[int]:",
+    buggyCode:
+      "def common_items(a, b):\n    result = []\n    for x in a:\n        if x in b:\n            result.append(x)\n    return result\n",
+    hint: "What happens when the same value appears twice in the first list?",
+    explanation:
+      "Iterating over `a` appends a value every time it recurs, so duplicates in `a` produce duplicate output. Track values already added in a set (and check membership against set(b) for speed) so each common value is appended only once.",
+    examples: [
+      { input: [[1,2,2,3],[2,3,4]], expected: [2,3] },
+      { input: [[1,1,1],[1]], expected: [1] },
+    ],
+    hiddenTests: [
+      { input: [[1,2],[3,4]], expected: [] },
+      { input: [[5,6,5,7],[5,7]], expected: [5,7] },
+    ],
+  },
+  {
+    id: 'py-squares-of-evens',
+    number: 52,
+    language: 'python',
+    title: "Comprehension Filters the Wrong Half",
+    difficulty: 'Easy',
+    topic: "Comprehensions",
+    statement:
+      "Return the squares of only the even numbers in the input list, preserving order. It is squaring the odd numbers instead.",
+    functionName: 'squares_of_evens',
+    functionSignature: "def squares_of_evens(nums: list[int]) -> list[int]:",
+    buggyCode:
+      "def squares_of_evens(nums):\n    return [n * n for n in nums if n % 2]\n",
+    hint: "What is the truthiness of n % 2 for an even number?",
+    explanation:
+      "`if n % 2` keeps values where n % 2 is truthy (non-zero) — i.e. odd numbers. Even numbers give n % 2 == 0, which is falsy. Change the filter to `if n % 2 == 0`.",
+    examples: [
+      { input: [[1,2,3,4]], expected: [4,16] },
+      { input: [[2,4]], expected: [4,16] },
+    ],
+    hiddenTests: [
+      { input: [[1,3,5]], expected: [] },
+      { input: [[0,6]], expected: [0,36] },
+    ],
+  },
+  {
+    id: 'py-transpose-aliased-rows',
+    number: 53,
+    language: 'python',
+    title: "Transpose With Aliased Rows",
+    difficulty: 'Hard',
+    topic: "Aliasing",
+    statement:
+      "Transpose a rectangular matrix: element [i][j] of the input should become [j][i] of the output. Every output row ends up identical to the last.",
+    functionName: 'transpose',
+    functionSignature: "def transpose(matrix: list[list[int]]) -> list[list[int]]:",
+    buggyCode:
+      "def transpose(matrix):\n    rows = len(matrix)\n    cols = len(matrix[0])\n    result = [[0] * rows] * cols\n    for i in range(rows):\n        for j in range(cols):\n            result[j][i] = matrix[i][j]\n    return result\n",
+    hint: "[[0] * rows] * cols makes 'cols' references to the SAME inner list.",
+    explanation:
+      "`[[0] * rows] * cols` replicates one inner list object `cols` times, so writing to result[j] writes to every row at once. Build independent rows with a comprehension: `[[0] * rows for _ in range(cols)]`.",
+    examples: [
+      { input: [[[1,2,3],[4,5,6]]], expected: [[1,4],[2,5],[3,6]] },
+      { input: [[[1,2],[3,4]]], expected: [[1,3],[2,4]] },
+    ],
+    hiddenTests: [
+      { input: [[[7]]], expected: [[7]] },
+      { input: [[[1,2],[3,4],[5,6]]], expected: [[1,3,5],[2,4,6]] },
+    ],
+  },
+  {
+    id: 'py-group-by-first-letter',
+    number: 54,
+    language: 'python',
+    title: "Grouping Overwrites Instead of Collecting",
+    difficulty: 'Medium',
+    topic: "Dictionaries",
+    statement:
+      "Group words by their first letter, returning a dict mapping each first letter to the list of words that start with it (in input order). Only the last word for each letter survives.",
+    functionName: 'group_by_first_letter',
+    functionSignature: "def group_by_first_letter(words: list[str]) -> dict:",
+    buggyCode:
+      "def group_by_first_letter(words):\n    groups = {}\n    for w in words:\n        key = w[0]\n        groups[key] = w\n    return groups\n",
+    hint: "Each key should hold a list you append to, not a single value you overwrite.",
+    explanation:
+      "`groups[key] = w` replaces whatever was stored under that letter, keeping only the last word. Use `groups.setdefault(key, []).append(w)` to accumulate all words per letter.",
+    examples: [
+      { input: [["apple","ant","bee"]], expected: {"a":["apple","ant"],"b":["bee"]} },
+      { input: [["cat"]], expected: {"c":["cat"]} },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: {} },
+      { input: [["dog","deer","eel"]], expected: {"d":["dog","deer"],"e":["eel"]} },
+    ],
+  },
+  {
+    id: 'py-running-max-zero-seed',
+    number: 55,
+    language: 'python',
+    title: "Running Maximum Seeded at Zero",
+    difficulty: 'Medium',
+    topic: "Lists",
+    statement:
+      "Return a list where each position holds the maximum of the input list up to and including that index. With all-negative inputs the answers come out as 0.",
+    functionName: 'running_max',
+    functionSignature: "def running_max(nums: list[int]) -> list[int]:",
+    buggyCode:
+      "def running_max(nums):\n    result = []\n    best = 0\n    for n in nums:\n        if n > best:\n            best = n\n        result.append(best)\n    return result\n",
+    hint: "0 is not a safe starting maximum when values can be negative.",
+    explanation:
+      "Seeding `best = 0` assumes every value is at least 0, so negative inputs never exceed it and the max stays 0. Start with `best = None` and set it on the first element (`if best is None or n > best`).",
+    examples: [
+      { input: [[-3,-1,-5]], expected: [-3,-1,-1] },
+      { input: [[1,3,2,5]], expected: [1,3,3,5] },
+    ],
+    hiddenTests: [
+      { input: [[-1,-2]], expected: [-1,-1] },
+      { input: [[4]], expected: [4] },
+    ],
+  },
+  {
+    id: 'py-flatten-depth',
+    number: 56,
+    language: 'python',
+    title: "Recursion Without Collecting",
+    difficulty: 'Medium',
+    topic: "Recursion",
+    statement:
+      "Flatten an arbitrarily nested list of integers into a single flat list, preserving order.",
+    functionName: 'flatten',
+    functionSignature: "def flatten(nested: list) -> list:",
+    buggyCode:
+      "def flatten(nested: list) -> list:\n    result = []\n    for item in nested:\n        if isinstance(item, list):\n            flatten(item)\n        else:\n            result.append(item)\n    return result\n",
+    hint: "The recursive call returns a flattened sublist. Are you doing anything with what it returns?",
+    explanation:
+      "The recursive call `flatten(item)` computes the flattened sublist but its return value is thrown away, so nested elements never make it into `result`. Fix it by collecting the result: `result.extend(flatten(item))`.",
+    examples: [
+      { input: [[1,[2,3],4]], expected: [1,2,3,4] },
+      { input: [[[1],[2,[3,4]]]], expected: [1,2,3,4] },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: [] },
+      { input: [[1,2,3]], expected: [1,2,3] },
+      { input: [[[[[5]]]]], expected: [5] },
+    ],
+  },
+  {
+    id: 'py-sort-by-length-then-alpha',
+    number: 57,
+    language: 'python',
+    title: "Length First, Then Alphabetical",
+    difficulty: 'Easy',
+    topic: "Sort Keys",
+    statement:
+      "Sort words by ascending length, and break ties alphabetically (ascending). Return a new list.",
+    functionName: 'sort_words',
+    functionSignature: "def sort_words(words: list) -> list:",
+    buggyCode:
+      "def sort_words(words: list) -> list:\n    return sorted(words, key=lambda w: len(w))\n",
+    hint: "Words of equal length aren't ordered. What secondary key would break the tie?",
+    explanation:
+      "Sorting only by `len(w)` leaves words of the same length in their original (input) order rather than alphabetical order. A tuple key sorts by length first, then by the word itself: `key=lambda w: (len(w), w)`.",
+    examples: [
+      { input: [["banana","apple","kiwi","fig"]], expected: ["fig","kiwi","apple","banana"] },
+      { input: [["bb","aa","c"]], expected: ["c","aa","bb"] },
+    ],
+    hiddenTests: [
+      { input: [["dog","cat","ant"]], expected: ["ant","cat","dog"] },
+      { input: [[]], expected: [] },
+      { input: [["ba","ab","z"]], expected: ["z","ab","ba"] },
+    ],
+  },
+  {
+    id: 'py-first-truthy',
+    number: 58,
+    language: 'python',
+    title: "First Value That Was Set",
+    difficulty: 'Medium',
+    topic: "Truthiness / None",
+    statement:
+      "Return the first value in the list that is not None (i.e. the first value that was actually provided). If every value is None, return `default`. Note that 0, False and \"\" are all valid provided values.",
+    functionName: 'first_truthy',
+    functionSignature: "def first_truthy(values: list, default=None):",
+    buggyCode:
+      "def first_truthy(values: list, default=None):\n    for v in values:\n        if v:\n            return v\n    return default\n",
+    hint: "0, False and \"\" are falsy but they are still values. What distinguishes 'not provided'?",
+    explanation:
+      "`if v:` skips any falsy value (0, False, \"\", empty containers), but those are legitimate provided values — only None means 'not provided'. Test explicitly with `if v is not None:` so the first real value is returned.",
+    examples: [
+      { input: [[null,0,5]], expected: 0 },
+      { input: [[null,null,"hi"]], expected: "hi" },
+    ],
+    hiddenTests: [
+      { input: [[null,false,3]], expected: false },
+      { input: [[null,null],"x"], expected: "x" },
+      { input: [[""]], expected: "" },
+    ],
+  },
+  {
+    id: 'py-count-leaves',
+    number: 59,
+    language: 'python',
+    title: "Adding Up Recursive Counts",
+    difficulty: 'Medium',
+    topic: "Recursion",
+    statement:
+      "Count the leaf nodes of a tree. Each node is a dict; a node with no `children` (missing or empty) is a leaf and counts as 1. Sum the leaf counts of all children otherwise.",
+    functionName: 'count_leaves',
+    functionSignature: "def count_leaves(tree: dict) -> int:",
+    buggyCode:
+      "def count_leaves(tree: dict) -> int:\n    if not tree.get(\"children\"):\n        return 1\n    total = 0\n    for child in tree[\"children\"]:\n        total = count_leaves(child)\n    return total\n",
+    hint: "Look at how `total` is updated inside the loop — is it accumulating or overwriting?",
+    explanation:
+      "`total = count_leaves(child)` overwrites `total` each iteration, so only the last child's count survives. Accumulate instead with `total += count_leaves(child)`.",
+    examples: [
+      { input: [{"children":[{"children":[]},{"children":[]}]}], expected: 2 },
+      { input: [{"children":[]}], expected: 1 },
+    ],
+    hiddenTests: [
+      { input: [{"children":[{"children":[{"children":[]},{"children":[]}]},{"children":[]}]}], expected: 3 },
+      { input: [{}], expected: 1 },
+      { input: [{"children":[{"children":[]},{"children":[]},{"children":[]}]}], expected: 3 },
+    ],
+  },
+  {
+    id: 'py-max-by-abs',
+    number: 60,
+    language: 'python',
+    title: "Largest by Magnitude",
+    difficulty: 'Easy',
+    topic: "Comparison",
+    statement:
+      "Return the element with the largest absolute value (keeping its original sign). On ties keep the first such element. Return None for an empty list.",
+    functionName: 'max_by_abs',
+    functionSignature: "def max_by_abs(nums: list) -> int:",
+    buggyCode:
+      "def max_by_abs(nums: list) -> int:\n    if not nums:\n        return None\n    best = nums[0]\n    for n in nums:\n        if abs(n) > abs(best):\n            best = abs(n)\n    return best\n",
+    hint: "You compare by magnitude — but what do you store as the new best?",
+    explanation:
+      "When a larger magnitude is found the code stores `abs(n)` instead of `n`, stripping the sign. Store the original value: `best = n`. The comparison already uses `abs` on both sides.",
+    examples: [
+      { input: [[1,-5,3]], expected: -5 },
+      { input: [[2,-2,1]], expected: 2 },
+    ],
+    hiddenTests: [
+      { input: [[-10,4,7]], expected: -10 },
+      { input: [[]], expected: null },
+      { input: [[-3,-8,-1]], expected: -8 },
+    ],
+  },
+  {
+    id: 'py-count-provided',
+    number: 61,
+    language: 'python',
+    title: "Count the Non-None Values",
+    difficulty: 'Easy',
+    topic: "Truthiness / None",
+    statement:
+      "Count how many values in the list are not None. Values like 0, False and \"\" ARE counted — only None is excluded.",
+    functionName: 'count_provided',
+    functionSignature: "def count_provided(values: list) -> int:",
+    buggyCode:
+      "def count_provided(values: list) -> int:\n    count = 0\n    for v in values:\n        if v:\n            count += 1\n    return count\n",
+    hint: "`if v:` treats 0, False and \"\" the same as None. Only None should be skipped.",
+    explanation:
+      "`if v:` is a truthiness test, so falsy-but-present values (0, False, \"\", empty strings) are wrongly skipped. Count anything that isn't None with `if v is not None:`.",
+    examples: [
+      { input: [[1,0,null,3]], expected: 3 },
+      { input: [["a","",null]], expected: 2 },
+    ],
+    hiddenTests: [
+      { input: [[0,0,0]], expected: 3 },
+      { input: [[null,null]], expected: 0 },
+      { input: [[false,true,null]], expected: 2 },
+    ],
+  },
+  {
+    id: 'py-power-recursive',
+    number: 62,
+    language: 'python',
+    title: "Power's Missing Base Case",
+    difficulty: 'Hard',
+    topic: "Recursion",
+    statement:
+      "Compute base raised to a non-negative integer exponent recursively. By definition base**0 == 1.",
+    functionName: 'power',
+    functionSignature: "def power(base: int, exp: int) -> int:",
+    buggyCode:
+      "def power(base: int, exp: int) -> int:\n    if exp == 1:\n        return base\n    return base * power(base, exp - 1)\n",
+    hint: "What should power(base, 0) return? Trace the recursion down from exp=1.",
+    explanation:
+      "The base case triggers at exp == 1, so exp == 0 is never handled correctly — power(base, 0) recurses into negative exponents (infinite recursion / RecursionError) instead of returning 1. Anchor the recursion at zero: `if exp == 0: return 1`.",
+    examples: [
+      { input: [2,3], expected: 8 },
+      { input: [5,0], expected: 1 },
+    ],
+    hiddenTests: [
+      { input: [3,2], expected: 9 },
+      { input: [7,1], expected: 7 },
+      { input: [2,10], expected: 1024 },
+      { input: [10,0], expected: 1 },
+    ],
+  },
+  {
+    id: 'py-percent-change-zero-base',
+    number: 63,
+    language: 'python',
+    title: "Percent Change From Zero",
+    difficulty: 'Easy',
+    topic: "Numbers",
+    statement:
+      "Return the percent change from old to new, computed as (new - old) / old * 100. When the old value is 0, treat the percent change as 0.0 instead of dividing by zero.",
+    functionName: 'percent_change',
+    functionSignature: "def percent_change(old: float, new: float) -> float:",
+    buggyCode:
+      "def percent_change(old: float, new: float) -> float:\n    return (new - old) / old * 100\n",
+    hint: "What happens to the formula when old is 0?",
+    explanation:
+      "Dividing by old raises ZeroDivisionError (or produces a wrong result) whenever old is 0. The fix guards the zero case up front and returns 0.0 before doing the division.",
+    examples: [
+      { input: [100,150], expected: 50 },
+      { input: [200,100], expected: -50 },
+      { input: [0,5], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [50,50], expected: 0 },
+      { input: [0,0], expected: 0 },
+    ],
+  },
+  {
+    id: 'py-average-evens-int-div',
+    number: 64,
+    language: 'python',
+    title: "Average of the Evens",
+    difficulty: 'Easy',
+    topic: "Numbers",
+    statement:
+      "Return the average (a float) of the even numbers in the list. If there are no even numbers, return 0.0.",
+    functionName: 'average_evens',
+    functionSignature: "def average_evens(nums: list) -> float:",
+    buggyCode:
+      "def average_evens(nums: list) -> float:\n    evens = [n for n in nums if n % 2 == 0]\n    if not evens:\n        return 0.0\n    return sum(evens) // len(evens)\n",
+    hint: "Which division operator throws away the fractional part?",
+    explanation:
+      "The // operator does floor (integer) division, so a true average like 4.666... comes back as 4. Using / performs true division and returns the correct float.",
+    examples: [
+      { input: [[2,6,5]], expected: 4 },
+      { input: [[2,4,6]], expected: 4 },
+      { input: [[1,3,5]], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [[2,3]], expected: 2 },
+      { input: [[1,2,4,8]], expected: 4.666666666666667 },
+    ],
+  },
+  {
+    id: 'py-clamp-upper-bound',
+    number: 65,
+    language: 'python',
+    title: "Clamp to a Range",
+    difficulty: 'Easy',
+    topic: "Conditionals",
+    statement:
+      "Clamp x into the inclusive range [low, high]: return low if x is below low, high if x is above high, otherwise x itself.",
+    functionName: 'clamp',
+    functionSignature: "def clamp(x: int, low: int, high: int) -> int:",
+    buggyCode:
+      "def clamp(x: int, low: int, high: int) -> int:\n    if x < low:\n        return low\n    if x > high:\n        return low\n    return x\n",
+    hint: "Look closely at what the too-high branch returns.",
+    explanation:
+      "When x exceeds high the function mistakenly returns low instead of high, so large values got snapped to the bottom of the range. The over-the-top branch should return high.",
+    examples: [
+      { input: [5,0,10], expected: 5 },
+      { input: [-3,0,10], expected: 0 },
+      { input: [15,0,10], expected: 10 },
+    ],
+    hiddenTests: [
+      { input: [10,0,10], expected: 10 },
+      { input: [0,0,10], expected: 0 },
+    ],
+  },
+  {
+    id: 'py-safe-divide-wrong-except',
+    number: 66,
+    language: 'python',
+    title: "Catch the Right Error",
+    difficulty: 'Medium',
+    topic: "Exceptions",
+    statement:
+      "Return a / b as a float. If b is 0, catch the error and return None instead of crashing.",
+    functionName: 'safe_divide',
+    functionSignature: "def safe_divide(a: float, b: float):",
+    buggyCode:
+      "def safe_divide(a: float, b: float):\n    try:\n        return a / b\n    except ValueError:\n        return None\n",
+    hint: "What exception type does dividing by zero actually raise?",
+    explanation:
+      "Dividing by zero raises ZeroDivisionError, not ValueError, so the except clause never matched and the error propagated. Catching ZeroDivisionError makes the guard work.",
+    examples: [
+      { input: [10,2], expected: 5 },
+      { input: [7,0], expected: null },
+      { input: [0,5], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [9,3], expected: 3 },
+    ],
+  },
+  {
+    id: 'py-factorial-range-off-by-one',
+    number: 67,
+    language: 'python',
+    title: "Factorial Off By One",
+    difficulty: 'Medium',
+    topic: "Loops",
+    statement:
+      "Return n! (the product of all integers from 1 to n). By convention 0! is 1.",
+    functionName: 'factorial',
+    functionSignature: "def factorial(n: int) -> int:",
+    buggyCode:
+      "def factorial(n: int) -> int:\n    result = 1\n    for i in range(1, n):\n        result *= i\n    return result\n",
+    hint: "Does range(1, n) ever include n itself?",
+    explanation:
+      "range(1, n) stops at n-1, so the final factor n is never multiplied in and the answer is n! / n. Using range(1, n + 1) includes n and produces the correct product.",
+    examples: [
+      { input: [5], expected: 120 },
+      { input: [0], expected: 1 },
+      { input: [1], expected: 1 },
+    ],
+    hiddenTests: [
+      { input: [4], expected: 24 },
+      { input: [6], expected: 720 },
+    ],
+  },
+  {
+    id: 'py-leap-year-full-rule',
+    number: 68,
+    language: 'python',
+    title: "Leap Year Rules",
+    difficulty: 'Hard',
+    topic: "Conditionals",
+    statement:
+      "Return True if year is a leap year. A year is a leap year if it is divisible by 4, except centuries (divisible by 100), which are leap years only when also divisible by 400.",
+    functionName: 'is_leap_year',
+    functionSignature: "def is_leap_year(year: int) -> bool:",
+    buggyCode:
+      "def is_leap_year(year: int) -> bool:\n    return year % 4 == 0\n",
+    hint: "1900 is divisible by 4 but is not a leap year — why?",
+    explanation:
+      "Testing only divisibility by 4 wrongly treats non-400 centuries like 1900 and 2100 as leap years. The full rule also requires that if the year is divisible by 100 it must be divisible by 400.",
+    examples: [
+      { input: [2024], expected: true },
+      { input: [1900], expected: false },
+      { input: [2000], expected: true },
+    ],
+    hiddenTests: [
+      { input: [2023], expected: false },
+      { input: [2100], expected: false },
+    ],
+  },
 ];
 
 // =============================================================================
@@ -1832,6 +2701,882 @@ const javascriptProblems: BugFixProblem[] = [
       { input: [0], expected: {"value": 0} },
     ],
   },
+  {
+    id: 'js-loose-zero-check',
+    number: 35,
+    language: 'javascript',
+    title: "Loose Zero Check",
+    difficulty: 'Easy',
+    topic: "Equality / Coercion",
+    statement:
+      "Return true only when x is the number 0 exactly. Values like '', false, '0', [] and null must return false.",
+    functionName: 'isExactlyZero',
+    functionSignature: "function isExactlyZero(x): boolean",
+    buggyCode:
+      "function isExactlyZero(x) {\n  return x == 0;\n}\n",
+    hint: "== coerces its operands before comparing.",
+    explanation:
+      "The loose == operator coerces the other side to a number, so '', false, '0' and [] all equal 0 under ==. Use strict === so only the actual number 0 matches.",
+    examples: [
+      { input: [0], expected: true },
+      { input: [""], expected: false },
+      { input: [false], expected: false },
+    ],
+    hiddenTests: [
+      { input: ["0"], expected: false },
+      { input: [[]], expected: false },
+      { input: [null], expected: false },
+      { input: [1], expected: false },
+    ],
+  },
+  {
+    id: 'js-typeof-null-object',
+    number: 36,
+    language: 'javascript',
+    title: "typeof null Trap",
+    difficulty: 'Easy',
+    topic: "typeof",
+    statement:
+      "Return a type label for x: 'null' for null, 'object' for objects/arrays, and 'number' / 'string' / 'boolean' for those primitives.",
+    functionName: 'typeName',
+    functionSignature: "function typeName(x): string",
+    buggyCode:
+      "function typeName(x) {\n  if (x === null) return \"object\";\n  if (typeof x === \"object\") return \"object\";\n  if (typeof x === \"number\") return \"number\";\n  if (typeof x === \"string\") return \"string\";\n  if (typeof x === \"boolean\") return \"boolean\";\n  return \"other\";\n}\n",
+    hint: "What should the null branch actually return?",
+    explanation:
+      "typeof null is the historical quirk 'object', which is why the code even checks for null first — but the branch mistakenly returns 'object' instead of 'null'. The null case must return the string 'null'.",
+    examples: [
+      { input: [null], expected: "null" },
+      { input: [{}], expected: "object" },
+      { input: [5], expected: "number" },
+    ],
+    hiddenTests: [
+      { input: ["hi"], expected: "string" },
+      { input: [true], expected: "boolean" },
+      { input: [[1,2]], expected: "object" },
+    ],
+  },
+  {
+    id: 'js-has-key-nullish',
+    number: 37,
+    language: 'javascript',
+    title: "Does the Key Exist?",
+    difficulty: 'Medium',
+    topic: "Equality / Truthiness",
+    statement:
+      "Return true if obj has its own property named key, regardless of the stored value. A key holding 0, '' or null still counts as present; a missing key returns false.",
+    functionName: 'hasKey',
+    functionSignature: "function hasKey(obj, key): boolean",
+    buggyCode:
+      "function hasKey(obj, key) {\n  return obj[key] != null;\n}\n",
+    hint: "You are testing the value, not whether the property exists.",
+    explanation:
+      "obj[key] != null returns false whenever the stored value is null (or undefined), even though the key genuinely exists. Presence must be tested with Object.prototype.hasOwnProperty.call(obj, key), which ignores the value entirely.",
+    examples: [
+      { input: [{"a":0},"a"], expected: true },
+      { input: [{"a":null},"a"], expected: true },
+      { input: [{"a":1},"b"], expected: false },
+    ],
+    hiddenTests: [
+      { input: [{"a":""},"a"], expected: true },
+      { input: [{},"x"], expected: false },
+    ],
+  },
+  {
+    id: 'js-count-truthy',
+    number: 38,
+    language: 'javascript',
+    title: "Count the Truthy Values",
+    difficulty: 'Easy',
+    topic: "Truthiness",
+    statement:
+      "Count how many elements of arr are truthy (anything that is not 0, '', null, false, or NaN).",
+    functionName: 'countTruthy',
+    functionSignature: "function countTruthy(arr): number",
+    buggyCode:
+      "function countTruthy(arr) {\n  let count = 0;\n  for (const v of arr) {\n    if (v === true) count++;\n  }\n  return count;\n}\n",
+    hint: "Truthy is broader than being the literal boolean true.",
+    explanation:
+      "v === true only matches the exact boolean true, so truthy values like 1, 'a', [] and {} are never counted. Test the value's truthiness directly with if (v).",
+    examples: [
+      { input: [[1,0,"a","",true,null]], expected: 3 },
+      { input: [[0,"",null,false]], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [["x",5,[],{}]], expected: 4 },
+      { input: [[]], expected: 0 },
+    ],
+  },
+  {
+    id: 'js-parses-to-number',
+    number: 39,
+    language: 'javascript',
+    title: "Does It Parse to a Number?",
+    difficulty: 'Medium',
+    topic: "NaN checks",
+    statement:
+      "Return true if the string s converts to a valid number via Number(s), false if it produces NaN. Note that Number('') is 0, so an empty string counts as valid.",
+    functionName: 'parsesToNumber',
+    functionSignature: "function parsesToNumber(s): boolean",
+    buggyCode:
+      "function parsesToNumber(s) {\n  const n = Number(s);\n  return n != NaN;\n}\n",
+    hint: "NaN is never equal (or unequal in a useful way) to anything via ==/!=.",
+    explanation:
+      "NaN is not equal to itself, so n != NaN is always true even when n is NaN — the check never rejects anything. Detect a failed parse with !Number.isNaN(n).",
+    examples: [
+      { input: ["42"], expected: true },
+      { input: ["abc"], expected: false },
+      { input: ["3.14"], expected: true },
+    ],
+    hiddenTests: [
+      { input: ["12px"], expected: false },
+      { input: [""], expected: true },
+    ],
+  },
+  {
+    id: 'js-safe-divide-finite',
+    number: 40,
+    language: 'javascript',
+    title: "Safe Divide",
+    difficulty: 'Medium',
+    topic: "NaN checks",
+    statement:
+      "Return a / b, but return null when the result is not a finite number (i.e. division by zero produces Infinity, -Infinity, or NaN).",
+    functionName: 'safeDivide',
+    functionSignature: "function safeDivide(a, b): number | null",
+    buggyCode:
+      "function safeDivide(a, b) {\n  const result = a / b;\n  if (result === NaN) return null;\n  if (result === Infinity || result === -Infinity) return null;\n  return result;\n}\n",
+    hint: "result === NaN can never be true, and there is a single check that covers all three bad cases.",
+    explanation:
+      "result === NaN is always false (NaN is never === to anything), so 0/0 slips through and returns NaN instead of null. Replacing the whole guard with !Number.isFinite(result) correctly rejects NaN, Infinity and -Infinity at once.",
+    examples: [
+      { input: [6,2], expected: 3 },
+      { input: [6,0], expected: null },
+      { input: [0,0], expected: null },
+    ],
+    hiddenTests: [
+      { input: [-6,0], expected: null },
+      { input: [7,2], expected: 3.5 },
+    ],
+  },
+  {
+    id: 'js-normalize-flags',
+    number: 41,
+    language: 'javascript',
+    title: "Normalize to Booleans",
+    difficulty: 'Hard',
+    topic: "Equality / Coercion",
+    statement:
+      "Map every element of arr to its truthiness as a real boolean: truthy values become true, falsy values (0, '', null, false) become false. Note that empty arrays and empty objects are truthy.",
+    functionName: 'normalizeFlags',
+    functionSignature: "function normalizeFlags(arr): boolean[]",
+    buggyCode:
+      "function normalizeFlags(arr) {\n  return arr.map(function (v) {\n    return v == true;\n  });\n}\n",
+    hint: "v == true is not the same as 'v is truthy'.",
+    explanation:
+      "v == true coerces true to the number 1 and then coerces v to a number, so 'x' becomes NaN (not equal to 1) and [] becomes 0 — both wrongly yield false, and 2 == true is also false. Truthiness must be taken with Boolean(v) (or !!v) instead.",
+    examples: [
+      { input: [[1,0,2,"","x"]], expected: [true,false,true,false,true] },
+      { input: [[true,false,null]], expected: [true,false,false] },
+    ],
+    hiddenTests: [
+      { input: [[[],{},0]], expected: [true,true,false] },
+    ],
+  },
+  {
+    id: 'js-second-largest-unique',
+    number: 42,
+    language: 'javascript',
+    title: "Second Largest Ignores Duplicates",
+    difficulty: 'Medium',
+    topic: "Arrays",
+    statement:
+      "Return the second largest DISTINCT value in the array. For example, in [5, 5, 4] the largest is 5 and the second largest distinct value is 4. The current code just sorts and grabs the second-to-last element, so duplicates of the maximum fool it.",
+    functionName: 'secondLargest',
+    functionSignature: "function secondLargest(arr: number[]): number",
+    buggyCode:
+      "function secondLargest(arr) {\n  const sorted = arr.sort((a, b) => a - b);\n  return sorted[sorted.length - 2];\n}\n",
+    hint: "Sorting keeps duplicates, so the two largest slots can hold the same number.",
+    explanation:
+      "The bug: after sorting ascending, `sorted[length - 2]` is simply the second-to-last element, which equals the max whenever the max is duplicated (e.g. [4,5,5] -> 5). The fix is to remove duplicates first: `const uniq = [...new Set(arr)].sort((a, b) => a - b); return uniq[uniq.length - 2];`",
+    examples: [
+      { input: [[3,1,2]], expected: 2 },
+      { input: [[5,5,4]], expected: 4 },
+      { input: [[10,20,20,30]], expected: 20 },
+    ],
+    hiddenTests: [
+      { input: [[1,1,1,2]], expected: 1 },
+      { input: [[7,8]], expected: 7 },
+    ],
+  },
+  {
+    id: 'js-chunk-slice-end',
+    number: 43,
+    language: 'javascript',
+    title: "Chunk Passes the Wrong slice End",
+    difficulty: 'Medium',
+    topic: "Arrays",
+    statement:
+      "Split an array into consecutive chunks of the given `size`. The final chunk may be shorter. For example chunk([1,2,3,4,5], 2) -> [[1,2],[3,4],[5]]. The current code produces empty chunks after the first one.",
+    functionName: 'chunk',
+    functionSignature: "function chunk(arr: any[], size: number): any[][]",
+    buggyCode:
+      "function chunk(arr, size) {\n  const out = [];\n  for (let i = 0; i < arr.length; i += size) {\n    out.push(arr.slice(i, size));\n  }\n  return out;\n}\n",
+    hint: "slice's second argument is an absolute end index, not a length.",
+    explanation:
+      "The bug: `arr.slice(i, size)` uses `size` as the END index every iteration, so once `i >= size` the slice is empty. `slice(start, end)` takes an absolute end index. The fix is `arr.slice(i, i + size)` so each chunk spans from `i` to `i + size`.",
+    examples: [
+      { input: [[1,2,3,4,5],2], expected: [[1,2],[3,4],[5]] },
+      { input: [[1,2,3,4],2], expected: [[1,2],[3,4]] },
+      { input: [[1,2,3],1], expected: [[1],[2],[3]] },
+    ],
+    hiddenTests: [
+      { input: [[1,2,3,4,5,6],3], expected: [[1,2,3],[4,5,6]] },
+      { input: [[],2], expected: [] },
+    ],
+  },
+  {
+    id: 'js-reduce-count-even',
+    number: 44,
+    language: 'javascript',
+    title: "Reduce Callback Forgets the Accumulator",
+    difficulty: 'Easy',
+    topic: "Arrays",
+    statement:
+      "Count how many numbers in the array are even, using reduce. The current code returns a boolean instead of a count because the reduce callback ignores the running accumulator.",
+    functionName: 'countEven',
+    functionSignature: "function countEven(arr: number[]): number",
+    buggyCode:
+      "function countEven(arr) {\n  return arr.reduce((count, n) => n % 2 === 0, 0);\n}\n",
+    hint: "A reduce callback must build on and return the accumulator, not throw it away.",
+    explanation:
+      "The bug: the callback returns `n % 2 === 0` (a boolean for the current element) and never uses `count`, so the final result is just whether the LAST element was even. The fix accumulates: `arr.reduce((count, n) => count + (n % 2 === 0 ? 1 : 0), 0)`.",
+    examples: [
+      { input: [[1,2,3,4]], expected: 2 },
+      { input: [[2,4,6]], expected: 3 },
+      { input: [[1,3,5]], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: 0 },
+      { input: [[0,1,2]], expected: 2 },
+    ],
+  },
+  {
+    id: 'js-last-element-slice',
+    number: 45,
+    language: 'javascript',
+    title: "slice(-1) Returns an Array",
+    difficulty: 'Easy',
+    topic: "Arrays",
+    statement:
+      "Return the last element of a non-empty array (the value itself, not wrapped in an array). The current code returns a one-element array instead of the element.",
+    functionName: 'lastElement',
+    functionSignature: "function lastElement(arr: any[]): any",
+    buggyCode:
+      "function lastElement(arr) {\n  return arr.slice(-1);\n}\n",
+    hint: "slice always returns an array, even when it selects a single element.",
+    explanation:
+      "The bug: `arr.slice(-1)` returns a new array containing the last element (e.g. `[3]`), not the element `3`. Index directly instead: `arr[arr.length - 1]` (or `arr.at(-1)`).",
+    examples: [
+      { input: [[1,2,3]], expected: 3 },
+      { input: [["a","b"]], expected: "b" },
+      { input: [[42]], expected: 42 },
+    ],
+    hiddenTests: [
+      { input: [[7,8,9,10]], expected: 10 },
+    ],
+  },
+  {
+    id: 'js-sum-first-n-offbyone',
+    number: 46,
+    language: 'javascript',
+    title: "Sum First N Runs One Too Far",
+    difficulty: 'Easy',
+    topic: "Off-by-one",
+    statement:
+      "Return the sum of the FIRST n elements of the array. For example sumFirstN([10,20,30,40], 2) -> 30. The current loop condition includes index n, so it adds one extra element (or NaN when n equals the length).",
+    functionName: 'sumFirstN',
+    functionSignature: "function sumFirstN(arr: number[], n: number): number",
+    buggyCode:
+      "function sumFirstN(arr, n) {\n  let total = 0;\n  for (let i = 0; i <= n; i++) {\n    total += arr[i];\n  }\n  return total;\n}\n",
+    hint: "To touch the first n elements you want indices 0 through n-1.",
+    explanation:
+      "The bug: `i <= n` loops from index 0 to n inclusive, which is n+1 elements. When n equals the length, `arr[n]` is `undefined` and the total becomes NaN. Use a strict `<`: `for (let i = 0; i < n; i++)`.",
+    examples: [
+      { input: [[10,20,30,40],2], expected: 30 },
+      { input: [[1,2,3],3], expected: 6 },
+      { input: [[5,5,5,5],1], expected: 5 },
+    ],
+    hiddenTests: [
+      { input: [[100,200],0], expected: 0 },
+    ],
+  },
+  {
+    id: 'js-running-max-offbyone',
+    number: 47,
+    language: 'javascript',
+    title: "Running Max Excludes the Current Element",
+    difficulty: 'Medium',
+    topic: "Off-by-one",
+    statement:
+      "Return an array where each position holds the maximum of the input up to AND INCLUDING that position (a running maximum). For example runningMax([3,1,4,1,5]) -> [3,3,4,4,5]. The current code slices up to but not including the current index, so it is shifted and the first entry is -Infinity.",
+    functionName: 'runningMax',
+    functionSignature: "function runningMax(arr: number[]): number[]",
+    buggyCode:
+      "function runningMax(arr) {\n  return arr.map((_, i) => Math.max(...arr.slice(0, i)));\n}\n",
+    hint: "slice(0, i) stops before index i, so the current element is left out.",
+    explanation:
+      "The bug: `arr.slice(0, i)` excludes index `i`, so position 0 gets `Math.max()` of an empty list (-Infinity) and every entry lags one element behind. Include the current element with `arr.slice(0, i + 1)`.",
+    examples: [
+      { input: [[3,1,4,1,5]], expected: [3,3,4,4,5] },
+      { input: [[1,2,3]], expected: [1,2,3] },
+      { input: [[5,4,3]], expected: [5,5,5] },
+    ],
+    hiddenTests: [
+      { input: [[7]], expected: [7] },
+    ],
+  },
+  {
+    id: 'js-rotate-right-slice',
+    number: 48,
+    language: 'javascript',
+    title: "Rotate Right Rotated Left",
+    difficulty: 'Hard',
+    topic: "Arrays",
+    statement:
+      "Rotate the array to the RIGHT by k positions. For example rotateRight([1,2,3,4,5], 2) -> [4,5,1,2,3] (the last two elements move to the front). The current code rotates in the wrong direction.",
+    functionName: 'rotateRight',
+    functionSignature: "function rotateRight(arr: any[], k: number): any[]",
+    buggyCode:
+      "function rotateRight(arr, k) {\n  const n = arr.length;\n  const shift = k % n;\n  return arr.slice(shift).concat(arr.slice(0, shift));\n}\n",
+    hint: "Cutting off the FIRST k elements rotates left; a right rotation splits at length - k.",
+    explanation:
+      "The bug: `arr.slice(shift)` drops the first `shift` elements and moves them to the end, which is a LEFT rotation. For a right rotation the last `shift` elements should come to the front: split at `n - shift`, i.e. `arr.slice(n - shift).concat(arr.slice(0, n - shift))`.",
+    examples: [
+      { input: [[1,2,3,4,5],2], expected: [4,5,1,2,3] },
+      { input: [[1,2,3],1], expected: [3,1,2] },
+      { input: [[1,2,3,4],4], expected: [1,2,3,4] },
+    ],
+    hiddenTests: [
+      { input: [[10,20,30],2], expected: [20,30,10] },
+    ],
+  },
+  {
+    id: 'js-closure-running-totals',
+    number: 49,
+    language: 'javascript',
+    title: "Redeclared Closure Variable",
+    difficulty: 'Easy',
+    topic: "Closures",
+    statement:
+      "`runningTotals` should take an array of numbers and return an array of running totals, where each element is the sum of all elements up to and including that index. It uses a closure `add` that keeps a private `sum` across calls.",
+    functionName: 'runningTotals',
+    functionSignature: "function runningTotals(nums: number[]): number[]",
+    buggyCode:
+      "function runningTotals(nums) {\n  function makeAdder() {\n    let sum = 0;\n    return function (n) { let sum = sum + n; return sum; };\n  }\n  const add = makeAdder();\n  return nums.map(add);\n}\n",
+    hint: "Look at the inner function: does it update the closed-over `sum`, or create a brand-new one?",
+    explanation:
+      "The inner function wrote `let sum = sum + n`, which declares a NEW block-scoped `sum` that shadows the closure's `sum`. Reading it in its own initializer hits the temporal dead zone and throws. Drop the `let` so it assigns to the outer `sum`: `sum = sum + n`.",
+    examples: [
+      { input: [[1,2,3]], expected: [1,3,6] },
+      { input: [[5,5,5]], expected: [5,10,15] },
+      { input: [[]], expected: [] },
+    ],
+    hiddenTests: [
+      { input: [[10]], expected: [10] },
+      { input: [[-1,1,-1,1]], expected: [-1,0,-1,0] },
+    ],
+  },
+  {
+    id: 'js-closure-var-multipliers',
+    number: 50,
+    language: 'javascript',
+    title: "Loop Closures Share var",
+    difficulty: 'Hard',
+    topic: "Closures",
+    statement:
+      "`buildMultipliers` builds `n` functions in a loop, where function `i` should multiply its argument by `i`. It then calls the function at `index` with `x` and returns the result. Because of `var`, all the closures capture the same variable.",
+    functionName: 'buildMultipliers',
+    functionSignature: "function buildMultipliers(n: number, index: number, x: number): number",
+    buggyCode:
+      "function buildMultipliers(n, index, x) {\n  var fns = [];\n  for (var i = 0; i < n; i++) {\n    fns.push(function (y) { return y * i; });\n  }\n  return fns[index](x);\n}\n",
+    hint: "`var i` is function-scoped — every closure reads the SAME `i`, whose value after the loop is `n`.",
+    explanation:
+      "`var` hoists `i` to function scope, so all pushed functions share one `i`. After the loop it equals `n`, so every closure multiplies by `n`. Change `var i` to `let i`, which is block-scoped and gives each iteration its own binding.",
+    examples: [
+      { input: [3,0,5], expected: 0 },
+      { input: [3,1,5], expected: 5 },
+      { input: [3,2,5], expected: 10 },
+    ],
+    hiddenTests: [
+      { input: [4,3,2], expected: 6 },
+      { input: [5,4,10], expected: 40 },
+    ],
+  },
+  {
+    id: 'js-hoisting-return-before-decl',
+    number: 51,
+    language: 'javascript',
+    title: "Return Before the var",
+    difficulty: 'Medium',
+    topic: "Hoisting",
+    statement:
+      "`computeDoubled` should return `x * 2`. The `var result` declaration is written after the `return` statement, but the author expected hoisting to make it work anyway.",
+    functionName: 'computeDoubled',
+    functionSignature: "function computeDoubled(x: number): number",
+    buggyCode:
+      "function computeDoubled(x) {\n  return result;\n  var result = x * 2;\n}\n",
+    hint: "`var` hoists the DECLARATION, not the ASSIGNMENT — what is `result` worth on the line that returns it?",
+    explanation:
+      "Hoisting moves the `var result` declaration to the top but leaves the assignment where it is. So on the `return` line `result` is still `undefined`, and the assignment after `return` is dead code. Move the assignment above the return: `var result = x * 2; return result;`.",
+    examples: [
+      { input: [3], expected: 6 },
+      { input: [0], expected: 0 },
+      { input: [-4], expected: -8 },
+    ],
+    hiddenTests: [
+      { input: [100], expected: 200 },
+      { input: [7], expected: 14 },
+    ],
+  },
+  {
+    id: 'js-scope-shadowed-cache',
+    number: 52,
+    language: 'javascript',
+    title: "Shadowed Cache in Callback",
+    difficulty: 'Medium',
+    topic: "Scope",
+    statement:
+      "`countFirstSeen` should return how many values in the array are being seen for the FIRST time (i.e. the number of distinct values). It keeps a `seen` object outside the loop to remember which values already appeared.",
+    functionName: 'countFirstSeen',
+    functionSignature: "function countFirstSeen(values: any[]): number",
+    buggyCode:
+      "function countFirstSeen(values) {\n  let count = 0;\n  const seen = {};\n  values.forEach(function (v) {\n    var seen = {};\n    if (!seen[v]) {\n      seen[v] = true;\n      count++;\n    }\n  });\n  return count;\n}\n",
+    hint: "There are two variables named `seen` — which one does the callback actually use?",
+    explanation:
+      "The callback redeclared `var seen = {}` inside itself, shadowing the outer `seen` and resetting it to empty on every iteration. So every value looks unseen and `count` becomes the array length. Remove the inner `var seen = {}` line so the callback uses the outer `seen`.",
+    examples: [
+      { input: [[1,1,2,2,3]], expected: 3 },
+      { input: [[5,5,5]], expected: 1 },
+      { input: [[]], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [[1,2,3,4]], expected: 4 },
+      { input: [["a","a","b"]], expected: 2 },
+    ],
+  },
+  {
+    id: 'js-closure-iife-capture',
+    number: 53,
+    language: 'javascript',
+    title: "IIFE That Forgot Its Argument",
+    difficulty: 'Hard',
+    topic: "Closures",
+    statement:
+      "`sumOfAdders` builds `n` adder functions in a loop; adder `i` should add `i` to its argument. It uses an IIFE to try to capture each `i`, then calls every adder with `x` and returns the total. The IIFE does not actually receive `i`, so the capture fails.",
+    functionName: 'sumOfAdders',
+    functionSignature: "function sumOfAdders(n: number, x: number): number",
+    buggyCode:
+      "function sumOfAdders(n, x) {\n  var adders = [];\n  for (var i = 0; i < n; i++) {\n    adders.push((function () {\n      return function (y) { return y + i; };\n    })());\n  }\n  var total = 0;\n  for (var j = 0; j < adders.length; j++) {\n    total += adders[j](x);\n  }\n  return total;\n}\n",
+    hint: "The IIFE is meant to snapshot `i`, but it takes no parameter — so the inner function still closes over the shared `var i`.",
+    explanation:
+      "The IIFE `(function () { ... })()` was called with no argument, so its inner function still references the loop's shared `var i` (which ends at `n`). Give the IIFE a parameter and pass `i` in: `(function (i) { return function (y) { return y + i; }; })(i)` — now each adder captures its own copy.",
+    examples: [
+      { input: [3,10], expected: 33 },
+      { input: [4,0], expected: 6 },
+      { input: [1,5], expected: 5 },
+    ],
+    hiddenTests: [
+      { input: [5,1], expected: 15 },
+      { input: [2,100], expected: 201 },
+    ],
+  },
+  {
+    id: 'js-block-scope-classify',
+    number: 54,
+    language: 'javascript',
+    title: "let Trapped in the if Block",
+    difficulty: 'Easy',
+    topic: "Scope",
+    statement:
+      "`classify` should return \"positive\" when `n > 0`, \"negative\" when `n < 0`, and \"zero\" otherwise. It declares `label` before the branches and tries to update it inside each branch.",
+    functionName: 'classify',
+    functionSignature: "function classify(n: number): string",
+    buggyCode:
+      "function classify(n) {\n  let label = \"zero\";\n  if (n > 0) {\n    let label = \"positive\";\n  } else if (n < 0) {\n    let label = \"negative\";\n  }\n  return label;\n}\n",
+    hint: "Inside the branches, `let label = ...` creates a NEW block-scoped variable instead of updating the outer one.",
+    explanation:
+      "Each branch redeclared `label` with `let`, creating a fresh variable scoped to that block. The outer `label` was never changed, so the function always returned \"zero\". Remove the `let` inside the branches so they assign to the outer variable: `label = \"positive\"` / `label = \"negative\"`.",
+    examples: [
+      { input: [5], expected: "positive" },
+      { input: [-3], expected: "negative" },
+      { input: [0], expected: "zero" },
+    ],
+    hiddenTests: [
+      { input: [100], expected: "positive" },
+      { input: [-1], expected: "negative" },
+    ],
+  },
+  {
+    id: 'js-closure-shadowed-balance',
+    number: 55,
+    language: 'javascript',
+    title: "Account Closure Shadows Its State",
+    difficulty: 'Medium',
+    topic: "Closures",
+    statement:
+      "`finalBalance` starts with `start` and applies each delta in `deltas` in order, returning the final balance. It builds an `apply` closure via `makeAccount(start)` that keeps the running `balance` privately.",
+    functionName: 'finalBalance',
+    functionSignature: "function finalBalance(start: number, deltas: number[]): number",
+    buggyCode:
+      "function finalBalance(start, deltas) {\n  function makeAccount(balance) {\n    return function (amount) {\n      var balance = balance + amount;\n      return balance;\n    };\n  }\n  const apply = makeAccount(start);\n  let result = start;\n  for (const d of deltas) {\n    result = apply(d);\n  }\n  return result;\n}\n",
+    hint: "The inner `var balance` shadows the parameter `balance` — so what value is on the right-hand side of that assignment?",
+    explanation:
+      "Inside the returned function, `var balance` is hoisted and shadows the enclosing `balance` parameter. On the right-hand side, `balance` refers to that hoisted-but-not-yet-assigned local (`undefined`), so every result is `NaN` (and the state never persists). Remove the `var` so it updates the closed-over parameter: `balance = balance + amount`.",
+    examples: [
+      { input: [100,[10,-20,5]], expected: 95 },
+      { input: [0,[1,2,3]], expected: 6 },
+      { input: [50,[]], expected: 50 },
+    ],
+    hiddenTests: [
+      { input: [10,[-10]], expected: 0 },
+      { input: [1,[1,1,1,1]], expected: 5 },
+    ],
+  },
+  {
+    id: 'js-pad-id-padstart',
+    number: 56,
+    language: 'javascript',
+    title: "Zero-Pad an ID",
+    difficulty: 'Easy',
+    topic: "Strings",
+    statement:
+      "Given an id number and a target width, return the id as a string left-padded with '0' to at least that width. Longer ids are returned unchanged. The zeros are ending up on the wrong side.",
+    functionName: 'padId',
+    functionSignature: "function padId(id, width)",
+    buggyCode:
+      "function padId(id, width) {\n  return String(id).padEnd(width, \"0\");\n}\n",
+    hint: "padEnd adds padding to the right; you want it on the left.",
+    explanation:
+      "padEnd pads on the right, producing '700' instead of '007'. Use padStart(width, '0') to pad on the left so the number keeps its value.",
+    examples: [
+      { input: [7,3], expected: "007" },
+      { input: [42,5], expected: "00042" },
+      { input: [123,3], expected: "123" },
+    ],
+    hiddenTests: [
+      { input: [0,4], expected: "0000" },
+      { input: [99,2], expected: "99" },
+    ],
+  },
+  {
+    id: 'js-tohex-radix',
+    number: 57,
+    language: 'javascript',
+    title: "Number to Hex",
+    difficulty: 'Easy',
+    topic: "Numbers",
+    statement:
+      "Return the lowercase hexadecimal string representation of a non-negative integer. It keeps coming back in base 10.",
+    functionName: 'toHex',
+    functionSignature: "function toHex(n)",
+    buggyCode:
+      "function toHex(n) {\n  return n.toString();\n}\n",
+    hint: "toString takes an optional radix argument.",
+    explanation:
+      "Number.prototype.toString() defaults to radix 10. Pass the radix explicitly: n.toString(16) to get hexadecimal digits.",
+    examples: [
+      { input: [255], expected: "ff" },
+      { input: [16], expected: "10" },
+      { input: [0], expected: "0" },
+    ],
+    hiddenTests: [
+      { input: [4095], expected: "fff" },
+    ],
+  },
+  {
+    id: 'js-round-to-cents-number',
+    number: 58,
+    language: 'javascript',
+    title: "Round to Cents",
+    difficulty: 'Medium',
+    topic: "Numbers",
+    statement:
+      "Round a dollar amount to two decimal places and return it as a number. The caller does arithmetic on the result but it's misbehaving because a string is coming back.",
+    functionName: 'roundToCents',
+    functionSignature: "function roundToCents(amount)",
+    buggyCode:
+      "function roundToCents(amount) {\n  return Math.round(amount * 100) / 100 + \"\";\n}\n",
+    hint: "What does concatenating an empty string do to the return type?",
+    explanation:
+      "The `+ \"\"` coerces the rounded number into a string, so callers get '2.35' instead of 2.35 and arithmetic breaks. Drop the concatenation and return the number directly: Math.round(amount * 100) / 100.",
+    examples: [
+      { input: [2.345], expected: 2.35 },
+      { input: [10], expected: 10 },
+      { input: [0.1], expected: 0.1 },
+    ],
+    hiddenTests: [
+      { input: [1.005], expected: 1 },
+    ],
+  },
+  {
+    id: 'js-count-words-whitespace',
+    number: 59,
+    language: 'javascript',
+    title: "Counting Words",
+    difficulty: 'Medium',
+    topic: "Strings",
+    statement:
+      "Count the words in a string, where words are separated by any run of whitespace. Empty or whitespace-only strings have zero words. Extra spaces are inflating the count.",
+    functionName: 'countWords',
+    functionSignature: "function countWords(text)",
+    buggyCode:
+      "function countWords(text) {\n  return text.split(\" \").length;\n}\n",
+    hint: "split(' ') creates empty entries for consecutive or leading/trailing spaces.",
+    explanation:
+      "Splitting on a single space turns runs of whitespace into empty strings that still get counted, and an empty input yields [''] (length 1). Trim first, return 0 for empty, then split on /\\s+/ to collapse whitespace runs.",
+    examples: [
+      { input: ["hello world"], expected: 2 },
+      { input: ["  spaced   out  words "], expected: 3 },
+      { input: [""], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: ["one"], expected: 1 },
+      { input: ["a\tb\nc"], expected: 3 },
+    ],
+  },
+  {
+    id: 'js-parse-binary-radix',
+    number: 60,
+    language: 'javascript',
+    title: "Parsing Binary",
+    difficulty: 'Easy',
+    topic: "Numbers",
+    statement:
+      "Parse a string of binary digits into its decimal integer value. It's being read as a base-10 number instead.",
+    functionName: 'parseBinary',
+    functionSignature: "function parseBinary(bits)",
+    buggyCode:
+      "function parseBinary(bits) {\n  return parseInt(bits);\n}\n",
+    hint: "parseInt defaults to base 10 for strings without a 0x prefix.",
+    explanation:
+      "Without a radix, parseInt('101') reads it as one hundred one, not binary. Supply the radix: parseInt(bits, 2) to interpret the digits in base 2.",
+    examples: [
+      { input: ["101"], expected: 5 },
+      { input: ["1111"], expected: 15 },
+      { input: ["0"], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: ["10000"], expected: 16 },
+    ],
+  },
+  {
+    id: 'js-capitalize-slice-offset',
+    number: 61,
+    language: 'javascript',
+    title: "Capitalize First Letter",
+    difficulty: 'Easy',
+    topic: "Strings",
+    statement:
+      "Return the word with its first letter uppercased and the rest unchanged. The empty string returns unchanged. Right now the first letter is being duplicated.",
+    functionName: 'capitalize',
+    functionSignature: "function capitalize(word)",
+    buggyCode:
+      "function capitalize(word) {\n  return word.charAt(0).toUpperCase() + word.slice(0);\n}\n",
+    hint: "slice(0) keeps the whole string, including the letter you already uppercased.",
+    explanation:
+      "slice(0) returns the entire string, so 'hello' becomes 'H' + 'hello' = 'Hhello'. Use slice(1) to skip the first character, and guard the empty string so charAt(0) doesn't produce a stray uppercase.",
+    examples: [
+      { input: ["hello"], expected: "Hello" },
+      { input: ["a"], expected: "A" },
+      { input: [""], expected: "" },
+    ],
+    hiddenTests: [
+      { input: ["world"], expected: "World" },
+    ],
+  },
+  {
+    id: 'js-average-int-truncate',
+    number: 62,
+    language: 'javascript',
+    title: "Integer Average",
+    difficulty: 'Medium',
+    topic: "Numbers",
+    statement:
+      "Return the integer average of a non-empty array of integers, truncating any fractional part toward zero. It's returning a fractional number instead of a whole one.",
+    functionName: 'averageInt',
+    functionSignature: "function averageInt(nums)",
+    buggyCode:
+      "function averageInt(nums) {\n  let sum = 0;\n  for (const n of nums) sum += n;\n  return sum / nums.length;\n}\n",
+    hint: "JavaScript's / always produces a float; you need to drop the fraction.",
+    explanation:
+      "Division in JavaScript never floors, so 10/4 is 2.5, not 2. Wrap the result in Math.trunc (toward zero) to get the integer average.",
+    examples: [
+      { input: [[1,2,3,4]], expected: 2 },
+      { input: [[10,20,30]], expected: 20 },
+      { input: [[5]], expected: 5 },
+    ],
+    hiddenTests: [
+      { input: [[1,2]], expected: 1 },
+    ],
+  },
+  {
+    id: 'js-merge-defaults-spread',
+    number: 63,
+    language: 'javascript',
+    title: "Overrides Should Win",
+    difficulty: 'Easy',
+    topic: "Objects",
+    statement:
+      "`mergeDefaults(defaults, overrides)` should return a NEW object that starts from `defaults` and then applies `overrides`, so that keys in `overrides` take precedence. The current spread order is backwards, so `defaults` clobber the overrides.",
+    functionName: 'mergeDefaults',
+    functionSignature: "function mergeDefaults(defaults: object, overrides: object): object",
+    buggyCode:
+      "function mergeDefaults(defaults, overrides) {\n  return { ...overrides, ...defaults };\n}\n",
+    hint: "When two spreads share a key, the LAST one written wins.",
+    explanation:
+      "In object spread, properties from later spreads overwrite earlier ones. `{ ...overrides, ...defaults }` lets `defaults` win, which is the opposite of what we want. Swap the order to `{ ...defaults, ...overrides }` so overrides are applied last and take precedence. Spreading into a fresh literal also keeps the result immutable (neither input is mutated).",
+    examples: [
+      { input: [{"color":"red","size":1},{"size":2}], expected: {"color":"red","size":2} },
+      { input: [{"a":1},{}], expected: {"a":1} },
+      { input: [{},{"x":5}], expected: {"x":5} },
+    ],
+    hiddenTests: [
+      { input: [{"a":1,"b":2},{"b":9,"c":3}], expected: {"a":1,"b":9,"c":3} },
+      { input: [{"k":"old"},{"k":"new"}], expected: {"k":"new"} },
+    ],
+  },
+  {
+    id: 'js-pluck-computed-key',
+    number: 64,
+    language: 'javascript',
+    title: "Pluck by Dynamic Key",
+    difficulty: 'Easy',
+    topic: "Objects",
+    statement:
+      "`pluck(arr, key)` should return an array of the value at property `key` for every object in `arr`. The current code reads a literal property named \"key\" instead of the property whose name is held in the `key` variable.",
+    functionName: 'pluck',
+    functionSignature: "function pluck(arr: object[], key: string): any[]",
+    buggyCode:
+      "function pluck(arr, key) {\n  return arr.map(o => o.key);\n}\n",
+    hint: "`o.key` is not the same as `o[key]`.",
+    explanation:
+      "`o.key` accesses a property literally named `key`, ignoring the `key` argument entirely — so it returns `undefined` for objects that lack such a property. To look up a property by a dynamic name held in a variable, use bracket notation: `o[key]`.",
+    examples: [
+      { input: [[{"id":1},{"id":2}],"id"], expected: [1,2] },
+      { input: [[{"name":"a"},{"name":"b"}],"name"], expected: ["a","b"] },
+      { input: [[],"id"], expected: [] },
+    ],
+    hiddenTests: [
+      { input: [[{"x":10,"y":20}],"y"], expected: [20] },
+      { input: [[{"a":1,"b":2},{"a":3,"b":4}],"b"], expected: [2,4] },
+    ],
+  },
+  {
+    id: 'js-maxof-rest-spread',
+    number: 65,
+    language: 'javascript',
+    title: "Max of the Rest",
+    difficulty: 'Medium',
+    topic: "Spread/Rest",
+    statement:
+      "`maxOf(...nums)` should return the largest of the numbers passed as individual arguments, and return 0 when called with no arguments. The current code passes the whole rest array to `Math.max`, which does not accept an array.",
+    functionName: 'maxOf',
+    functionSignature: "function maxOf(...nums: number[]): number",
+    buggyCode:
+      "function maxOf(...nums) {\n  return Math.max(nums);\n}\n",
+    hint: "`Math.max` takes separate arguments, not one array — and think about the empty case.",
+    explanation:
+      "`Math.max(nums)` passes a single array; `Math.max` then coerces it to a number, which is `NaN` for arrays of length !== 1, so the result is wrong. Spread the array into separate arguments with `Math.max(...nums)`. Also guard the empty case: `Math.max()` returns `-Infinity`, so return 0 first when `nums.length === 0`.",
+    examples: [
+      { input: [1,2,3], expected: 3 },
+      { input: [5], expected: 5 },
+      { input: [], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [-1,-5,-2], expected: -1 },
+      { input: [10,3,8,22,7], expected: 22 },
+      { input: [0,0,0], expected: 0 },
+    ],
+  },
+  {
+    id: 'js-repeat-default-param',
+    number: 66,
+    language: 'javascript',
+    title: "Repeat Zero Times",
+    difficulty: 'Medium',
+    topic: "Default Params",
+    statement:
+      "`repeatStr(s, times)` should repeat string `s` `times` times, defaulting to 2 when `times` is not supplied. It must still honor an explicit `times` of 0 (returning the empty string). The current `times || 2` fallback wrongly turns 0 into 2.",
+    functionName: 'repeatStr',
+    functionSignature: "function repeatStr(s: string, times?: number): string",
+    buggyCode:
+      "function repeatStr(s, times) {\n  times = times || 2;\n  return s.repeat(times);\n}\n",
+    hint: "`0 || 2` is 2 — `||` can't tell 'omitted' from 'falsy-but-valid'.",
+    explanation:
+      "`times || 2` falls back to 2 whenever `times` is falsy — including the valid value 0 — so `repeatStr('hi', 0)` incorrectly returns 'hihi'. A real default parameter (`times = 2`) only kicks in when the argument is genuinely omitted (`undefined`), leaving an explicit 0 intact.",
+    examples: [
+      { input: ["ab"], expected: "abab" },
+      { input: ["x",3], expected: "xxx" },
+      { input: ["hi",0], expected: "" },
+    ],
+    hiddenTests: [
+      { input: ["z",1], expected: "z" },
+      { input: ["na",4], expected: "nananana" },
+    ],
+  },
+  {
+    id: 'js-omit-key-immutable',
+    number: 67,
+    language: 'javascript',
+    title: "Omit a Key",
+    difficulty: 'Medium',
+    topic: "Immutability",
+    statement:
+      "`omitKey(obj, key)` should return a NEW object that is a copy of `obj` with `key` removed. If `key` is absent, return a copy unchanged. The current code copies the object but forgets to remove the key.",
+    functionName: 'omitKey',
+    functionSignature: "function omitKey(obj: object, key: string): object",
+    buggyCode:
+      "function omitKey(obj, key) {\n  const copy = { ...obj };\n  return copy;\n}\n",
+    hint: "You spread a fresh copy — good — but never actually removed anything from it.",
+    explanation:
+      "Spreading into `{ ...obj }` produces a correct shallow copy (so the input is never mutated), but the function returns it as-is without dropping the target property. Add `delete copy[key];` before returning so the copy actually omits the key. Deleting from the copy (not the original) keeps the operation immutable.",
+    examples: [
+      { input: [{"a":1,"b":2},"a"], expected: {"b":2} },
+      { input: [{"x":5},"x"], expected: {} },
+      { input: [{"a":1},"nope"], expected: {"a":1} },
+    ],
+    hiddenTests: [
+      { input: [{"a":1,"b":2,"c":3},"b"], expected: {"a":1,"c":3} },
+      { input: [{"only":true},"only"], expected: {} },
+    ],
+  },
+  {
+    id: 'js-countby-uninit-increment',
+    number: 68,
+    language: 'javascript',
+    title: "Tally Into an Object",
+    difficulty: 'Easy',
+    topic: "Objects",
+    statement:
+      "`countBy(arr)` should return an object mapping each element to how many times it appears in `arr`. The current code increments a property that starts out `undefined`, producing `NaN` counts.",
+    functionName: 'countBy',
+    functionSignature: "function countBy(arr: string[]): object",
+    buggyCode:
+      "function countBy(arr) {\n  const counts = {};\n  for (const x of arr) {\n    counts[x]++;\n  }\n  return counts;\n}\n",
+    hint: "`undefined + 1` is `NaN` — the first time you see a key it has no value yet.",
+    explanation:
+      "The first time a key is encountered, `counts[x]` is `undefined`, and `undefined++` yields `NaN`, which then stays `NaN` forever. Initialize missing keys before incrementing: `counts[x] = (counts[x] || 0) + 1;`. The `|| 0` supplies 0 for the first occurrence.",
+    examples: [
+      { input: [["a","b","a"]], expected: {"a":2,"b":1} },
+      { input: [[]], expected: {} },
+      { input: [["x"]], expected: {"x":1} },
+    ],
+    hiddenTests: [
+      { input: [["a","a","a","b","b"]], expected: {"a":3,"b":2} },
+      { input: [["z","y","z","y","z"]], expected: {"z":3,"y":2} },
+    ],
+  },
 ];
 
 // =============================================================================
@@ -2510,6 +4255,661 @@ const javaProblems: BugFixProblem[] = [
       { label: "No bare int 0 mixed into the ternary", type: 'mustNotContain', pattern: "\\?\\s*0\\s*:", regex: true },
       { label: "Still passes stored through as the else branch", type: 'mustContain', pattern: ":\\s*stored", regex: true },
       { label: "Matches the reference fix exactly", type: 'acceptedFix', pattern: "public static Integer pickScore(boolean useDefault, Integer stored) {\n    return useDefault ? Integer.valueOf(0) : stored;\n}" },
+    ],
+  },
+  {
+    id: 'java-equalsignorecase',
+    number: 33,
+    language: 'java',
+    title: "Case-Insensitive Word Match",
+    difficulty: 'Easy',
+    topic: "Strings",
+    statement:
+      "`sameWord` should return true when the two strings are equal ignoring case, so \"Hello\" and \"hello\" match. The current code lowercases both sides but compares them with `==`, which tests reference identity and fails for strings built at runtime.",
+    functionSignature: "public static boolean sameWord(String a, String b)",
+    buggyCode:
+      "public static boolean sameWord(String a, String b) {\n    return a.toLowerCase() == b.toLowerCase();\n}\n",
+    hint: "There is a single String method that compares contents ignoring case.",
+    explanation:
+      "`a.toLowerCase()` and `b.toLowerCase()` each produce fresh String objects, so `==` compares two different references and returns false even when the text matches. Use `a.equalsIgnoreCase(b)`, which compares contents case-insensitively in one call.",
+    rules: [
+      { label: "Uses equalsIgnoreCase for content comparison", type: 'mustContain', pattern: "equalsIgnoreCase(" },
+      { label: "No longer compares strings with ==", type: 'mustNotContain', pattern: "== b.toLowerCase()" },
+    ],
+  },
+  {
+    id: 'java-sb-tostring',
+    number: 34,
+    language: 'java',
+    title: "StringBuilder Is Not a String",
+    difficulty: 'Easy',
+    topic: "Strings",
+    statement:
+      "`repeat` should return `s` concatenated `n` times as a String. The method builds the result in a StringBuilder correctly but returns the builder itself, so it does not compile as a String return.",
+    functionSignature: "public static String repeat(String s, int n)",
+    buggyCode:
+      "public static String repeat(String s, int n) {\n    StringBuilder sb = new StringBuilder();\n    for (int i = 0; i < n; i++) {\n        sb.append(s);\n    }\n    return sb;\n}\n",
+    hint: "A StringBuilder is not a String. Convert it before returning.",
+    explanation:
+      "`sb` is a `StringBuilder`, not a `String`, so `return sb;` fails to compile against a `String` return type. Call `sb.toString()` to materialize the accumulated characters into an actual String.",
+    rules: [
+      { label: "Converts the StringBuilder to a String", type: 'mustContain', pattern: "sb.toString()" },
+      { label: "No longer returns the StringBuilder directly", type: 'mustNotContain', pattern: "return sb;" },
+      { label: "Reference fix", type: 'acceptedFix', pattern: "public static String repeat(String s, int n) {\n    StringBuilder sb = new StringBuilder();\n    for (int i = 0; i < n; i++) {\n        sb.append(s);\n    }\n    return sb.toString();\n}\n" },
+    ],
+  },
+  {
+    id: 'java-char-to-int-arith',
+    number: 35,
+    language: 'java',
+    title: "Char Digit Arithmetic",
+    difficulty: 'Easy',
+    topic: "Char arithmetic",
+    statement:
+      "`digitValue` should convert a digit character like '7' into its numeric value 7. The current code subtracts the int literal 0, which does nothing useful since a char promotes to its ASCII code (e.g. '7' is 55).",
+    functionSignature: "public static int digitValue(char c)",
+    buggyCode:
+      "public static int digitValue(char c) {\n    return c - 0;\n}\n",
+    hint: "The character '0' has an ASCII code. Subtract the char, not the number.",
+    explanation:
+      "A `char` in arithmetic promotes to its Unicode/ASCII code: '7' is 55, not 7. Subtracting the int literal `0` leaves 55. Subtract the char literal `'0'` (code 48) instead: `c - '0'` gives 55 - 48 = 7.",
+    rules: [
+      { label: "Subtracts the char literal '0'", type: 'mustContain', pattern: "c - '0'" },
+      { label: "No longer subtracts the int literal 0", type: 'mustNotContain', pattern: "c - 0" },
+    ],
+  },
+  {
+    id: 'java-uppercase-char',
+    number: 36,
+    language: 'java',
+    title: "Shift Lowercase to Uppercase",
+    difficulty: 'Medium',
+    topic: "Char arithmetic",
+    statement:
+      "`toUpper` should return the uppercase version of a lowercase letter (and leave other characters unchanged) using char arithmetic. The offset direction is wrong: it adds 32 instead of subtracting it, pushing letters further past 'z'.",
+    functionSignature: "public static char toUpper(char c)",
+    buggyCode:
+      "public static char toUpper(char c) {\n    if (c >= 'a' && c <= 'z') {\n        return (char) (c + 32);\n    }\n    return c;\n}\n",
+    hint: "'a' is 97 and 'A' is 65. Which direction is that?",
+    explanation:
+      "In ASCII a lowercase letter is 32 greater than its uppercase counterpart ('a'=97, 'A'=65). To go lowercase to uppercase you must subtract 32, not add it. Adding 32 moves the character beyond the alphabet entirely.",
+    rules: [
+      { label: "Subtracts 32 to shift lowercase to uppercase", type: 'mustContain', pattern: "c - 32" },
+      { label: "No longer adds 32", type: 'mustNotContain', pattern: "c + 32" },
+    ],
+  },
+  {
+    id: 'java-reverse-sb',
+    number: 37,
+    language: 'java',
+    title: "Reverse and Return",
+    difficulty: 'Medium',
+    topic: "Strings",
+    statement:
+      "`reverse` should return the input string reversed. It creates a StringBuilder and calls `reverse()`, but then returns the original `s` instead of the reversed builder, so the output never changes.",
+    functionSignature: "public static String reverse(String s)",
+    buggyCode:
+      "public static String reverse(String s) {\n    StringBuilder sb = new StringBuilder(s);\n    sb.reverse();\n    return s;\n}\n",
+    hint: "The reversal happens on sb, not on s. What are you returning?",
+    explanation:
+      "`sb.reverse()` mutates the StringBuilder in place; it does not touch the immutable original String `s`. Returning `s` gives back the unchanged input. Return `sb.toString()` to yield the reversed contents.",
+    rules: [
+      { label: "Returns the reversed StringBuilder contents", type: 'mustContain', pattern: "sb.toString()" },
+      { label: "No longer returns the original string", type: 'mustNotContain', pattern: "return s;" },
+    ],
+  },
+  {
+    id: 'java-count-vowels-equals',
+    number: 38,
+    language: 'java',
+    title: "Assignment in a Condition",
+    difficulty: 'Hard',
+    topic: "Char arithmetic",
+    statement:
+      "`countVowels` should count the vowels (a, e, i, o, u, case-insensitive) in `s`. The final comparison in the `if` uses a single `=`, which is assignment rather than comparison and does not compile for char operands.",
+    functionSignature: "public static int countVowels(String s)",
+    buggyCode:
+      "public static int countVowels(String s) {\n    int count = 0;\n    for (int i = 0; i < s.length(); i++) {\n        char c = Character.toLowerCase(s.charAt(i));\n        if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c = 'u') {\n            count++;\n        }\n    }\n    return count;\n}\n",
+    hint: "Look closely at the last operand: is that comparison or assignment?",
+    explanation:
+      "The last term `c = 'u'` uses a single `=`, which is assignment, not the equality operator. In an `if` condition Java requires a boolean, and an assignment of a char is not boolean, so it fails to compile. Use `==`: `c == 'u'`.",
+    rules: [
+      { label: "Compares against 'u' with ==", type: 'mustContain', pattern: "c == 'u'" },
+      { label: "No longer assigns with a single =", type: 'mustNotContain', pattern: "c = 'u'" },
+    ],
+  },
+  {
+    id: 'java-palindrome-equals',
+    number: 39,
+    language: 'java',
+    title: "Palindrome String Compare",
+    difficulty: 'Hard',
+    topic: "Strings",
+    statement:
+      "`isPalindrome` should return true when `s` reads the same forwards and backwards. It builds the reversed string correctly but compares it to `s` with `==`, comparing references instead of contents, so it returns false even for real palindromes.",
+    functionSignature: "public static boolean isPalindrome(String s)",
+    buggyCode:
+      "public static boolean isPalindrome(String s) {\n    String reversed = new StringBuilder(s).reverse().toString();\n    return s == reversed;\n}\n",
+    hint: "reversed is a freshly built String object. == won't compare its characters.",
+    explanation:
+      "`reversed` comes from `toString()` on a StringBuilder, so it is a distinct object from `s`. `s == reversed` compares references and is false even when the characters match. Use `s.equals(reversed)` to compare contents.",
+    rules: [
+      { label: "Uses .equals() to compare contents", type: 'mustContain', pattern: "s.equals(reversed)" },
+      { label: "No longer compares with ==", type: 'mustNotContain', pattern: "s == reversed" },
+    ],
+  },
+  {
+    id: 'java-reverse-array-inplace',
+    number: 40,
+    language: 'java',
+    title: "Reverse an Array In Place",
+    difficulty: 'Medium',
+    topic: "Arrays",
+    statement:
+      "`reverse` should reverse the int array in place by swapping the element at index `i` with its mirror. The loop currently runs across the whole array, so every swap is undone and the array comes back unchanged.",
+    functionSignature: "public static void reverse(int[] arr)",
+    buggyCode:
+      "public static void reverse(int[] arr) {\n    for (int i = 0; i <= arr.length - 1; i++) {\n        int tmp = arr[i];\n        arr[i] = arr[arr.length - 1 - i];\n        arr[arr.length - 1 - i] = tmp;\n    }\n}\n",
+    hint: "If you swap every pair twice, you end up where you started. Only walk to the midpoint.",
+    explanation:
+      "Each iteration swaps arr[i] with its mirror arr[length-1-i]. Running the loop over the entire array swaps every pair a second time in the back half, restoring the original order. The loop must stop at the midpoint: `i < arr.length / 2`.",
+    rules: [
+      { label: "Loop stops at the midpoint", type: 'mustContain', pattern: "i < arr.length / 2" },
+      { label: "No longer walks the whole array", type: 'mustNotContain', pattern: "i <= arr.length - 1" },
+    ],
+  },
+  {
+    id: 'java-last-index-of',
+    number: 41,
+    language: 'java',
+    title: "Last Index Of",
+    difficulty: 'Medium',
+    topic: "Arrays",
+    statement:
+      "`lastIndexOf` should return the index of the LAST occurrence of `target` in the array, or -1 if it is absent. The current code scans forward and returns the FIRST match instead.",
+    functionSignature: "public static int lastIndexOf(int[] arr, int target)",
+    buggyCode:
+      "public static int lastIndexOf(int[] arr, int target) {\n    for (int i = 0; i < arr.length; i++) {\n        if (arr[i] == target) return i;\n    }\n    return -1;\n}\n",
+    hint: "To find the last match, start from the end and walk backward.",
+    explanation:
+      "Returning on the first match found while scanning left-to-right yields the first occurrence, not the last. Iterate from `arr.length - 1` down to 0 so the first match you hit is the rightmost one.",
+    rules: [
+      { label: "Iterates from the end downward", type: 'mustContain', pattern: "i = arr.length - 1; i >= 0; i--" },
+      { label: "No longer scans forward from 0", type: 'mustNotContain', pattern: "i = 0; i < arr.length; i++" },
+    ],
+  },
+  {
+    id: 'java-count-in-range',
+    number: 42,
+    language: 'java',
+    title: "Count In Range (Inclusive)",
+    difficulty: 'Easy',
+    topic: "Loops",
+    statement:
+      "`countInRange` should count how many array elements fall within `[lo, hi]` INCLUSIVE. The current comparison uses strict `>` and `<`, so values exactly equal to `lo` or `hi` are wrongly skipped.",
+    functionSignature: "public static int countInRange(int[] arr, int lo, int hi)",
+    buggyCode:
+      "public static int countInRange(int[] arr, int lo, int hi) {\n    int count = 0;\n    for (int x : arr) {\n        if (x > lo && x < hi) count++;\n    }\n    return count;\n}\n",
+    hint: "Inclusive means the endpoints count too. Use >= and <=.",
+    explanation:
+      "`x > lo && x < hi` is an exclusive range and drops values equal to lo or hi. For an inclusive range use `x >= lo && x <= hi`.",
+    rules: [
+      { label: "Lower bound is inclusive", type: 'mustContain', pattern: "x >= lo" },
+      { label: "Upper bound is inclusive", type: 'mustContain', pattern: "x <= hi" },
+      { label: "No longer excludes the endpoints", type: 'mustNotContain', pattern: "x > lo && x < hi" },
+    ],
+  },
+  {
+    id: 'java-copy-first-n',
+    number: 43,
+    language: 'java',
+    title: "Copy First N Elements",
+    difficulty: 'Easy',
+    topic: "Bounds",
+    statement:
+      "`firstN` should return a new array containing the first `n` elements of `arr`. The loop runs one iteration too many and throws ArrayIndexOutOfBoundsException writing to `out[n]`.",
+    functionSignature: "public static int[] firstN(int[] arr, int n)",
+    buggyCode:
+      "public static int[] firstN(int[] arr, int n) {\n    int[] out = new int[n];\n    for (int i = 0; i <= n; i++) {\n        out[i] = arr[i];\n    }\n    return out;\n}\n",
+    hint: "An array of size n has valid indices 0..n-1. The loop should stop before n.",
+    explanation:
+      "`out` has length n, so the last valid index is n-1. `i <= n` writes to out[n] on the final iteration, going out of bounds. Use `i < n`.",
+    rules: [
+      { label: "Loop bound uses < n", type: 'mustContain', pattern: "i < n" },
+      { label: "The off-by-one <= n is gone", type: 'mustNotContain', pattern: "i <= n" },
+    ],
+  },
+  {
+    id: 'java-running-max',
+    number: 44,
+    language: 'java',
+    title: "Running Maximum Seed",
+    difficulty: 'Medium',
+    topic: "Arrays",
+    statement:
+      "`maxValue` should return the largest element of a non-empty int array. It seeds the running max with 0, so for an all-negative array like `[-5, -2, -9]` it wrongly returns 0.",
+    functionSignature: "public static int maxValue(int[] arr)",
+    buggyCode:
+      "public static int maxValue(int[] arr) {\n    int max = 0;\n    for (int i = 0; i < arr.length; i++) {\n        if (arr[i] > max) max = arr[i];\n    }\n    return max;\n}\n",
+    hint: "0 is not a real element. Seed with an actual value from the array.",
+    explanation:
+      "Initializing max to 0 assumes the answer is non-negative. If every element is negative, no element beats 0 and the function returns 0 — a value not in the array. Seed with `arr[0]` and start the loop at index 1.",
+    rules: [
+      { label: "Seeds max with the first element", type: 'mustContain', pattern: "int max = arr[0]" },
+      { label: "No longer seeds max with 0", type: 'mustNotContain', pattern: "int max = 0" },
+    ],
+  },
+  {
+    id: 'java-pair-sum-exists',
+    number: 45,
+    language: 'java',
+    title: "Adjacent Pair Sum",
+    difficulty: 'Medium',
+    topic: "Bounds",
+    statement:
+      "`hasAdjacentSum` should return true if any two neighboring elements add up to `target`. The loop reads `arr[i + 1]` even on the last index, throwing ArrayIndexOutOfBoundsException.",
+    functionSignature: "public static boolean hasAdjacentSum(int[] arr, int target)",
+    buggyCode:
+      "public static boolean hasAdjacentSum(int[] arr, int target) {\n    for (int i = 0; i < arr.length; i++) {\n        if (arr[i] + arr[i + 1] == target) return true;\n    }\n    return false;\n}\n",
+    hint: "When you access arr[i + 1] inside the loop, the last valid i is length - 2.",
+    explanation:
+      "Because the body reads arr[i + 1], the loop must stop one element early. With `i < arr.length`, the final iteration accesses arr[arr.length] and throws. Use `i < arr.length - 1`.",
+    rules: [
+      { label: "Stops one before the end so i+1 is valid", type: 'mustContain', pattern: "i < arr.length - 1" },
+      { label: "No longer runs to the last index", type: 'mustNotContain', pattern: "i < arr.length;" },
+    ],
+  },
+  {
+    id: 'java-rotate-left-one',
+    number: 46,
+    language: 'java',
+    title: "Rotate Left by One",
+    difficulty: 'Hard',
+    topic: "Arrays",
+    statement:
+      "`rotateLeft` should shift every element one position to the left and move the first element to the end (e.g. `[1,2,3]` becomes `[2,3,1]`). The shift loop reads `arr[i + 1]` past the end and throws ArrayIndexOutOfBoundsException.",
+    functionSignature: "public static void rotateLeft(int[] arr)",
+    buggyCode:
+      "public static void rotateLeft(int[] arr) {\n    if (arr.length == 0) return;\n    int first = arr[0];\n    for (int i = 0; i < arr.length; i++) {\n        arr[i] = arr[i + 1];\n    }\n    arr[arr.length - 1] = first;\n}\n",
+    hint: "The last slot is filled separately from `first`. The shift loop should stop before touching arr[i + 1] out of bounds.",
+    explanation:
+      "The loop copies arr[i + 1] into arr[i]. On the last iteration i = arr.length - 1, so arr[i + 1] is arr[arr.length], which is out of bounds. The final slot is set afterward from `first`, so the shift loop should stop at `i < arr.length - 1`.",
+    rules: [
+      { label: "Shift loop stops one before the end", type: 'mustContain', pattern: "i < arr.length - 1" },
+      { label: "No longer reads past the end via arr[i+1]", type: 'mustNotContain', pattern: "i < arr.length;" },
+    ],
+  },
+  {
+    id: 'java-percentage-int-div',
+    number: 47,
+    language: 'java',
+    title: "Percentage Loses the Fraction",
+    difficulty: 'Easy',
+    topic: "Arithmetic",
+    statement:
+      "`percentage` should return what fraction of `whole` the value `part` represents, as a percent (a double). Right now `percentage(1, 4)` returns `0.0` instead of `25.0` because `part / whole` is computed in int first.",
+    functionSignature: "public static double percentage(int part, int whole)",
+    buggyCode:
+      "public static double percentage(int part, int whole) {\n    return (part / whole) * 100.0;\n}\n",
+    hint: "The parentheses force int / int before the multiply. Promote one operand to double.",
+    explanation:
+      "`part / whole` is evaluated as integer division and truncates to 0 for any part < whole, *before* it is multiplied by 100.0. Cast `part` (or `whole`) to double first: `return ((double) part / whole) * 100.0;` so the division is floating-point.",
+    rules: [
+      { label: "Casts part to double before dividing", type: 'mustContain', pattern: "(double) part" },
+      { label: "No longer does int division in parentheses", type: 'mustNotContain', pattern: "(part / whole)" },
+    ],
+  },
+  {
+    id: 'java-midpoint-overflow',
+    number: 48,
+    language: 'java',
+    title: "Midpoint Overflows",
+    difficulty: 'Medium',
+    topic: "Numbers",
+    statement:
+      "`midpoint` returns the average of two indices for a binary search. For large values like `low = 1_000_000_000, high = 2_000_000_000`, `(low + high)` overflows int and the result goes negative. Compute the midpoint without overflowing.",
+    functionSignature: "public static int midpoint(int low, int high)",
+    buggyCode:
+      "public static int midpoint(int low, int high) {\n    return (low + high) / 2;\n}\n",
+    hint: "The sum can exceed Integer.MAX_VALUE even when both inputs are valid ints. Rewrite so you never add the two directly.",
+    explanation:
+      "`low + high` can exceed `Integer.MAX_VALUE` and wrap to a negative number before the divide. The classic overflow-safe form is `low + (high - low) / 2`, which only ever computes a difference that fits in int.",
+    rules: [
+      { label: "Uses the overflow-safe midpoint form", type: 'mustContain', pattern: "low + (high - low) / 2" },
+      { label: "No longer adds low and high directly", type: 'mustNotContain', pattern: "(low + high) / 2" },
+    ],
+  },
+  {
+    id: 'java-sum-int-overflow-long',
+    number: 49,
+    language: 'java',
+    title: "Accumulator Overflows",
+    difficulty: 'Medium',
+    topic: "Overflow",
+    statement:
+      "`sumFirst` should return the sum 1 + 2 + ... + n as a long. For n = 100000 the true sum is 5000050000, but the method returns a wrong (negative) value because the running total is an int that overflows mid-loop.",
+    functionSignature: "public static long sumFirst(int n)",
+    buggyCode:
+      "public static long sumFirst(int n) {\n    int total = 0;\n    for (int i = 1; i <= n; i++) total += i;\n    return total;\n}\n",
+    hint: "The return type is long, but the accumulator is int. Widening only happens at the return — too late.",
+    explanation:
+      "`total` is an `int`, so every `total += i` is int arithmetic that overflows around 2.1 billion. The final widening to long at `return total;` happens after the damage is done. Declare the accumulator as `long total = 0;` so the additions are performed in 64-bit.",
+    rules: [
+      { label: "Accumulator is declared long", type: 'mustContain', pattern: "long total" },
+      { label: "No longer uses an int accumulator", type: 'mustNotContain', pattern: "int total = 0" },
+      { label: "Reference fix", type: 'acceptedFix', pattern: "public static long sumFirst(int n) {\n    long total = 0;\n    for (int i = 1; i <= n; i++) total += i;\n    return total;\n}\n" },
+    ],
+  },
+  {
+    id: 'java-double-to-int-round',
+    number: 50,
+    language: 'java',
+    title: "Cast Truncates, Doesn't Round",
+    difficulty: 'Easy',
+    topic: "Casting",
+    statement:
+      "`roundToInt` should return `d` rounded to the nearest int (so `2.7` becomes `3`). Currently it returns `2` because casting a double to int truncates toward zero instead of rounding.",
+    functionSignature: "public static int roundToInt(double d)",
+    buggyCode:
+      "public static int roundToInt(double d) {\n    return (int) d;\n}\n",
+    hint: "`(int) 2.7` is 2, not 3. There is a library method that rounds.",
+    explanation:
+      "Casting a `double` to `int` in Java truncates the fractional part (rounds toward zero), so `2.7` -> `2` and `-2.7` -> `-2`. Use `Math.round`, which rounds to nearest: `return (int) Math.round(d);` (`Math.round(double)` returns a long, so the cast to int is still needed).",
+    rules: [
+      { label: "Uses Math.round to round to nearest", type: 'mustContain', pattern: "Math.round(d)" },
+      { label: "No longer just truncates with a cast", type: 'mustNotContain', pattern: "return (int) d;" },
+    ],
+  },
+  {
+    id: 'java-autobox-sum-npe',
+    number: 51,
+    language: 'java',
+    title: "Unboxing a Missing Key",
+    difficulty: 'Hard',
+    topic: "Autoboxing",
+    statement:
+      "`totalScore` adds a base of 10 to a player's score from the map. When `name` is not a key, `scores.get(name)` returns `null`, and adding it to the int `base` throws a NullPointerException. Missing players should count as 0.",
+    functionSignature: "public static int totalScore(Map<String, Integer> scores, String name)",
+    buggyCode:
+      "public static int totalScore(Map<String, Integer> scores, String name) {\n    int base = 10;\n    return base + scores.get(name);\n}\n",
+    hint: "`Map.get` returns null for a missing key. Auto-unboxing that null in `base + ...` throws an NPE.",
+    explanation:
+      "`scores.get(name)` returns an `Integer`, which is `null` for an absent key. The expression `base + scores.get(name)` auto-unboxes that `Integer` to an `int`, and unboxing null throws a `NullPointerException`. Read it into a variable and default null to 0, e.g. `Integer val = scores.get(name); return base + (val == null ? 0 : val);`.",
+    rules: [
+      { label: "Handles the null (missing key) case", type: 'mustContain', pattern: "null" },
+      { label: "No longer unboxes get(name) directly in the sum", type: 'mustNotContain', pattern: "return base + scores.get(name);" },
+    ],
+  },
+  {
+    id: 'java-integer-cache-equals',
+    number: 52,
+    language: 'java',
+    title: "Comparing Integers with ==",
+    difficulty: 'Medium',
+    topic: "Autoboxing",
+    statement:
+      "`sameValue` should return true when two `Integer` objects hold the same numeric value. It works for small values but returns false for `sameValue(1000, 1000)` because `==` compares references, not values.",
+    functionSignature: "public static boolean sameValue(Integer a, Integer b)",
+    buggyCode:
+      "public static boolean sameValue(Integer a, Integer b) {\n    return a == b;\n}\n",
+    hint: "For boxed Integers, == compares object identity. The Integer cache only covers -128..127, so it accidentally 'works' for small numbers.",
+    explanation:
+      "`==` on two `Integer` objects compares references. Java caches boxed Integers in the range -128..127, so `==` happens to be true for small equal values but false for larger ones like 1000. Compare values with `.equals`: `return a.equals(b);`.",
+    rules: [
+      { label: "Compares values with equals", type: 'mustContain', pattern: "a.equals(b)" },
+      { label: "No longer compares Integers with ==", type: 'mustNotContain', pattern: "return a == b;" },
+    ],
+  },
+  {
+    id: 'java-getordefault-count',
+    number: 53,
+    language: 'java',
+    title: "Counting With a Missing Key",
+    difficulty: 'Easy',
+    topic: "Maps",
+    statement:
+      "wordCounts should return a map from each word to how many times it appears. It crashes with a NullPointerException the first time it sees a new word, because Map.get returns null for absent keys and null + 1 unboxes null.",
+    functionSignature: "public static Map<String, Integer> wordCounts(List<String> words)",
+    buggyCode:
+      "public static Map<String, Integer> wordCounts(List<String> words) {\n    Map<String, Integer> counts = new HashMap<>();\n    for (String w : words) {\n        counts.put(w, counts.get(w) + 1);\n    }\n    return counts;\n}",
+    hint: "The first time a word is seen, counts.get(w) is null. Supply a fallback of 0.",
+    explanation:
+      "counts.get(w) returns null for a key that isn't in the map yet, and unboxing null to do null + 1 throws NullPointerException. counts.getOrDefault(w, 0) returns 0 for absent keys, so the increment starts each new word at 1.",
+    rules: [
+      { label: "Uses getOrDefault(w, 0) as the fallback", type: 'mustContain', pattern: "getOrDefault\\(w,\\s*0\\)", regex: true },
+      { label: "No longer calls counts.get(w) + 1", type: 'mustNotContain', pattern: "counts.get(w) + 1" },
+      { label: "Matches the reference fix exactly", type: 'acceptedFix', pattern: "public static Map<String, Integer> wordCounts(List<String> words) {\n    Map<String, Integer> counts = new HashMap<>();\n    for (String w : words) {\n        counts.put(w, counts.getOrDefault(w, 0) + 1);\n    }\n    return counts;\n}" },
+    ],
+  },
+  {
+    id: 'java-contains-set-membership',
+    number: 54,
+    language: 'java',
+    title: "Dedupe With list.contains",
+    difficulty: 'Medium',
+    topic: "Collections",
+    statement:
+      "distinct should return the unique values from nums in first-seen order. It works but uses list.contains inside the loop, which is O(n) per element and makes the whole method O(n^2). Track membership with a HashSet so each check is O(1).",
+    functionSignature: "public static List<Integer> distinct(int[] nums)",
+    buggyCode:
+      "public static List<Integer> distinct(int[] nums) {\n    List<Integer> out = new ArrayList<>();\n    for (int n : nums) {\n        if (!out.contains(n)) {\n            out.add(n);\n        }\n    }\n    return out;\n}",
+    hint: "A HashSet.add returns false when the element was already present, giving you an O(1) membership test.",
+    explanation:
+      "out.contains(n) scans the whole list each time, so building the result is quadratic. Maintaining a HashSet and using seen.add(n) — which returns true only the first time a value is inserted — keeps the order of first appearance while making membership checks O(1).",
+    rules: [
+      { label: "Introduces a HashSet to track seen values", type: 'mustContain', pattern: "new HashSet<>()" },
+      { label: "Uses seen.add(n) for the O(1) membership check", type: 'mustContain', pattern: "seen.add(n)" },
+      { label: "No longer scans the list with out.contains(n)", type: 'mustNotContain', pattern: "out.contains(n)" },
+    ],
+  },
+  {
+    id: 'java-comparator-reversed',
+    number: 55,
+    language: 'java',
+    title: "Sorting the Wrong Way",
+    difficulty: 'Easy',
+    topic: "Comparators",
+    statement:
+      "sortDesc should sort the list in descending order (largest first), in place. It currently sorts ascending because it uses the natural-order comparator.",
+    functionSignature: "public static void sortDesc(List<Integer> nums)",
+    buggyCode:
+      "public static void sortDesc(List<Integer> nums) {\n    nums.sort(Comparator.naturalOrder());\n}",
+    hint: "There is a built-in comparator that is the reverse of natural order.",
+    explanation:
+      "Comparator.naturalOrder() sorts ascending, which is the opposite of what sortDesc promises. Comparator.reverseOrder() orders elements from largest to smallest, giving the intended descending sort.",
+    rules: [
+      { label: "Uses Comparator.reverseOrder()", type: 'mustContain', pattern: "Comparator.reverseOrder()" },
+      { label: "No longer uses Comparator.naturalOrder()", type: 'mustNotContain', pattern: "Comparator.naturalOrder()" },
+      { label: "Matches the reference fix exactly", type: 'acceptedFix', pattern: "public static void sortDesc(List<Integer> nums) {\n    nums.sort(Comparator.reverseOrder());\n}" },
+    ],
+  },
+  {
+    id: 'java-entryset-iteration',
+    number: 56,
+    language: 'java',
+    title: "Look Up While You Iterate",
+    difficulty: 'Medium',
+    topic: "Maps",
+    statement:
+      "sumValues should add up every value in the map. It iterates the key set and then re-looks-up each key after uppercasing it, so it either misses entries or throws when the uppercased key isn't present. Iterate the entry set instead and read the value directly.",
+    functionSignature: "public static int sumValues(Map<String, Integer> map)",
+    buggyCode:
+      "public static int sumValues(Map<String, Integer> map) {\n    int total = 0;\n    for (String key : map.keySet()) {\n        total += map.get(key.toUpperCase());\n    }\n    return total;\n}",
+    hint: "map.entrySet() gives you each key/value pair together — no second lookup, no key mangling.",
+    explanation:
+      "Uppercasing the key before map.get produces a key that generally isn't in the map, so map.get returns null and unboxing it throws (or silently skips real entries). Iterating map.entrySet() and calling e.getValue() reads each stored value directly, with no redundant lookup and no key transformation.",
+    rules: [
+      { label: "Iterates map.entrySet()", type: 'mustContain', pattern: "map.entrySet()" },
+      { label: "Reads the value with e.getValue()", type: 'mustContain', pattern: "e.getValue()" },
+      { label: "No longer uppercases the key for lookup", type: 'mustNotContain', pattern: "key.toUpperCase()" },
+    ],
+  },
+  {
+    id: 'java-iterator-remove',
+    number: 57,
+    language: 'java',
+    title: "Remove While Iterating",
+    difficulty: 'Hard',
+    topic: "Iteration",
+    statement:
+      "removeNegatives should delete every negative number from the list in place. The current for-each loop calls nums.remove(n) during iteration, which throws ConcurrentModificationException (and the Integer overload can even remove the wrong element). Use an explicit Iterator and its remove().",
+    functionSignature: "public static void removeNegatives(List<Integer> nums)",
+    buggyCode:
+      "public static void removeNegatives(List<Integer> nums) {\n    for (Integer n : nums) {\n        if (n < 0) {\n            nums.remove(n);\n        }\n    }\n}",
+    hint: "The only safe way to delete during iteration is Iterator.remove() on the iterator you're looping with.",
+    explanation:
+      "A for-each loop uses a hidden iterator; mutating the list through nums.remove during that loop trips the modCount check and throws ConcurrentModificationException. Driving the loop with an explicit Iterator and calling it.remove() deletes the current element safely and keeps the iterator's state consistent.",
+    rules: [
+      { label: "Obtains an explicit iterator()", type: 'mustContain', pattern: "iterator()" },
+      { label: "Deletes via it.remove()", type: 'mustContain', pattern: "it.remove()" },
+      { label: "No longer uses a for-each loop over nums", type: 'mustNotContain', pattern: "for (Integer n : nums)" },
+    ],
+  },
+  {
+    id: 'java-comparing-thencomparing',
+    number: 58,
+    language: 'java',
+    title: "Sorting Numbers as Text",
+    difficulty: 'Medium',
+    topic: "Comparators",
+    statement:
+      "sortPeople should sort a list of {name, ageAsString} pairs by age ascending. It compares p[1] as a String, so ages sort lexicographically ('10' before '9'). Parse the age to an int in the comparator.",
+    functionSignature: "public static void sortPeople(List<String[]> people)",
+    buggyCode:
+      "public static void sortPeople(List<String[]> people) {\n    // each String[] is {name, ageAsString}; sort by age ascending\n    people.sort(Comparator.comparing(p -> p[1]));\n}",
+    hint: "Comparator.comparingInt with Integer.parseInt orders by numeric value instead of string order.",
+    explanation:
+      "Comparator.comparing(p -> p[1]) compares the age strings, so '10' sorts before '9' because '1' < '9' character-wise. Comparator.comparingInt(p -> Integer.parseInt(p[1])) converts each age to an int first, producing a correct numeric ascending order.",
+    rules: [
+      { label: "Parses the age with Integer.parseInt(p[1])", type: 'mustContain', pattern: "Integer.parseInt(p[1])" },
+      { label: "No longer compares the raw string p[1]", type: 'mustNotContain', pattern: "Comparator.comparing(p -> p[1])" },
+      { label: "Matches the reference fix exactly", type: 'acceptedFix', pattern: "public static void sortPeople(List<String[]> people) {\n    // each String[] is {name, ageAsString}; sort by age ascending\n    people.sort(Comparator.comparingInt(p -> Integer.parseInt(p[1])));\n}" },
+    ],
+  },
+  {
+    id: 'java-equals-symmetry-getclass',
+    number: 59,
+    language: 'java',
+    title: "equals Skips the Type Check",
+    difficulty: 'Medium',
+    topic: "OOP",
+    statement:
+      "`Point.equals` should return false when compared with null or with an object of a different type, but it casts `o` to `Point` without any type check — so `point.equals(\"hi\")` throws ClassCastException and `point.equals(null)` throws NullPointerException.",
+    functionSignature: "class Point",
+    buggyCode:
+      "class Point {\n    final int x, y;\n\n    Point(int x, int y) { this.x = x; this.y = y; }\n\n    @Override\n    public boolean equals(Object o) {\n        if (this == o) return true;\n        Point p = (Point) o;\n        return x == p.x && y == p.y;\n    }\n\n    @Override\n    public int hashCode() {\n        return Objects.hash(x, y);\n    }\n}",
+    hint: "Before casting, reject null and objects whose runtime class differs — `o == null || getClass() != o.getClass()`.",
+    explanation:
+      "A correct equals must handle null (return false, never throw) and must reject foreign types instead of blindly casting. Adding `if (o == null || getClass() != o.getClass()) return false;` before the cast makes equals total and keeps it symmetric and reflexive. Using getClass() (rather than instanceof) also prevents asymmetry with subclasses.",
+    rules: [
+      { label: "Rejects a different runtime class before casting", type: 'mustContain', pattern: "getClass\\(\\)\\s*!=\\s*o\\.getClass\\(\\)", regex: true },
+      { label: "Handles a null argument", type: 'mustContain', pattern: "o\\s*==\\s*null", regex: true },
+      { label: "No unguarded cast right after the identity check", type: 'mustNotContain', pattern: "if (this == o) return true;\n        Point p = (Point) o;" },
+    ],
+  },
+  {
+    id: 'java-static-counter-instance-id',
+    number: 60,
+    language: 'java',
+    title: "Every Instance Shares One id",
+    difficulty: 'Medium',
+    topic: "OOP",
+    statement:
+      "`Widget` should assign each new instance a unique, permanent id from a shared counter. `nextId` is correctly static (shared), but `id` was also declared static, so all widgets report whatever id was assigned last instead of their own.",
+    functionSignature: "class Widget",
+    buggyCode:
+      "class Widget {\n    static int nextId = 0;\n    static int id;\n\n    Widget() {\n        id = nextId;\n        nextId++;\n    }\n\n    int getId() {\n        return id;\n    }\n}",
+    hint: "The counter is per-class; the assigned id is per-instance. Only `nextId` should be static.",
+    explanation:
+      "`nextId` is genuinely class-wide state, but `id` is the identity of one particular Widget and must be an instance field. As written, `id = nextId` overwrites the single shared `id` slot on every construction, so `getId()` returns the same value for all widgets. Dropping `static` from `id` gives each instance its own copy.",
+    rules: [
+      { label: "id is now an instance field", type: 'mustContain', pattern: "(^|\\n)\\s*int\\s+id\\s*;", regex: true },
+      { label: "id is no longer static", type: 'mustNotContain', pattern: "static int id;" },
+      { label: "The counter stays static (class-wide)", type: 'mustContain', pattern: "static int nextId" },
+    ],
+  },
+  {
+    id: 'java-generic-method-bounded-max',
+    number: 61,
+    language: 'java',
+    title: "Generic Without a Bound",
+    difficulty: 'Medium',
+    topic: "Generics",
+    statement:
+      "`max` should return the largest element of a list by calling `compareTo`, but the type parameter `<T>` is unbounded, so `item.compareTo(best)` does not compile — an arbitrary `T` has no compareTo method.",
+    functionSignature: "public static <T extends Comparable<T>> T max(List<T> items)",
+    buggyCode:
+      "public static <T> T max(List<T> items) {\n    T best = items.get(0);\n    for (T item : items) {\n        if (item.compareTo(best) > 0) {\n            best = item;\n        }\n    }\n    return best;\n}",
+    hint: "If you call compareTo on a T, the compiler must know every T is Comparable. Add a type bound.",
+    explanation:
+      "An unbounded `T` is treated as `Object`, which has no `compareTo`, so the method fails to compile. Bounding the type parameter with `<T extends Comparable<T>>` tells the compiler that every `T` supports `compareTo`, making the comparison legal while still keeping the method generic.",
+    rules: [
+      { label: "Bounds T with Comparable", type: 'mustContain', pattern: "<\\s*T\\s+extends\\s+Comparable\\s*<\\s*T\\s*>\\s*>", regex: true },
+      { label: "No longer declares an unbounded <T> T max", type: 'mustNotContain', pattern: "public static <T> T max" },
+      { label: "Still compares via compareTo", type: 'mustContain', pattern: "item.compareTo(best)" },
+    ],
+  },
+  {
+    id: 'java-generic-pecs-addall',
+    number: 62,
+    language: 'java',
+    title: "Wildcards for Producer and Consumer",
+    difficulty: 'Hard',
+    topic: "Generics",
+    statement:
+      "`copyAll` should copy every element from a source list into a destination list. Callers want it to work for related types too — e.g. read from a `List<Integer>` and write into a `List<Object>` — but the rigid `List<Number>` parameters reject those calls. Apply the PECS rule so the source can be any subtype and the destination any supertype of `Number`.",
+    functionSignature: "public static void copyAll(List<? super Number> dest, List<? extends Number> src)",
+    buggyCode:
+      "public static void copyAll(List<Number> dest, List<Number> src) {\n    for (Number n : src) {\n        dest.add(n);\n    }\n}",
+    hint: "Producer Extends, Consumer Super: the source produces (`? extends Number`), the destination consumes (`? super Number`).",
+    explanation:
+      "Generics are invariant, so `List<Number>` will not accept a `List<Integer>` or `List<Object>` argument even though the body is type-safe. By PECS, the source only produces Numbers so it should be `List<? extends Number>`, and the destination only consumes Numbers so it should be `List<? super Number>`. This widens the set of acceptable arguments while keeping `dest.add(n)` and the read loop legal.",
+    rules: [
+      { label: "Destination is a super-bounded wildcard (consumer)", type: 'mustContain', pattern: "List<\\?\\s*super\\s+Number>\\s+dest", regex: true },
+      { label: "Source is an extends-bounded wildcard (producer)", type: 'mustContain', pattern: "List<\\?\\s*extends\\s+Number>\\s+src", regex: true },
+      { label: "No longer takes an invariant List<Number> source", type: 'mustNotContain', pattern: "List<Number> src" },
+    ],
+  },
+  {
+    id: 'java-equals-signature-override',
+    number: 63,
+    language: 'java',
+    title: "equals That Doesn't Override",
+    difficulty: 'Hard',
+    topic: "OOP",
+    statement:
+      "`Money` overrides `hashCode` and appears to override `equals`, but its equals takes a `Money` parameter instead of `Object`. That is an overload, not an override, so collections like `HashSet` and `List.contains` — which call `equals(Object)` — never see it and treat equal Money values as distinct.",
+    functionSignature: "class Money",
+    buggyCode:
+      "class Money {\n    final long cents;\n\n    Money(long cents) { this.cents = cents; }\n\n    public boolean equals(Money other) {\n        return other != null && this.cents == other.cents;\n    }\n\n    @Override\n    public int hashCode() {\n        return Long.hashCode(cents);\n    }\n}",
+    hint: "Object.equals takes an Object. A method taking Money is a separate overload the JDK never calls — change the parameter and check the type inside.",
+    explanation:
+      "Collections invoke `equals(Object)` polymorphically; a method with signature `equals(Money)` is an unrelated overload that the runtime ignores, so the inherited identity-based `equals(Object)` is used instead and equal Money objects compare unequal. Changing the parameter to `Object` (with an `instanceof Money` check and a cast) makes it a true override that honors the equals/hashCode contract.",
+    rules: [
+      { label: "equals takes an Object parameter (real override)", type: 'mustContain', pattern: "public\\s+boolean\\s+equals\\s*\\(\\s*Object\\s+other\\s*\\)", regex: true },
+      { label: "No equals overload that takes Money", type: 'mustNotContain', pattern: "public boolean equals(Money other)" },
+      { label: "Checks the type with instanceof", type: 'mustContain', pattern: "instanceof\\s+Money", regex: true },
+    ],
+  },
+  {
+    id: 'java-static-method-hiding-override',
+    number: 64,
+    language: 'java',
+    title: "static Breaks the Override",
+    difficulty: 'Easy',
+    topic: "OOP",
+    statement:
+      "`Circle` is meant to override `Shape.name()` so a `Shape` reference pointing at a `Circle` returns \"Circle\". But `Circle.name()` is declared `static`, which hides rather than overrides — polymorphic calls through a `Shape` variable still return \"Shape\".",
+    functionSignature: "class Circle extends Shape",
+    buggyCode:
+      "class Shape {\n    String name() { return \"Shape\"; }\n}\n\nclass Circle extends Shape {\n    static String name() { return \"Circle\"; }\n}",
+    hint: "Static methods are not polymorphic — they are resolved by the reference type, not the object. Remove `static` and mark it `@Override`.",
+    explanation:
+      "Only instance methods participate in dynamic dispatch. A `static` method in the subclass hides the superclass method rather than overriding it, so `Shape s = new Circle(); s.name();` binds statically to `Shape.name()`. Removing `static` (and adding `@Override` so the compiler verifies the override) restores polymorphic behavior.",
+    rules: [
+      { label: "name() is an @Override instance method", type: 'mustContain', pattern: "@Override\\s+String\\s+name\\s*\\(\\s*\\)", regex: true },
+      { label: "name() is no longer static", type: 'mustNotContain', pattern: "static String name()" },
+      { label: "Still returns the Circle name", type: 'mustContain', pattern: "return \"Circle\";" },
     ],
   },
 ];

@@ -124,7 +124,7 @@ export default function RatingPromptModal({ visible, onClose }: Props) {
                 <TouchableOpacity
                   onPress={handleReviewYes}
                   activeOpacity={0.85}
-                  style={[styles.primaryBtn, shadows.button(colors.primary)]}
+                  style={[styles.primaryBtn, shadows.button(colors.primaryDark)]}
                 >
                   <Ionicons name="logo-apple" size={18} color={colors.white} />
                   <Text style={styles.primaryBtnText}>Leave a review</Text>
@@ -152,7 +152,7 @@ export default function RatingPromptModal({ visible, onClose }: Props) {
                 <TouchableOpacity
                   onPress={close}
                   activeOpacity={0.85}
-                  style={[styles.primaryBtn, shadows.button(colors.primary)]}
+                  style={[styles.primaryBtn, shadows.button(colors.primaryDark)]}
                 >
                   <Text style={styles.primaryBtnText}>Got it</Text>
                 </TouchableOpacity>
@@ -178,6 +178,10 @@ const styles = StyleSheet.create({
     maxWidth: 360,
     backgroundColor: colors.card,
     borderRadius: borderRadius.xl,
+    borderWidth: 1.5,
+    borderBottomWidth: 5,
+    borderColor: colors.border,
+    borderBottomColor: colors.borderDark,
     ...shadows.lg,
   },
   cardInner: {

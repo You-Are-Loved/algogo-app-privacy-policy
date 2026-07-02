@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { colors, spacing, borderRadius, typography } from '../theme';
+import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { useStore } from '../store/useStore';
 
 export default function TermsScreen() {
@@ -247,9 +247,12 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.lg,
     backgroundColor: colors.card,
     borderRadius: borderRadius.xl,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    borderBottomWidth: 5,
+    borderBottomColor: colors.borderDark,
     overflow: 'hidden',
+    ...shadows.sm,
   },
   scrollView: {
     flex: 1,
@@ -308,9 +311,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     borderRadius: borderRadius.lg,
     width: '100%',
+    ...shadows.button(colors.primaryDark),
   },
   acceptButtonDisabled: {
     backgroundColor: colors.border,
+    ...shadows.button(colors.borderDark),
   },
   acceptButtonText: {
     ...typography.labelLarge,

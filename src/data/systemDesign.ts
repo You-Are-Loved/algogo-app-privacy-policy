@@ -858,6 +858,623 @@ export const systemDesignProblems: SystemDesignProblem[] = [
     solution:
       'A nightly batch pipeline trains a collaborative-filtering model on watch/view history and emits per-user candidate lists (~500 items) into a Redis cache. At request time the API pulls the candidate list, hands it to a ranking model that scores using real-time features (current device, time of day, ongoing session), and returns the top 20. New users see a popularity-blended fallback derived from content features served by the search index until enough interactions land. Worker pipelines refresh the model on user interactions consumed off a queue; offline metrics (CTR, watch-through rate) feed back into the next training cycle.',
   },
+  {
+    id: 'distributed-lock',
+    number: 26,
+    title: "Distributed Lock Service",
+    topic: "Infrastructure",
+    prompt:
+      "Design a service that lets many clients across different machines acquire a mutually-exclusive lock on a named resource. Only one holder may own a lock at a time, locks must auto-expire if the holder crashes, and the service itself must survive node failures without ever granting the same lock twice.",
+    palette: ['client', 'web_server', 'cache', 'replica', 'database', 'load_balancer'],
+    requiredComponents: ['client', 'web_server', 'cache', 'replica', 'database'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'cache'],
+      ['cache', 'replica'],
+      ['web_server', 'database'],
+    ],
+    hints: [
+      "A lock is just a key with a single owner and a TTL — an atomic compare-and-set (SET key owner NX PX ttl) in fast in-memory storage is the core primitive.",
+      "Auto-expiry via TTL protects you from a holder that crashes while holding the lock; the client must renew (heartbeat) before expiry if it needs to keep the lock.",
+      "A single lock node is a single point of failure — replicate the state so a promoted replica keeps the ownership record, and persist a durable record for audit/recovery.",
+    ],
+    solution:
+      "Clients ask the lock service (behind a load balancer) to acquire a named lock. The API server performs an atomic compare-and-set against an in-memory store: SET lock:<name> <owner_token> NX PX <ttl>. Success means the caller owns the lock until the TTL expires; the client heartbeats to extend it and issues a release (checking the owner token first) when done, so it never frees someone else's lock. The cache runs primary plus replica so a crash promotes the replica without losing ownership state, and a fencing token (monotonically increasing) is handed out on each grant so stale holders are rejected downstream. A durable database keeps a record of grants for auditing and recovery. TTL-based expiry guarantees a crashed holder's lock is eventually reclaimed, preventing permanent deadlock.",
+  },
+  {
+    id: 'ad-click-aggregator',
+    number: 27,
+    title: "Ad Click Aggregator",
+    topic: "Pipeline",
+    prompt:
+      "Design a system that ingests a firehose of ad-click events and produces near-real-time aggregated counts (clicks per ad, per minute) for advertiser dashboards. Ingest volume is enormous and bursty, some duplicate events will arrive, and dashboards should reflect fresh data within seconds.",
+    palette: ['client', 'web_server', 'message_queue', 'worker', 'time_series_db', 'deduper', 'cache'],
+    requiredComponents: ['client', 'web_server', 'message_queue', 'worker', 'time_series_db', 'deduper'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'message_queue'],
+      ['message_queue', 'worker'],
+      ['worker', 'deduper'],
+      ['worker', 'time_series_db'],
+      ['client', 'cache'],
+    ],
+    hints: [
+      "Never write raw clicks straight to the database — buffer them in a queue so ingest spikes don't overwhelm the aggregation layer.",
+      "Each click carries an event ID; a deduper (e.g. a set/bloom filter keyed by event ID within a window) drops replays before they inflate counts.",
+      "Aggregate in tumbling time windows (per-minute) inside the worker and write rollups to a time-series store; dashboards read the pre-aggregated buckets from a cache.",
+    ],
+    solution:
+      "The ingestion API accepts click events and immediately publishes them to a partitioned message queue, decoupling the bursty firehose from downstream processing. Stream workers consume from the queue, and for each event first consult the deduper (a windowed set or bloom filter keyed on event ID) to discard duplicates and late replays. Surviving events are aggregated into tumbling per-minute windows keyed by ad ID and flushed as rollups into a time-series database. Advertiser dashboards read pre-aggregated buckets served from a cache for sub-second latency rather than scanning raw events. Partitioning by ad ID lets workers scale horizontally, and the queue provides replay and back-pressure so no clicks are lost during spikes.",
+  },
+  {
+    id: 'food-delivery-system',
+    number: 28,
+    title: "Food Delivery System",
+    topic: "Marketplace",
+    prompt:
+      "Design a platform where customers order from nearby restaurants and a courier is dispatched to pick up and deliver the food. The system must match orders to available couriers based on live location, process payment, and push status updates (order accepted, picked up, delivered) to the customer in real time.",
+    palette: ['client', 'driver', 'web_server', 'location_service', 'matching_service', 'payment_processor', 'notification_service', 'database'],
+    requiredComponents: ['client', 'driver', 'web_server', 'location_service', 'matching_service', 'payment_processor', 'database'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['driver', 'web_server'],
+      ['web_server', 'payment_processor'],
+      ['web_server', 'matching_service'],
+      ['matching_service', 'location_service'],
+      ['web_server', 'database'],
+      ['web_server', 'notification_service'],
+    ],
+    hints: [
+      "Separate the three concerns: placing/paying for the order, dispatching a courier, and streaming status back to the customer.",
+      "Courier positions change constantly — keep them in a geo-indexed location service, not the transactional order database.",
+      "The matching service pulls nearby available couriers from the location service, scores them (distance, current load, ETA), and assigns; status changes fan out through a notification service.",
+    ],
+    solution:
+      "A customer places an order through the API server, which charges the customer via the payment processor and writes the order to the transactional database once payment authorizes. Couriers stream their GPS positions into a geo-indexed location service, kept separate from the order DB so the hot location writes don't contend with order transactions. When a restaurant accepts, the API calls the matching service, which queries the location service for nearby idle couriers, scores candidates by distance/ETA/current load, and assigns one, recording the assignment in the database. Every state transition (accepted, picked up, en route, delivered) is pushed through the notification service to the customer's client. This split lets the marketplace scale each axis independently: payments, dispatch, and real-time updates.",
+  },
+  {
+    id: 'hotel-reservation',
+    number: 29,
+    title: "Hotel Reservation System",
+    topic: "Marketplace",
+    prompt:
+      "Design a system to search hotel availability and book rooms. The critical constraint is correctness under concurrency: the same room-night must never be double-booked even when many users check out simultaneously, while search over availability and amenities stays fast.",
+    palette: ['client', 'web_server', 'cache', 'database', 'search_index', 'payment_processor', 'load_balancer'],
+    requiredComponents: ['client', 'web_server', 'cache', 'database', 'search_index', 'payment_processor'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'search_index'],
+      ['web_server', 'cache'],
+      ['web_server', 'database'],
+      ['web_server', 'payment_processor'],
+    ],
+    hints: [
+      "Split the read-heavy search path from the write-heavy, correctness-critical booking path — they have opposite requirements.",
+      "Search runs against a denormalized search index (rooms, dates, amenities, price); it can be slightly stale, so cache popular queries.",
+      "Booking must be transactional: reserve the specific room-night with an atomic conditional update (or SELECT ... FOR UPDATE) so two payments can't claim the same inventory.",
+    ],
+    solution:
+      "Search and booking are deliberately separated. The search path runs queries against a denormalized search index of rooms, dates, amenities and price, with popular result sets cached and served behind a load balancer; slight staleness is acceptable here. The booking path is strictly transactional: when a user confirms, the API server opens a database transaction that atomically checks-and-decrements the specific room-night inventory (conditional update or row lock), so concurrent requests for the last room serialize and only one wins. Payment is authorized through the payment processor as part of the reservation flow, and the transaction commits only if inventory reservation and payment both succeed, otherwise it rolls back and releases the hold. Availability changes are propagated asynchronously back into the search index. This isolates the fast, eventually-consistent read side from the slow, strongly-consistent write side that guarantees no double-booking.",
+  },
+  {
+    id: 'stock-trading-exchange',
+    number: 30,
+    title: "Stock Trading Exchange",
+    topic: "Realtime",
+    prompt:
+      "Design the core of an electronic exchange that accepts buy/sell orders and matches them into trades. Orders must be matched deterministically by price-time priority with very low latency, every order and fill must be durably recorded, and market data (order book, executed trades) must stream to clients in real time.",
+    palette: ['client', 'api_gateway', 'matching_service', 'message_queue', 'database', 'ws_gateway', 'time_series_db', 'cache'],
+    requiredComponents: ['client', 'api_gateway', 'matching_service', 'message_queue', 'database', 'ws_gateway'],
+    requiredConnections: [
+      ['client', 'api_gateway'],
+      ['api_gateway', 'matching_service'],
+      ['matching_service', 'message_queue'],
+      ['message_queue', 'database'],
+      ['message_queue', 'ws_gateway'],
+      ['ws_gateway', 'client'],
+    ],
+    hints: [
+      "The matching engine (order book) is the heart: keep it single-threaded per symbol and in-memory so matching is deterministic and microsecond-fast.",
+      "Match by price-time priority — best price first, then earliest arrival — and emit a fill event for every match.",
+      "Fan out the resulting trade/order-book events through a queue: one consumer persists durably, another streams market data to clients over WebSockets.",
+    ],
+    solution:
+      "Orders enter through the API gateway (which handles auth and validation) and are routed to the matching service. The matching engine keeps an in-memory order book per symbol, processed single-threaded so matching is fully deterministic under price-time priority: incoming orders cross against the best-priced resting orders, oldest first, generating fill events. Every accepted order and every fill is published to a durable, sequenced message queue, which acts as the source of truth. Downstream consumers fan out from that log: one writes orders and trades into the database (and a time-series store for tick history) for durability and audit, while another feeds the WebSocket gateway that streams order-book updates and executed trades to clients in real time. A cache holds the current top-of-book for fast snapshot delivery on connect. Because the queue is an ordered, replayable log, the exchange can recover the exact book state after a crash by replaying events.",
+  },
+  {
+    id: 'distributed-commit-log',
+    number: 31,
+    title: "Distributed Commit Log",
+    topic: "Infrastructure",
+    prompt:
+      "Build an append-only commit log (think Kafka) that ingests high-volume event streams and lets many consumers read them independently. Writes must be durable and ordered within a partition, and the system must survive broker failures without losing committed records.",
+    palette: ['client', 'load_balancer', 'message_queue', 'worker', 'replica', 'database', 'cache'],
+    requiredComponents: ['client', 'load_balancer', 'message_queue', 'replica', 'worker'],
+    requiredConnections: [
+      ['client', 'load_balancer'],
+      ['load_balancer', 'message_queue'],
+      ['message_queue', 'replica'],
+      ['message_queue', 'worker'],
+      ['worker', 'database'],
+    ],
+    hints: [
+      "Partition the log so writes scale horizontally; ordering only needs to hold within a partition, not across the whole topic.",
+      "Durability comes from replication: each partition has a leader and follower replicas that acknowledge writes before a record is considered committed.",
+      "Consumers track their own offset and pull at their own pace, so a slow consumer never blocks producers or other readers.",
+    ],
+    solution:
+      "Producers connect through a load balancer that routes each record to the partition leader (a message-queue broker) chosen by the record key. The leader appends the record to its on-disk segment and replicates it to follower replicas; once a quorum of replicas acknowledge, the offset is marked committed and returned to the producer. Consumers (workers) pull from a partition starting at their stored offset, and periodically checkpoint their committed offset into a durable database so they can resume after a crash. Because each partition is an ordered, replicated, append-only sequence, ordering and durability hold per-partition while total throughput scales with partition count. On a leader failure, one of the in-sync replicas is promoted, preserving all committed records.",
+  },
+  {
+    id: 'feature-flag-service',
+    number: 32,
+    title: "Feature Flag Service",
+    topic: "Infrastructure",
+    prompt:
+      "Design a service that lets teams toggle features and run percentage rollouts without redeploying. Client SDKs evaluate flags on nearly every request, so reads must be extremely fast and flag changes should propagate to all clients within seconds.",
+    palette: ['client', 'api_gateway', 'web_server', 'cache', 'database', 'message_queue', 'worker'],
+    requiredComponents: ['client', 'web_server', 'cache', 'database', 'message_queue'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'cache'],
+      ['web_server', 'database'],
+      ['web_server', 'message_queue'],
+      ['message_queue', 'client'],
+    ],
+    hints: [
+      "Flag evaluation is on the hot path — clients should evaluate locally against a cached ruleset, not call your server per request.",
+      "The database is the source of truth for flag rules, but reads should be served from a cache to keep evaluation latency near zero.",
+      "Propagate changes with a push channel (streaming/pub-sub) so SDKs refresh their local ruleset within seconds instead of polling constantly.",
+    ],
+    solution:
+      "Flag definitions and targeting rules live in a database as the source of truth. The API server serves the current ruleset from an in-memory cache, so client SDKs can fetch the full evaluation bundle in one fast request and then evaluate flags locally on every user request. When an operator changes a flag, the API writes to the database and publishes the update onto a message queue / pub-sub channel; connected client SDKs receive the delta and refresh their local ruleset within seconds, falling back to periodic polling if the stream drops. Percentage rollouts are done deterministically by hashing the user ID against the flag's bucket, so the same user always gets a stable assignment. Keeping evaluation client-side plus cache-fronted reads makes the common path effectively zero added latency.",
+  },
+  {
+    id: 'nearby-places',
+    number: 33,
+    title: "Nearby Places Search",
+    topic: "Search",
+    prompt:
+      "Build a service that returns points of interest near a user's coordinates, ranked by distance and relevance. The place catalog is mostly static but huge, and 'find everything within N km of this lat/long' queries must return in milliseconds.",
+    palette: ['client', 'api_gateway', 'location_service', 'search_index', 'cache', 'database', 'ranking_service'],
+    requiredComponents: ['client', 'api_gateway', 'location_service', 'search_index', 'database'],
+    requiredConnections: [
+      ['client', 'api_gateway'],
+      ['api_gateway', 'location_service'],
+      ['location_service', 'search_index'],
+      ['location_service', 'database'],
+      ['api_gateway', 'cache'],
+    ],
+    hints: [
+      "A plain lat/long column can't answer radius queries fast — you need a spatial index (geohash, quadtree, or H3 cells).",
+      "Split the problem: a geo/location service narrows candidates to nearby cells, then you enrich and rank those candidates.",
+      "Popular areas get the same queries repeatedly; cache results keyed by rounded location + radius to shed load.",
+    ],
+    solution:
+      "Client requests hit an API gateway that first checks a cache keyed by a coarsened (lat, long, radius) tuple, since dense areas repeat the same queries. On a miss, the gateway calls the location service, which uses a spatial search index (geohash or H3 buckets) to find candidate place IDs in the cells covering the requested radius. Those candidate IDs are hydrated with full details (name, hours, category) from the database and can be scored by a ranking service that blends distance with relevance signals like popularity and rating. The ranked list is written back to the cache with a short TTL. Because the place catalog is largely static, the spatial index can be precomputed and heavily replicated, keeping radius queries in the millisecond range.",
+  },
+  {
+    id: 'live-comments',
+    number: 34,
+    title: "Live Comments",
+    topic: "Realtime",
+    prompt:
+      "Design a live comment stream for events where thousands of viewers post and see comments in real time, like a livestream chat. New comments must appear near-instantly for all viewers, while also being persisted so late joiners can load recent history.",
+    palette: ['client', 'ws_gateway', 'message_queue', 'worker', 'cache', 'database'],
+    requiredComponents: ['client', 'ws_gateway', 'message_queue', 'worker', 'database'],
+    requiredConnections: [
+      ['client', 'ws_gateway'],
+      ['ws_gateway', 'message_queue'],
+      ['message_queue', 'worker'],
+      ['worker', 'database'],
+      ['worker', 'cache'],
+    ],
+    hints: [
+      "Persistent WebSocket connections fan a new comment out to thousands of viewers far more efficiently than each client polling.",
+      "Decouple broadcast from persistence with a queue, so a slow database write never delays delivery to viewers.",
+      "Late joiners shouldn't hit the database for a cold read — keep a rolling window of recent comments in a cache.",
+    ],
+    solution:
+      "Viewers hold a WebSocket to a WS gateway, subscribed to a given event/room. When someone posts, the gateway publishes the comment onto a message queue keyed by room ID rather than writing synchronously. A worker consumes the queue, persists the comment to the database for durable history, appends it to a rolling recent-comments cache (a capped list keyed by room), and pushes it out to every gateway holding subscribers for that room, which broadcast to their connected clients. This keeps broadcast latency independent of database write latency. A late joiner loads the last N comments straight from the cache, then receives new ones live over the socket. Gateways scale horizontally, and the queue absorbs bursts when a stream spikes in popularity.",
+  },
+  {
+    id: 'digital-wallet',
+    number: 35,
+    title: "Digital Wallet",
+    topic: "Marketplace",
+    prompt:
+      "Build a digital wallet that holds user balances and moves money between accounts and to external payment rails. Transfers must be atomic and never double-spend, even under concurrent requests or retries, and every balance change must be auditable.",
+    palette: ['client', 'api_gateway', 'web_server', 'database', 'message_queue', 'worker', 'payment_processor'],
+    requiredComponents: ['client', 'api_gateway', 'web_server', 'database', 'payment_processor'],
+    requiredConnections: [
+      ['client', 'api_gateway'],
+      ['api_gateway', 'web_server'],
+      ['web_server', 'database'],
+      ['web_server', 'payment_processor'],
+      ['web_server', 'message_queue'],
+    ],
+    hints: [
+      "Money movement must be exactly-once — use idempotency keys so a retried request can't apply the same transfer twice.",
+      "Model balances as an append-only ledger of entries rather than mutating a single balance field; the balance is the sum of entries.",
+      "External rails (card networks, banks) are slow and async — push those settlements through a queue and reconcile the result.",
+    ],
+    solution:
+      "Requests enter through an API gateway to the wallet service (web server), which carries a client-supplied idempotency key so retries are safely deduplicated. Internal transfers are recorded as balanced double-entry rows in the database inside a single ACID transaction (debit one account, credit another), and the current balance is derived from the ledger, giving a full audit trail and preventing double-spend via row-level locking or an optimistic version check. For payouts to external rails, the service writes a pending ledger entry and enqueues a job onto a message queue; a worker calls the payment processor asynchronously and, on the callback, posts the settling ledger entry or a reversal. Because every state change is an immutable ledger entry keyed by idempotency, the system is atomic, auditable, and resilient to retries and concurrent access.",
+  },
+  {
+    id: 'flash-sale-inventory',
+    number: 36,
+    title: "Flash Sale Inventory",
+    topic: "Marketplace",
+    prompt:
+      "A limited batch of hot items goes on sale at a fixed second, and millions of buyers hit checkout at once. You must never oversell the stock, yet keep the request path fast enough that the flood does not topple the database. Fairness and correctness of the remaining count matter more than showing every user a spinner-free page.",
+    palette: ['client', 'load_balancer', 'web_server', 'rate_limiter', 'cache', 'message_queue', 'worker', 'database'],
+    requiredComponents: ['client', 'web_server', 'rate_limiter', 'cache', 'message_queue', 'worker', 'database'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'rate_limiter'],
+      ['web_server', 'cache'],
+      ['web_server', 'message_queue'],
+      ['message_queue', 'worker'],
+      ['worker', 'database'],
+    ],
+    hints: [
+      "The database cannot take a write per buyer at peak. Hold the authoritative remaining count somewhere in-memory and atomic so decrements never race.",
+      "Shed load before it reaches your stock logic: a rate limiter and admission control drop the obvious excess so only plausible winners get in.",
+      "Decouple 'reserve a unit' from 'persist the order'. An atomic decrement in the cache decides the winner instantly; a queue + workers write the durable order behind it.",
+    ],
+    solution:
+      "Buyers come in through a load-balanced fleet of API servers, each fronted by a rate limiter that sheds the obvious excess so only a survivable trickle reaches the stock logic. The authoritative remaining count lives in the cache as a single atomic counter (Redis DECR or a Lua script); a buyer who decrements it above zero has won a unit, everyone else is instantly told sold out without ever touching the database. Winning reservations are published to a message queue, and workers drain the queue to write durable order rows to the database at a rate it can absorb. Because the winner decision is a single atomic in-memory op, you cannot oversell even under a million concurrent requests, and the slow durable path is fully decoupled from the hot path.",
+  },
+  {
+    id: 'movie-ticket-booking',
+    number: 37,
+    title: "Movie Ticket Booking",
+    topic: "Marketplace",
+    prompt:
+      "Users pick specific seats for a showtime and pay. Two people must never end up holding the same seat, and a seat that someone is mid-checkout on should be held briefly then released if they abandon. Payment happens before the booking is confirmed.",
+    palette: ['client', 'web_server', 'cache', 'database', 'message_queue', 'payment_processor', 'notification_service'],
+    requiredComponents: ['client', 'web_server', 'cache', 'database', 'payment_processor'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'cache'],
+      ['web_server', 'database'],
+      ['web_server', 'payment_processor'],
+      ['web_server', 'message_queue'],
+      ['message_queue', 'notification_service'],
+    ],
+    hints: [
+      "Seat selection is a distributed lock problem: only one session may hold a seat at a time, and the hold must expire on its own.",
+      "Use a short-TTL reservation in the cache to hold seats during checkout, and the database as the durable source of truth once payment clears.",
+      "Confirm the booking only after the payment processor returns success; if payment fails or the hold expires, release the seats back to the pool.",
+    ],
+    solution:
+      "When a user selects seats, the API server places a short-TTL hold in the cache keyed by (showtime, seat) using an atomic set-if-absent, which acts as a distributed lock — a second user attempting the same seat is rejected immediately. The TTL guarantees abandoned checkouts auto-release without a cleanup job. The user then pays through the payment processor; only on a success callback does the API commit the booking to the database inside a transaction that re-validates the hold, then deletes the cache hold. If payment fails or the hold expires first, the seats fall back into the available pool. A confirmation event is dropped on a queue and consumed by the notification service to email the ticket, keeping that slow side-effect off the booking path.",
+  },
+  {
+    id: 'snowflake-id-generator',
+    number: 38,
+    title: "Snowflake ID Generator",
+    topic: "Infrastructure",
+    prompt:
+      "Produce unique, roughly time-ordered 64-bit IDs across a large fleet of servers, thousands per node per millisecond, with no central bottleneck on the hot path. IDs must be sortable by creation time and must never collide even if two machines mint at the same instant.",
+    palette: ['client', 'web_server', 'id_generator', 'cache', 'database'],
+    requiredComponents: ['client', 'web_server', 'id_generator', 'database'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'id_generator'],
+      ['id_generator', 'database'],
+      ['id_generator', 'cache'],
+    ],
+    hints: [
+      "Compose the ID from independent fields so no coordination is needed per call: a timestamp, a machine id, and a per-millisecond sequence.",
+      "The timestamp high bits make IDs time-sortable; the sequence counter disambiguates multiple IDs within the same millisecond on one node.",
+      "The only shared state is assigning each generator a unique machine id at startup — persist that in a small store, then generate entirely in-process afterward.",
+    ],
+    solution:
+      "Each ID generator builds a 64-bit value from three fields: a 41-bit millisecond timestamp (relative to a custom epoch) in the high bits, a ~10-bit machine id, and a ~12-bit per-millisecond sequence counter. Because the timestamp is most significant, IDs are monotonically increasing and sortable by creation time. Within a single millisecond a node increments its sequence counter; if it overflows, the generator spins until the next millisecond. The only coordination is one-time: at boot each generator claims a unique machine id from a durable store (the database), optionally cached for fast lookup. After that, generation is a purely in-process bit-packing operation with no network call, so throughput scales linearly with the fleet and there is no central bottleneck. Clock skew is handled by refusing to emit if the wall clock moves backward until time catches up.",
+  },
+  {
+    id: 'social-follow-graph',
+    number: 39,
+    title: "Social Follow Graph",
+    topic: "Social",
+    prompt:
+      "Model who-follows-whom for hundreds of millions of users and answer 'is A following B', 'list A's followers', and 'list who A follows' with low latency. Some accounts have tens of millions of followers, so a single row-per-edge scan will not do. Follows and unfollows are frequent writes.",
+    palette: ['client', 'web_server', 'cache', 'database', 'message_queue', 'worker'],
+    requiredComponents: ['client', 'web_server', 'cache', 'database'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'cache'],
+      ['web_server', 'database'],
+      ['web_server', 'message_queue'],
+      ['message_queue', 'worker'],
+      ['worker', 'database'],
+    ],
+    hints: [
+      "Store the edge in both directions so both 'followers of X' and 'following of X' are direct lookups, not scans.",
+      "Cache hot fan-out lists and the frequent 'does A follow B?' check; celebrity accounts make these reads extremely skewed.",
+      "Keep the follow write on the fast path but push the expensive fan-out side-effects (counters, feed invalidation) onto a queue and workers.",
+    ],
+    solution:
+      "The follow graph is stored as adjacency lists sharded by user id, and every edge is written twice — into A's 'following' list and B's 'followers' list — so both directions are O(1) partitioned lookups rather than scans. Hot accounts and frequent membership checks ('does A follow B?') are served from a cache; a Bloom-style or set membership entry answers the check without a database round trip. A follow request writes the two edges to the database on the request path, then enqueues a fan-out event; workers consume the queue to update follower counts and invalidate downstream caches asynchronously, keeping the write latency flat even for celebrity accounts with tens of millions of edges. Unfollows follow the same dual-write-then-fan-out pattern.",
+  },
+  {
+    id: 'content-moderation-pipeline',
+    number: 40,
+    title: "Content Moderation Pipeline",
+    topic: "Pipeline",
+    prompt:
+      "Every uploaded image, video, or post must be scanned for policy violations before or shortly after it goes live. Automated classifiers handle the bulk; borderline cases escalate to human reviewers. Throughput is huge and bursty, and the ingest path must not block on slow model inference.",
+    palette: ['client', 'web_server', 'object_storage', 'message_queue', 'worker', 'ranking_service', 'database', 'agent'],
+    requiredComponents: ['client', 'web_server', 'object_storage', 'message_queue', 'worker', 'database'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'object_storage'],
+      ['web_server', 'message_queue'],
+      ['message_queue', 'worker'],
+      ['worker', 'object_storage'],
+      ['worker', 'ranking_service'],
+      ['worker', 'database'],
+    ],
+    hints: [
+      "The upload path should just store the content and enqueue a job — never wait for a model to run.",
+      "Score each item with automated classifiers; use the confidence to auto-approve, auto-block, or route to a human review queue.",
+      "Keep every decision and its evidence in a durable store for appeals, audits, and retraining the models.",
+    ],
+    solution:
+      "On upload the API server writes the raw content to object storage and drops a moderation job on a message queue, returning immediately so ingest never blocks on inference. Moderation workers pull jobs, fetch the bytes from object storage, and run them through classifiers via the ranking/scoring service, which returns per-policy confidence scores. High-confidence clean items are auto-approved and high-confidence violations auto-blocked; anything in the ambiguous middle band is written to a human-review queue in the database, where reviewers (or an assisting agent that pre-summarizes context) make the final call. Every decision, score, and reviewer action is persisted for appeals, audit trails, and as labeled data to retrain the models. The queue absorbs bursts and lets you scale worker count independently of upload volume.",
+  },
+  {
+    id: 'bulk-email-service',
+    number: 41,
+    title: "Bulk Email Service",
+    topic: "Pipeline",
+    prompt:
+      "Design a service that sends marketing and transactional emails to tens of millions of recipients per campaign. A single API call may enqueue millions of messages that must be delivered without overwhelming any downstream provider, and a crashed worker must not send the same email twice.",
+    palette: ['client', 'web_server', 'message_queue', 'worker', 'notification_service', 'database', 'cache', 'rate_limiter'],
+    requiredComponents: ['client', 'web_server', 'message_queue', 'worker', 'notification_service', 'database'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'database'],
+      ['web_server', 'message_queue'],
+      ['message_queue', 'worker'],
+      ['worker', 'notification_service'],
+      ['worker', 'database'],
+    ],
+    hints: [
+      "Do not send inside the API request. Accept the campaign, persist it, and fan the recipient list out onto a queue so the send happens asynchronously.",
+      "Idempotency matters: key each message by (campaign_id, recipient) and record delivery state so a re-delivered queue item never double-sends.",
+      "Rate-limit per sending domain and per email provider so you respect their quotas and protect your sender reputation.",
+    ],
+    solution:
+      "The client POSTs a campaign to the API server, which validates it and writes the campaign plus recipient list to the database. A fan-out step publishes one job per recipient (or per batch) onto a message queue. Worker pools consume the queue and hand each message to the notification service, which talks to email providers (SES/SendGrid) over SMTP or API. Each worker checks and updates a per-(campaign_id, recipient) delivery record in the database (or a Redis dedupe set) before sending, so retries after a crash are idempotent. A rate limiter throttles throughput per sending domain and per provider to stay within quotas and protect deliverability. Bounces and complaints flow back as webhooks that mark addresses suppressed. Workers, queues, and providers all scale independently, and failed sends requeue with exponential backoff.",
+  },
+  {
+    id: 'ci-cd-deployment',
+    number: 42,
+    title: "CI/CD Deployment Pipeline",
+    topic: "Pipeline",
+    prompt:
+      "Design a system that builds, tests, and deploys code every time a developer pushes to a repository. Builds must run in parallel across a fleet of workers, artifacts must be stored durably, and a slow or failing build must never block unrelated pipelines.",
+    palette: ['client', 'web_server', 'message_queue', 'worker', 'object_storage', 'database', 'cache', 'notification_service'],
+    requiredComponents: ['client', 'web_server', 'message_queue', 'worker', 'object_storage', 'database'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'database'],
+      ['web_server', 'message_queue'],
+      ['message_queue', 'worker'],
+      ['worker', 'object_storage'],
+      ['worker', 'database'],
+    ],
+    hints: [
+      "A push (webhook) should enqueue a build job, not run it inline — the API just accepts the trigger and records pipeline state.",
+      "Runners are ephemeral, stateless workers pulling jobs off a queue; scale them horizontally so many builds run in parallel.",
+      "Build outputs (binaries, images, test reports) are immutable artifacts — store them in object storage and keep only pointers + status in the database.",
+    ],
+    solution:
+      "A git push fires a webhook to the API server, which creates a pipeline record in the database and publishes a build job onto the message queue. A fleet of stateless runner workers consume jobs, each cloning the repo, running the build and test stages in an isolated environment, and streaming status back to the database so the UI can show live progress. Successful builds upload artifacts (container images, binaries, coverage reports) to object storage and record the artifact keys against the pipeline row. On success the deploy stage promotes the artifact to the target environment; on failure the pipeline is marked red and a notification service alerts the author. Because runners are ephemeral and pull from a shared queue, builds run in parallel and a stuck job on one runner never blocks others. Caching dependency layers in object storage (or a cache tier) speeds up repeated builds.",
+  },
+  {
+    id: 'dns-resolver',
+    number: 43,
+    title: "DNS Resolver",
+    topic: "Infrastructure",
+    prompt:
+      "Design a recursive DNS resolver that turns hostnames into IP addresses for millions of clients. The vast majority of queries repeat, so lookups must be answered from cache in well under a millisecond, and results must respect each record's TTL.",
+    palette: ['client', 'load_balancer', 'web_server', 'cache', 'database', 'replica'],
+    requiredComponents: ['client', 'load_balancer', 'web_server', 'cache', 'database'],
+    requiredConnections: [
+      ['client', 'load_balancer'],
+      ['load_balancer', 'web_server'],
+      ['web_server', 'cache'],
+      ['web_server', 'database'],
+      ['cache', 'replica'],
+    ],
+    hints: [
+      "Reads dominate and repeat heavily — the resolver must answer from an in-memory cache before doing any recursive work.",
+      "Cache entries expire by the record's TTL, not by a fixed policy; a stale record must be re-resolved once the TTL elapses.",
+      "Spread load with anycast/load balancing across many resolver nodes, and replicate the cache so a node failure doesn't cause a cold-start storm.",
+    ],
+    solution:
+      "Clients send queries to a load balancer (anycast in practice) that fans them across a fleet of resolver nodes. Each resolver first checks an in-memory cache keyed by (name, record type); a hit returns the answer instantly and honours the remaining TTL. On a miss the resolver performs the recursive walk — root, TLD, then authoritative nameservers — persisting the resolved records and their TTLs into the backing store and warming the cache before replying. Cache entries expire exactly when their TTL runs out, forcing a fresh resolution. Cache replicas keep the hot working set available across nodes so a single-node failure doesn't trigger a cold-start thundering herd. Negative results (NXDOMAIN) are cached too, with their own shorter TTL, to blunt repeated lookups for bad names.",
+  },
+  {
+    id: 'price-alerting-service',
+    number: 44,
+    title: "Price Alerting Service",
+    topic: "Realtime",
+    prompt:
+      "Design a service where users set price thresholds on stocks or crypto and get notified the instant the market crosses them. A high-frequency price feed must be evaluated against millions of standing rules with low latency, and no user should ever be double-alerted for the same trigger.",
+    palette: ['client', 'web_server', 'message_queue', 'worker', 'time_series_db', 'notification_service', 'database', 'cache'],
+    requiredComponents: ['client', 'web_server', 'worker', 'time_series_db', 'notification_service', 'database'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'database'],
+      ['worker', 'time_series_db'],
+      ['worker', 'database'],
+      ['worker', 'notification_service'],
+      ['notification_service', 'client'],
+    ],
+    hints: [
+      "Store user alert rules durably, but keep the hot set (active thresholds per symbol) in memory so each incoming tick is cheap to evaluate.",
+      "Ingest the price feed into a time-series store, then match ticks against standing rules in a streaming evaluator rather than polling per user.",
+      "Fire-once semantics: mark a rule as triggered (and debounce) so a symbol oscillating around the threshold doesn't spam the user.",
+    ],
+    solution:
+      "Users create alert rules through the API server, which persists them in the database and indexes the active thresholds per symbol into a fast in-memory structure (cache) that the evaluators keep warm. A market-data feed streams ticks that are written to a time-series DB for history and charting. Streaming worker/evaluators consume each incoming price and check it against the standing rules for that symbol; when a threshold is crossed they look up the affected users and hand a job to the notification service, which pushes to the client via push/email/SMS. Each rule carries a triggered flag and a cooldown so a symbol oscillating around the boundary fires exactly once until reset, giving fire-once semantics. Partitioning rules by symbol lets evaluators scale horizontally, and the time-series DB backs both historical charts and back-testing of new alerts.",
+  },
+  {
+    id: 'multiplayer-matchmaking',
+    number: 45,
+    title: "Multiplayer Matchmaking",
+    topic: "Realtime",
+    prompt:
+      "Design the matchmaking system for an online game: waiting players must be grouped into balanced matches by skill and region within seconds, then handed off to a game server that runs the session. Queue times should stay low even as the skill pool thins out.",
+    palette: ['client', 'ws_gateway', 'matching_service', 'game_server', 'cache', 'database'],
+    requiredComponents: ['client', 'ws_gateway', 'matching_service', 'game_server', 'database'],
+    requiredConnections: [
+      ['client', 'ws_gateway'],
+      ['ws_gateway', 'matching_service'],
+      ['matching_service', 'cache'],
+      ['matching_service', 'game_server'],
+      ['game_server', 'database'],
+      ['ws_gateway', 'game_server'],
+    ],
+    hints: [
+      "The matcher works over pools of waiting players bucketed by region and skill rating — keep those pools in a fast in-memory store, not a slow DB scan.",
+      "Balance quality against wait time: widen the acceptable skill window the longer a player has waited so the queue never starves.",
+      "Once a roster is formed, allocate (or reserve) a game-server instance and route every player's connection to it; only durable results hit the database.",
+    ],
+    solution:
+      "Players connect through a WS gateway and request a match; the request enters the matching service, which maintains per-(region, skill-band) waiting pools in an in-memory cache (Redis sorted sets keyed by MMR). The matcher periodically scans compatible buckets to assemble balanced rosters, progressively widening the acceptable skill and latency window as a player's wait time grows so the queue never starves. When a roster is complete the matcher allocates or reserves a game-server instance from a warm pool and returns its address; the gateway then routes each player's connection to that game server, which runs the authoritative session. In-session state stays in the game server's memory; only durable outcomes — results, rating changes, rewards — are written to the database, which also feeds updated MMR back into the matcher for future queues. Sharding pools by region keeps matching fast and horizontally scalable.",
+  },
+  {
+    id: 'api-gateway-design',
+    number: 46,
+    title: "API Gateway",
+    topic: "Infrastructure",
+    prompt:
+      "Design an API gateway that fronts dozens of backend microservices behind a single public entry point. It must authenticate every request, enforce per-client rate limits, and route traffic to the right service. A misbehaving client should never be able to overwhelm the fleet.",
+    palette: ['client', 'api_gateway', 'rate_limiter', 'web_server', 'cache', 'database', 'load_balancer'],
+    requiredComponents: ['client', 'api_gateway', 'rate_limiter', 'web_server', 'cache'],
+    requiredConnections: [
+      ['client', 'api_gateway'],
+      ['api_gateway', 'rate_limiter'],
+      ['api_gateway', 'cache'],
+      ['api_gateway', 'web_server'],
+      ['web_server', 'database'],
+    ],
+    hints: [
+      "The gateway is the single choke point — authentication, rate limiting, and routing all happen here before any request touches a backend service.",
+      "Rate limiting needs shared state so limits hold across gateway instances; back it with a fast counter store rather than per-node memory.",
+      "Cache auth tokens and hot responses at the edge so the gateway resolves identity and common reads without round-tripping to every backend.",
+    ],
+    solution:
+      "Clients send all requests to the API gateway (fronted by a load balancer for horizontal scale). The gateway first validates the auth token — checking a cache of active sessions to avoid a lookup on every call — then consults a rate limiter backed by a shared counter store (Redis token bucket keyed by client ID) to decide whether to admit or reject with 429. Admitted requests are routed by path/host to the appropriate downstream web server, which reads and writes its own database. Because auth, throttling, and routing are centralized, individual services stay thin and a single abusive client is throttled at the door before it can saturate the backend fleet.",
+  },
+  {
+    id: 'sms-otp-service',
+    number: 47,
+    title: "SMS OTP Service",
+    topic: "Infrastructure",
+    prompt:
+      "Design a service that generates and verifies one-time passcodes delivered over SMS for login and signup flows. Codes must expire quickly, resist brute-force guessing, and be sent through third-party SMS providers that can be slow or flaky. An attacker must not be able to request unlimited codes for a phone number.",
+    palette: ['client', 'web_server', 'rate_limiter', 'cache', 'message_queue', 'worker', 'notification_service', 'database'],
+    requiredComponents: ['client', 'web_server', 'rate_limiter', 'cache', 'message_queue', 'worker', 'notification_service'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'rate_limiter'],
+      ['web_server', 'cache'],
+      ['web_server', 'message_queue'],
+      ['message_queue', 'worker'],
+      ['worker', 'notification_service'],
+      ['notification_service', 'client'],
+    ],
+    hints: [
+      "Store the code with a short TTL, not forever — a fast key-value store with expiry is a natural fit for both the code and its verification-attempt counter.",
+      "Rate-limit on both axes: how often a number can request a new code, and how many wrong guesses are allowed before the code is burned.",
+      "SMS delivery is slow and unreliable, so hand it to a queue plus workers; the API returns immediately while a worker calls the provider and retries on failure.",
+    ],
+    solution:
+      "On a code request the API server first checks the rate limiter (e.g. max 3 sends per number per 10 minutes) to block abuse. It then generates a random 6-digit code, stores it in a cache under the phone number with a 5-minute TTL alongside an attempt counter, and publishes a send job to a message queue. Workers consume the queue and call the SMS provider through the notification service, retrying with backoff on provider failure so a flaky vendor never blocks the request path. To verify, the client submits the code; the API compares it against the cached value, increments the attempt counter, and deletes the key on success or after too many wrong guesses. Short TTLs, single-use deletion, and dual rate limits (per-send and per-verify) keep codes safe from brute force.",
+  },
+  {
+    id: 'coupon-promo-service',
+    number: 48,
+    title: "Coupon & Promo Service",
+    topic: "Marketplace",
+    prompt:
+      "Design a service that validates and redeems discount coupons at checkout. Some codes are limited to a fixed number of total uses or one-per-customer, so redemptions must be counted exactly even under a flash sale with heavy concurrent traffic. Validation reads should be fast; double-spending a single-use code must be impossible.",
+    palette: ['client', 'web_server', 'cache', 'database', 'rate_limiter', 'load_balancer', 'message_queue'],
+    requiredComponents: ['client', 'web_server', 'cache', 'database', 'rate_limiter'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'rate_limiter'],
+      ['web_server', 'cache'],
+      ['web_server', 'database'],
+      ['database', 'cache'],
+    ],
+    hints: [
+      "Split the read path (is this code valid?) from the write path (claim one use) — validation can be cached, but redemption needs a durable, atomic decrement.",
+      "The usage counter is the contended resource. An atomic conditional update in the database (decrement WHERE remaining > 0) prevents two shoppers from claiming the last coupon.",
+      "A flash sale can hammer a single popular code; a rate limiter smooths the burst and caches shield the database from validation-only lookups.",
+    ],
+    solution:
+      "Coupon definitions (rules, discount, remaining_uses) live in a database, with hot codes cached for fast read-only validation. At checkout the client hits the API through a load balancer; a rate limiter throttles bursts on any single code during a flash sale. Validation reads the cached rule to check eligibility and expiry. Redemption is the critical path: the API issues an atomic conditional UPDATE (`SET remaining = remaining - 1 WHERE code = ? AND remaining > 0`), which either succeeds — guaranteeing exactly one claim — or fails when the coupon is exhausted, making double-spend impossible even under concurrency. Per-customer limits are enforced with a unique constraint on a redemptions table keyed by (code, customer_id). The cache is invalidated or refreshed from the database after each successful redemption. An optional queue can defer downstream side effects like analytics without slowing the redeem.",
+  },
+  {
+    id: 'real-time-analytics-dashboard',
+    number: 49,
+    title: "Real-Time Analytics Dashboard",
+    topic: "Pipeline",
+    prompt:
+      "Design a dashboard that shows live metrics — active users, events per second, conversion rates — updating within seconds as raw events stream in from millions of clients. Ingestion is write-heavy and bursty, while the dashboard needs low-latency reads over rolling time windows.",
+    palette: ['client', 'web_server', 'message_queue', 'worker', 'time_series_db', 'cache', 'ws_gateway', 'object_storage'],
+    requiredComponents: ['client', 'web_server', 'message_queue', 'worker', 'time_series_db', 'ws_gateway'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'message_queue'],
+      ['message_queue', 'worker'],
+      ['worker', 'time_series_db'],
+      ['ws_gateway', 'time_series_db'],
+      ['client', 'ws_gateway'],
+    ],
+    hints: [
+      "Decouple ingestion from processing: raw events land on a high-throughput broker so bursts are absorbed instead of overwhelming the store.",
+      "Pre-aggregate in stream workers — roll events into per-minute buckets before writing, so the dashboard queries small summaries rather than scanning raw firehose.",
+      "The dashboard should feel live; push aggregated updates to the browser over a persistent WebSocket connection instead of polling.",
+    ],
+    solution:
+      "Clients emit events to an ingestion API that immediately publishes them onto a partitioned message queue, absorbing bursty write load. Stream-processing workers consume the queue and compute windowed aggregates (counts, rates, uniques over sliding minutes) which they write into a time-series DB optimized for time-bucketed reads. The dashboard connects through a WebSocket gateway that queries the time-series DB and pushes fresh aggregates to the browser every few seconds, so numbers update live without polling. A cache can hold the newest window for instant first paint, and raw events are optionally archived to object storage for later reprocessing. Separating write-heavy ingestion (queue + workers) from low-latency reads (pre-aggregated time-series store) is what keeps both sides fast.",
+  },
+  {
+    id: 'iot-device-telemetry',
+    number: 50,
+    title: "IoT Device Telemetry",
+    topic: "Pipeline",
+    prompt:
+      "Design a platform that ingests sensor readings from millions of IoT devices reporting temperature, location, and status every few seconds. The system must handle massive sustained write throughput, store time-stamped readings for historical charts, and let operators query the latest state of any device instantly.",
+    palette: ['agent', 'load_balancer', 'message_queue', 'worker', 'time_series_db', 'cache', 'web_server', 'client'],
+    requiredComponents: ['agent', 'message_queue', 'worker', 'time_series_db', 'cache', 'web_server'],
+    requiredConnections: [
+      ['agent', 'load_balancer'],
+      ['load_balancer', 'message_queue'],
+      ['message_queue', 'worker'],
+      ['worker', 'time_series_db'],
+      ['worker', 'cache'],
+      ['client', 'web_server'],
+      ['web_server', 'time_series_db'],
+      ['web_server', 'cache'],
+    ],
+    hints: [
+      "Millions of devices writing constantly means ingestion is the hard part — buffer readings on a broker so no single store is the bottleneck.",
+      "Time-stamped sensor readings are a textbook fit for a time-series database with retention/downsampling for historical charts.",
+      "\"Latest state of a device\" is a hot point lookup; keep the most recent reading per device in a cache so the query never scans the time series.",
+    ],
+    solution:
+      "Each device runs a lightweight agent that batches and pushes readings to an ingestion tier behind a load balancer, which forwards them onto a partitioned message queue (partitioned by device ID) to absorb sustained write throughput. Consumer workers pull from the queue and do two writes per reading: they append the time-stamped point to a time-series DB for historical charts (with downsampling and retention to control cost), and they upsert the newest value into a cache keyed by device ID. Operators use a web dashboard: latest-state queries hit the cache for instant point lookups, while historical range queries read the time-series DB. Decoupling ingestion (queue + workers) from storage, and separating the hot latest-state cache from the cold historical store, lets the platform scale writes and reads independently.",
+  },
 ];
 
 export const getSystemDesignProblem = (id: string) =>

@@ -49,6 +49,13 @@ export const colors = {
   transparent: 'transparent',
 };
 
+/** Shared difficulty accent colors, used by pills/cards across practice + problems. */
+export const difficultyColors: Record<'Easy' | 'Medium' | 'Hard', string> = {
+  Easy: colors.primary,
+  Medium: colors.accent,
+  Hard: colors.error,
+};
+
 export const spacing = {
   xs: 4,
   sm: 8,

@@ -30,7 +30,7 @@ import Animated, {
 import { BlurView } from 'expo-blur';
 import Svg, { Circle } from 'react-native-svg';
 
-import { colors, spacing, borderRadius, typography, categoryColors } from '../theme';
+import { colors, spacing, borderRadius, typography, categoryColors, shadows } from '../theme';
 import { getCategoriesByType, contentTypeInfo, ContentType } from '../data/allCategories';
 import { useStore } from '../store/useStore';
 import { TabStackParamList } from '../navigation';
@@ -407,7 +407,8 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={[
             styles.categoryCard,
-            progressPercent === 100 && !isLocked && { borderColor: catColors.color, borderWidth: 3 },
+            !isLocked && { borderBottomColor: catColors.color },
+            progressPercent === 100 && !isLocked && { borderColor: catColors.color, borderWidth: 3, borderBottomColor: catColors.color },
             isLocked && styles.categoryCardLocked,
           ]}
           onPress={() => handleCategoryPress(category)}
@@ -632,10 +633,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.card,
     borderRadius: borderRadius.lg,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    borderBottomWidth: 5,
+    borderBottomColor: colors.borderDark,
     padding: spacing.md,
     gap: spacing.md,
+    ...shadows.sm,
   },
   progressCardText: {
     flex: 1,
@@ -712,9 +716,12 @@ const styles = StyleSheet.create({
     height: 160,
     backgroundColor: colors.card,
     borderRadius: borderRadius.lg,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    borderBottomWidth: 5,
+    borderBottomColor: colors.borderDark,
     padding: spacing.md,
+    ...shadows.sm,
   },
   categoryCardLocked: {
     opacity: 0.85,
@@ -769,6 +776,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: borderRadius.xl,
     padding: spacing.lg,
+    borderBottomWidth: 6,
+    borderBottomColor: colors.primaryDark,
   },
   promoContent: {
     flexDirection: 'row',
@@ -805,6 +814,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     paddingVertical: spacing.md,
     alignItems: 'center',
+    borderBottomWidth: 4,
+    borderBottomColor: 'rgba(0,0,0,0.12)',
   },
   promoButtonText: {
     ...typography.labelLarge,

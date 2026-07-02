@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { colors, spacing, borderRadius, typography } from '../theme';
+import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { TestStackParamList } from '../navigation';
 import { AlgorithmProblemView } from './ProblemScreen';
 import { BugFixProblemView } from './BugFixScreen';
@@ -590,6 +590,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
+    ...shadows.button(colors.secondaryDark),
   },
   nextBtnText: { ...typography.labelMedium, color: colors.white },
 
@@ -632,12 +633,15 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     backgroundColor: colors.card,
     borderRadius: borderRadius.md,
-    borderWidth: 1,
+    borderWidth: 1.5,
+    borderBottomWidth: 4,
     borderColor: colors.border,
+    borderBottomColor: colors.borderDark,
     padding: spacing.md,
     minHeight: 220,
     color: colors.ink,
     lineHeight: 22,
+    ...shadows.sm,
   },
 
   quizContent: {
@@ -673,6 +677,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: borderRadius.md,
     borderWidth: 2,
+    borderBottomWidth: 4,
+    ...shadows.sm,
   },
   quizOptionLetter: {
     width: 28,
@@ -696,10 +702,13 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     backgroundColor: colors.card,
     borderRadius: borderRadius.md,
-    borderWidth: 1,
+    borderWidth: 1.5,
+    borderBottomWidth: 4,
     borderColor: colors.border,
+    borderBottomColor: colors.borderDark,
     padding: spacing.md,
     marginTop: spacing.lg,
+    ...shadows.sm,
   },
   quizExplainText: {
     ...typography.bodySmall,
@@ -725,6 +734,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
     backgroundColor: colors.secondary,
+    ...shadows.button(colors.secondaryDark),
   },
   emptyBtnText: { ...typography.labelLarge, color: colors.white },
 });

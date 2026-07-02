@@ -2318,6 +2318,8 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
+    borderBottomWidth: 4,
+    borderBottomColor: 'rgba(0,0,0,0.18)',
   },
   explanation: {
     flexDirection: 'row',

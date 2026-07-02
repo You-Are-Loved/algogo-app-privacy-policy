@@ -9,7 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown, Layout } from 'react-native-reanimated';
 
-import { colors, spacing, borderRadius, typography } from '../theme';
+import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { Category } from '../types';
 import { useStore } from '../store/useStore';
 
@@ -221,8 +221,11 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     padding: spacing.lg,
     marginBottom: spacing.xl,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    borderBottomWidth: 4,
+    borderBottomColor: colors.borderDark,
+    ...shadows.sm,
   },
   progressInfo: {
     flexDirection: 'row',
@@ -258,10 +261,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.card,
     borderRadius: borderRadius.xl,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    borderBottomWidth: 4,
+    borderBottomColor: colors.borderDark,
     padding: spacing.md,
     gap: spacing.md,
+    ...shadows.sm,
   },
   sectionHeaderExpanded: {
     borderBottomLeftRadius: 0,
@@ -303,11 +309,14 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.border,
     borderTopWidth: 0,
+    borderBottomWidth: 4,
+    borderBottomColor: colors.borderDark,
     padding: spacing.lg,
     paddingTop: spacing.md,
+    ...shadows.sm,
   },
   contentText: {
     ...typography.bodyMedium,

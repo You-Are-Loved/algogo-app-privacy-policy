@@ -47,6 +47,7 @@ export default function PlanSelector({
         active={selected === 'monthly'}
         onPress={() => onSelect('monthly')}
         accent={colors.secondary}
+        accentDark={colors.secondaryDark}
         title="Monthly"
         price={monthly?.display ?? fallbackMonthly}
         priceSuffix="/ month"
@@ -56,6 +57,7 @@ export default function PlanSelector({
         active={selected === 'annual'}
         onPress={() => onSelect('annual')}
         accent={colors.primary}
+        accentDark={colors.primaryDark}
         badge={annualBadge}
         title="Annual"
         price={annual?.display ?? fallbackAnnual}
@@ -74,6 +76,7 @@ function PlanCard({
   active,
   onPress,
   accent,
+  accentDark,
   badge,
   title,
   price,
@@ -83,6 +86,7 @@ function PlanCard({
   active: boolean;
   onPress: () => void;
   accent: string;
+  accentDark: string;
   badge?: string;
   title: string;
   price: string;
@@ -104,6 +108,11 @@ function PlanCard({
       progress.value,
       [0, 1],
       [colors.border, accent],
+    ),
+    borderBottomColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [colors.borderDark, accentDark],
     ),
     backgroundColor: interpolateColor(
       progress.value,
@@ -170,6 +179,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: borderRadius.lg,
     borderWidth: 2,
+    borderBottomWidth: 4,
+    borderBottomColor: colors.borderDark,
     paddingVertical: 10,
     paddingHorizontal: spacing.md,
     gap: spacing.md,

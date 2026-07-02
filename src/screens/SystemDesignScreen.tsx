@@ -336,7 +336,7 @@ export function SystemDesignProblemView({
             style={[
               styles.testBtn,
               nodes.length === 0 && styles.testBtnDisabled,
-              shadows.md,
+              shadows.button(colors.primaryDark),
             ]}
           >
             <Ionicons name="checkmark-done-outline" size={18} color={colors.white} />
@@ -554,7 +554,11 @@ function HintModal({
             <TouchableOpacity
               onPress={onMore}
               activeOpacity={0.85}
-              style={[styles.modalPrimary, { backgroundColor: colors.secondary }]}
+              style={[
+                styles.modalPrimary,
+                shadows.button(colors.secondaryDark),
+                { backgroundColor: colors.secondary },
+              ]}
             >
               <Text style={styles.modalPrimaryText}>Reveal another hint</Text>
             </TouchableOpacity>
@@ -562,7 +566,11 @@ function HintModal({
             <TouchableOpacity
               onPress={onClose}
               activeOpacity={0.85}
-              style={[styles.modalPrimary, { backgroundColor: colors.secondary }]}
+              style={[
+                styles.modalPrimary,
+                shadows.button(colors.secondaryDark),
+                { backgroundColor: colors.secondary },
+              ]}
             >
               <Text style={styles.modalPrimaryText}>Got it</Text>
             </TouchableOpacity>

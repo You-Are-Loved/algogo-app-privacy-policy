@@ -15,7 +15,7 @@ import Animated, {
   Extrapolation,
 } from 'react-native-reanimated';
 
-import { colors, spacing, borderRadius, typography } from '../theme';
+import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { Category } from '../types';
 import { useStore } from '../store/useStore';
 
@@ -266,17 +266,21 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: borderRadius.xl,
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: colors.border,
+    borderBottomWidth: 7,
     padding: spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardFront: {
     backgroundColor: colors.card,
+    borderBottomColor: colors.secondaryLight,
+    ...shadows.md,
   },
   cardBack: {
     borderColor: 'transparent',
+    borderBottomColor: 'rgba(0,0,0,0.15)',
   },
   cardBadge: {
     position: 'absolute',
@@ -332,10 +336,13 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: borderRadius.lg,
     backgroundColor: colors.card,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    borderBottomWidth: 4,
+    borderBottomColor: colors.borderDark,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadows.sm,
   },
   navArrowDisabled: {
     opacity: 0.5,
@@ -352,6 +359,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl,
     borderRadius: borderRadius.lg,
+    borderBottomWidth: 4,
+    borderBottomColor: colors.secondaryDark,
   },
   flipButtonText: {
     ...typography.labelLarge,
@@ -383,10 +392,13 @@ const styles = StyleSheet.create({
   completionCard: {
     backgroundColor: `${colors.primary}15`,
     borderRadius: borderRadius.xl,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: `${colors.primary}30`,
+    borderBottomWidth: 4,
+    borderBottomColor: colors.primaryDark,
     padding: spacing.xl,
     alignItems: 'center',
+    ...shadows.sm,
   },
   completionTitle: {
     ...typography.headlineMedium,

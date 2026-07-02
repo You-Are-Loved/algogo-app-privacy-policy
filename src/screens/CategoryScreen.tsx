@@ -19,7 +19,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-import { colors, spacing, borderRadius, typography, categoryColors } from '../theme';
+import { colors, spacing, borderRadius, typography, categoryColors, shadows } from '../theme';
 import { getCategoryBySlug, categoryHasVisualizations } from '../data/allCategories';
 import { TabStackParamList } from '../navigation';
 import CardsTab from '../components/CardsTab';
@@ -274,6 +274,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl,
     borderRadius: borderRadius.lg,
+    ...shadows.button(colors.primaryDark),
   },
   backButtonText: {
     ...typography.labelLarge,
@@ -332,8 +333,10 @@ const styles = StyleSheet.create({
     left: TAB_BAR_PADDING,
     top: TAB_BAR_PADDING,
     backgroundColor: colors.card,
-    borderWidth: 2,
+    borderWidth: 1.5,
+    borderBottomWidth: 3,
     borderRadius: borderRadius.lg,
+    ...shadows.sm,
   },
   tabText: {
     ...typography.labelMedium,
