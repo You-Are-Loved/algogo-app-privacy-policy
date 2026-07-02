@@ -1,0 +1,10 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Algogo logo">
+  <g stroke="#CDD0E0" stroke-width="28" stroke-linecap="round" fill="none">
+    <line x1="512" y1="310" x2="348" y2="700"/>
+    <line x1="512" y1="310" x2="676" y2="700"/>
+    <line x1="405" y1="565" x2="619" y2="565"/>
+  </g>
+  <circle cx="512" cy="310" r="80" fill="#EF7A63"/>
+  <circle cx="348" cy="700" r="80" fill="#8E97EC"/>
+  <circle cx="676" cy="700" r="80" fill="#5EC97D"/>
+</svg>

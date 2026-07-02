@@ -1,0 +1,90 @@
+[
+  {
+    "file": "01_study_home.png",
+    "ok": true,
+    "mediaId": "tn751yjkf5xfm3h6xkpejznyhx896m3d",
+    "status": "ready",
+    "contentType": "image/png",
+    "sizeBytes": 360134
+  },
+  {
+    "file": "02_category_learn.png",
+    "ok": true,
+    "mediaId": "tn72hewqh0yp6mrz4v9spgv9818976np",
+    "status": "ready",
+    "contentType": "image/png",
+    "sizeBytes": 342597
+  },
+  {
+    "file": "03_category_visualize.png",
+    "ok": true,
+    "mediaId": "tn7861pqj91zbzep6cyq6d06xd8962zp",
+    "status": "ready",
+    "contentType": "image/png",
+    "sizeBytes": 240636
+  },
+  {
+    "file": "04_category_cards.png",
+    "ok": true,
+    "mediaId": "tn70qmjenj7fvy32hv16gy6ezs897fnt",
+    "status": "ready",
+    "contentType": "image/png",
+    "sizeBytes": 231554
+  },
+  {
+    "file": "05_category_quiz.png",
+    "ok": true,
+    "mediaId": "tn78xkvdmf0vy1dnnpkz0cms4h897r6c",
+    "status": "ready",
+    "contentType": "image/png",
+    "sizeBytes": 172430
+  },
+  {
+    "file": "06_practice_list.png",
+    "ok": true,
+    "mediaId": "tn75w5ncmt832mqcy3wyq8myxn897k7g",
+    "status": "ready",
+    "contentType": "image/png",
+    "sizeBytes": 414356
+  },
+  {
+    "file": "07_editor_problem_modal.png",
+    "ok": true,
+    "mediaId": "tn72bt8y54tg8781zv6c8ewd2x8967wt",
+    "status": "ready",
+    "contentType": "image/png",
+    "sizeBytes": 257298
+  },
+  {
+    "file": "08_editor_fullbleed.png",
+    "ok": true,
+    "mediaId": "tn7cy6wmv016gvpcf87eqd5qcs896h1y",
+    "status": "ready",
+    "contentType": "image/png",
+    "sizeBytes": 136934
+  },
+  {
+    "file": "10_quiz_question.png",
+    "ok": true,
+    "mediaId": "tn7djx4p45650tpyek38n9n3p9897bdg",
+    "status": "ready",
+    "contentType": "image/png",
+    "sizeBytes": 215707
+  },
+  {
+    "file": "11_interview_list.png",
+    "ok": true,
+    "mediaId": "tn76f4wr1vb99xqcj2v74peta1896bfn",
+    "status": "ready",
+    "contentType": "image/png",
+    "sizeBytes": 533502
+  },
+  {
+    "file": "vid_sliding_tabs.mp4",
+    "ok": true,
+    "mediaId": "tn7b7wszwvhmxq7wqtqnxqde3s896kna",
+    "status": "processing",
+    "contentType": "video/mp4",
+    "sizeBytes": 3393276
+  }
+]

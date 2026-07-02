@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -7,9 +7,16 @@ import Navigation from './src/navigation';
 import { useStore } from './src/store/useStore';
 import { colors } from './src/theme';
 import { SubscriptionProvider } from './src/context/SubscriptionContext';
+import AnimatedSplash from './src/components/AnimatedSplash';
 
 function AppContent() {
   const { user, isLoading, initGuestUser, setLoading } = useStore();
+  const hasSeenOnboarding = useStore((s) => s.hasSeenOnboarding);
+
+  // Wait for the persisted store to rehydrate before deciding whether to play
+  // the splash, so returning users (onboarding done) never see the animation.
+  const [hydrated, setHydrated] = useState(() => useStore.persist.hasHydrated());
+  const [splashGone, setSplashGone] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -19,8 +26,21 @@ function AppContent() {
     }
   }, []);
 
-  if (isLoading && !user) {
-    return (
+  useEffect(() => {
+    if (hydrated) return;
+    const unsub = useStore.persist.onFinishHydration(() => setHydrated(true));
+    if (useStore.persist.hasHydrated()) setHydrated(true);
+    return unsub;
+  }, [hydrated]);
+
+  // Hold a plain white field until hydration resolves — momentary, and it
+  // matches both the native launch screen and the splash so there's no flash.
+  if (!hydrated) {
+    return <View style={styles.preHydrate} />;
+  }
+
+  const content =
+    isLoading && !user ? (
       <View style={styles.loadingContainer}>
         <View style={styles.loadingIcon}>
           <Text style={styles.loadingEmoji}>🧠</Text>
@@ -28,10 +48,18 @@ function AppContent() {
         <Text style={styles.loadingText}>Loading Algogo...</Text>
         <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 16 }} />
       </View>
+    ) : (
+      <Navigation />
     );
-  }
 
-  return <Navigation />;
+  return (
+    <View style={{ flex: 1 }}>
+      {content}
+      {!hasSeenOnboarding && !splashGone && (
+        <AnimatedSplash onDone={() => setSplashGone(true)} />
+      )}
+    </View>
+  );
 }
 
 export default function App() {
@@ -48,6 +76,7 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
+  preHydrate: { flex: 1, backgroundColor: '#FFFFFF' },
   loadingContainer: {
     flex: 1,
     backgroundColor: colors.background,

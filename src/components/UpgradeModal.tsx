@@ -8,7 +8,6 @@ import {
   Linking,
   ScrollView,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +17,7 @@ import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
 import { formatIntroDuration, formatIntroPeriod } from '../hooks/useSubscription';
 import { getPaywallFeatures, PaywallFeature } from '../data/stats';
+import AlgogoLogo from './AlgogoLogo';
 
 const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 const PRIVACY_URL = 'https://you-are-loved.github.io/algogo-app-privacy-policy/privacy-policy.html';
@@ -104,11 +104,9 @@ export default function UpgradeModal({
             entering={FadeInDown.delay(100).duration(500)}
             style={styles.heroIconWrap}
           >
-            <Image
-              source={require('../../assets/logo-final.png')}
-              style={styles.heroIcon}
-              resizeMode="cover"
-            />
+            <View style={styles.heroIcon}>
+              <AlgogoLogo size={62} />
+            </View>
           </Animated.View>
 
           <Animated.Text
@@ -224,6 +222,7 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.lg,
