@@ -15,12 +15,14 @@ interface AppState {
   hasAcceptedTerms: boolean;
   acceptedTermsVersion: number;
   hasSeenOnboarding: boolean;
+  hasSeenSplash: boolean;
   themeMode: ThemeMode;
 
   setUser: (user: UserProgress | null) => void;
   setLoading: (loading: boolean) => void;
   acceptTerms: () => void;
   completeOnboarding: () => void;
+  markSplashSeen: () => void;
   toggleTheme: () => void;
 
   completeLearn: (categoryId: string) => void;
@@ -66,12 +68,14 @@ export const useStore = create<AppState>()(
       hasAcceptedTerms: false,
       acceptedTermsVersion: 0,
       hasSeenOnboarding: false,
+      hasSeenSplash: false,
       themeMode: 'light',
 
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       setLoading: (isLoading) => set({ isLoading }),
       acceptTerms: () => set({ hasAcceptedTerms: true, acceptedTermsVersion: CURRENT_TERMS_VERSION }),
       completeOnboarding: () => set({ hasSeenOnboarding: true }),
+      markSplashSeen: () => set({ hasSeenSplash: true }),
       toggleTheme: () => set((s) => ({ themeMode: s.themeMode === 'light' ? 'dark' : 'light' })),
 
       initGuestUser: () => {
@@ -272,7 +276,7 @@ export const useStore = create<AppState>()(
     {
       name: 'algogo-storage',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ user: state.user, hasAcceptedTerms: state.hasAcceptedTerms, acceptedTermsVersion: state.acceptedTermsVersion, hasSeenOnboarding: state.hasSeenOnboarding, themeMode: state.themeMode }),
+      partialize: (state) => ({ user: state.user, hasAcceptedTerms: state.hasAcceptedTerms, acceptedTermsVersion: state.acceptedTermsVersion, hasSeenOnboarding: state.hasSeenOnboarding, hasSeenSplash: state.hasSeenSplash, themeMode: state.themeMode }),
     }
   )
 );

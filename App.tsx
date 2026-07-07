@@ -11,10 +11,12 @@ import AnimatedSplash from './src/components/AnimatedSplash';
 
 function AppContent() {
   const { user, isLoading, initGuestUser, setLoading } = useStore();
-  const hasSeenOnboarding = useStore((s) => s.hasSeenOnboarding);
+  const hasSeenSplash = useStore((s) => s.hasSeenSplash);
+  const markSplashSeen = useStore((s) => s.markSplashSeen);
 
   // Wait for the persisted store to rehydrate before deciding whether to play
-  // the splash, so returning users (onboarding done) never see the animation.
+  // the splash, so returning users (who've already seen it once) never see the
+  // animation again — regardless of subscription or onboarding state.
   const [hydrated, setHydrated] = useState(() => useStore.persist.hasHydrated());
   const [splashGone, setSplashGone] = useState(false);
 
@@ -55,8 +57,13 @@ function AppContent() {
   return (
     <View style={{ flex: 1 }}>
       {content}
-      {!hasSeenOnboarding && !splashGone && (
-        <AnimatedSplash onDone={() => setSplashGone(true)} />
+      {!hasSeenSplash && !splashGone && (
+        <AnimatedSplash
+          onDone={() => {
+            markSplashSeen();
+            setSplashGone(true);
+          }}
+        />
       )}
     </View>
   );

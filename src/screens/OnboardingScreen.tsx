@@ -178,7 +178,7 @@ function ScopeStep() {
         {TRACKS.map((track, i) => (
           <Animated.View
             key={track.label}
-            entering={FadeInDown.delay(400 + i * 70).springify().damping(13).mass(1.2)}
+            entering={FadeInDown.delay(500 + i * 120).duration(720).easing(Easing.out(Easing.cubic))}
             style={[styles.trackCard, { borderBottomColor: track.color }]}
           >
             <View
@@ -194,7 +194,7 @@ function ScopeStep() {
         ))}
       </View>
 
-      <Animated.View entering={FadeInUp.delay(900).springify().damping(14).mass(1.2)} style={styles.statsRow}>
+      <Animated.View entering={FadeInUp.delay(1280).duration(720).easing(Easing.out(Easing.cubic))} style={styles.statsRow}>
         <Stat value={roundedPlus(contentStats.categories, 10)} label="Categories" />
         <View style={styles.statDivider} />
         <Stat value={roundedPlus(contentStats.flashcards, 100)} label="Flashcards" />
@@ -345,7 +345,7 @@ function QuizStep() {
           return (
             <Animated.View
               key={opt}
-              entering={FadeInDown.delay(300 + i * 80).springify().damping(14).mass(1.1)}
+              entering={FadeInDown.delay(400 + i * 130).duration(680).easing(Easing.out(Easing.cubic))}
             >
               <TouchableOpacity
                 style={[styles.quizOption, { backgroundColor: bg, borderColor, borderBottomColor: lipColor }]}
