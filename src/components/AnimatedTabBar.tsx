@@ -5,7 +5,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   LayoutChangeEvent,
+  Platform,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -18,7 +20,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 
-import { colors, spacing, borderRadius, typography, shadows } from '../theme';
+import { colors, spacing, typography } from '../theme';
 
 // The bar shows only on the landing screen of each stack; any pushed detail
 // screen (a topic, a practice/system-design/bug-fix question, the test
@@ -94,20 +96,32 @@ export default function AnimatedTabBar({
       pointerEvents={hidden ? 'none' : 'auto'}
       style={[styles.bar, { bottom: bottomOffset }, containerStyle]}
     >
-      <View
-        style={styles.row}
-        onLayout={(e: LayoutChangeEvent) => setRowWidth(e.nativeEvent.layout.width)}
-      >
-        {segmentWidth > 0 && (
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              styles.indicator,
-              { width: segmentWidth - PILL_GAP * 2 },
-              indicatorStyle,
-            ]}
+      <View style={styles.glass}>
+        {Platform.OS === 'ios' ? (
+          <BlurView
+            tint="systemChromeMaterialLight"
+            intensity={80}
+            style={StyleSheet.absoluteFill}
           />
+        ) : (
+          <View style={[StyleSheet.absoluteFill, styles.androidFill]} />
         )}
+        <View style={styles.glassWash} pointerEvents="none" />
+        <View style={styles.glassHighlight} pointerEvents="none" />
+        <View
+          style={styles.row}
+          onLayout={(e: LayoutChangeEvent) => setRowWidth(e.nativeEvent.layout.width)}
+        >
+          {segmentWidth > 0 && (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.indicator,
+                { width: segmentWidth - PILL_GAP * 2 },
+                indicatorStyle,
+              ]}
+            />
+          )}
         {state.routes.map((route, index) => {
           const meta =
             TAB_META[route.name] ?? {
@@ -115,7 +129,7 @@ export default function AnimatedTabBar({
               icon: 'ellipse-outline' as const,
             };
           const focused = state.index === index;
-          const tint = focused ? colors.primary : colors.inkLight;
+          const tint = focused ? colors.ink : colors.inkLight;
 
           const onPress = () => {
             const event = navigation.emit({
@@ -144,28 +158,68 @@ export default function AnimatedTabBar({
               style={styles.tab}
             >
               <Ionicons name={meta.icon} size={23} color={tint} />
-              <Text style={[styles.label, { color: tint }]}>{meta.label}</Text>
+              <Text
+                style={[
+                  styles.label,
+                  { color: tint },
+                  focused && styles.labelFocused,
+                ]}
+              >
+                {meta.label}
+              </Text>
             </TouchableOpacity>
           );
         })}
+        </View>
       </View>
     </Animated.View>
   );
 }
 
+const BAR_RADIUS = BAR_HEIGHT / 2;
+
 const styles = StyleSheet.create({
+  // Outer shell owns the drop shadow; it can't clip, or the shadow dies with
+  // masksToBounds. The blur is clipped by the inner `glass` view instead.
   bar: {
     position: 'absolute',
     left: BAR_SIDE_MARGIN,
     right: BAR_SIDE_MARGIN,
     height: BAR_HEIGHT,
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.xl,
+    borderRadius: BAR_RADIUS,
+    backgroundColor: 'rgba(255,255,255,0.01)',
+    shadowColor: '#0A0F1E',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  glass: {
+    flex: 1,
+    borderRadius: BAR_RADIUS,
+    overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.65)',
     paddingHorizontal: spacing.xs,
     justifyContent: 'center',
-    ...shadows.lg,
+  },
+  androidFill: {
+    backgroundColor: 'rgba(250,250,252,0.92)',
+  },
+  // Cool, faintly bluish wash so the glass reads crisp over warm content.
+  glassWash: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(248,250,255,0.28)',
+  },
+  // Specular top edge — the "light catching the rim" of the glass.
+  glassHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: BAR_RADIUS / 2,
+    right: BAR_RADIUS / 2,
+    height: 1.5,
+    borderRadius: 1,
+    backgroundColor: 'rgba(255,255,255,0.85)',
   },
   row: {
     flexDirection: 'row',
@@ -176,8 +230,15 @@ const styles = StyleSheet.create({
     left: PILL_GAP,
     top: 0,
     bottom: 0,
-    backgroundColor: `${colors.primary}1A`,
-    borderRadius: borderRadius.lg,
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    borderRadius: (BAR_HEIGHT - spacing.sm * 2) / 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.95)',
+    shadowColor: '#0A0F1E',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
   },
   tab: {
     flex: 1,
@@ -188,5 +249,8 @@ const styles = StyleSheet.create({
   label: {
     ...typography.labelSmall,
     fontSize: 11,
+  },
+  labelFocused: {
+    fontWeight: '700',
   },
 });
