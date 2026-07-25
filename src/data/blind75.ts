@@ -7,8 +7,14 @@
 //   - hiddenTests: graded test cases (not shown to user; live in IPA so not
 //     cryptographically hidden, but invisible in the practice flow)
 // Tests evaluate user_fn(...args) and compare equality with expected.
+// Problems whose statement allows the answer in any order MUST set
+// compare: 'unordered' — the grader then treats the top-level list as a
+// multiset (element order ignored, nested order still enforced).
 
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
+
+/** How the grader compares the returned value against `expected`. */
+export type CompareMode = 'exact' | 'unordered';
 
 export interface TestCase {
   input: any[]; // positional args for the function
@@ -29,6 +35,7 @@ export interface Blind75Problem {
   starter: string;
   examples: TestCase[]; // visible
   hiddenTests: TestCase[]; // graded
+  compare?: CompareMode; // default 'exact'; 'unordered' when the statement says any order is fine
 }
 
 const STARTER_HEADER = '# Write your solution below. Do not rename the function.\n';
@@ -50,6 +57,7 @@ export const blind75: Blind75Problem[] = [
     starter:
       STARTER_HEADER +
       'def two_sum(nums: list[int], target: int) -> list[int]:\n    # Your code here\n    pass\n',
+    compare: 'unordered',
     examples: [
       { input: [[2, 7, 11, 15], 9], expected: [0, 1] },
       { input: [[3, 2, 4], 6], expected: [1, 2] },
@@ -58,7 +66,8 @@ export const blind75: Blind75Problem[] = [
       { input: [[3, 3], 6], expected: [0, 1] },
       { input: [[-1, -2, -3, -4, -5], -8], expected: [2, 4] },
       { input: [[0, 4, 3, 0], 0], expected: [0, 3] },
-      { input: [[1, 5, 7, -1, 5], 6], expected: [0, 1] },
+      // Careful: inputs must have exactly ONE valid pair, per the statement.
+      { input: [[1, 5, 7, -2, 4], 6], expected: [0, 1] },
     ],
   },
   {
@@ -245,6 +254,7 @@ export const blind75: Blind75Problem[] = [
     starter:
       STARTER_HEADER +
       'def three_sum(nums: list[int]) -> list[list[int]]:\n    # Tip: sort the array first.\n    pass\n',
+    compare: 'unordered',
     examples: [
       {
         input: [[-1, 0, 1, 2, -1, -4]],
@@ -716,6 +726,7 @@ export const blind75: Blind75Problem[] = [
     starter:
       STARTER_HEADER +
       'def pacific_atlantic(heights: list[list[int]]) -> list[list[int]]:\n    # Return coordinates in any order; grader accepts any permutation.\n    pass\n',
+    compare: 'unordered',
     examples: [
       {
         input: [[[1, 2, 2, 3, 5], [3, 2, 3, 4, 4], [2, 4, 5, 3, 1], [6, 7, 1, 4, 5], [5, 1, 1, 2, 4]]],
@@ -1306,9 +1317,9 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'String',
     statement:
-      "Given a string `s`, return any longest contiguous substring of `s` that is a palindrome. If several substrings tie for the maximum length, any one of them is accepted.",
+      "Given a string `s`, return the longest contiguous substring of `s` that is a palindrome. If several substrings tie for the maximum length, return the one that starts earliest (leftmost) in `s`.",
     explanation:
-      "**Expand-around-center** is the cleanest O(n²) solution.\n\nEvery palindrome has a center: either a single character (odd length) or a pair of identical characters (even length). For each index `i` from 0 to `n - 1`, run two expansions:\n\n1. Odd: `left = i`, `right = i`, expand outward while characters match.\n2. Even: `left = i`, `right = i + 1`, same.\n\nEach expansion returns a candidate substring; track the longest seen. There are 2n − 1 centers and each expansion is O(n) at worst, giving O(n²) overall, O(1) extra space.\n\nManacher's algorithm gets it to O(n) but is rarely required in an interview.",
+      "**Expand-around-center** is the cleanest O(n²) solution.\n\nEvery palindrome has a center: either a single character (odd length) or a pair of identical characters (even length). For each index `i` from 0 to `n - 1`, run two expansions:\n\n1. Odd: `left = i`, `right = i`, expand outward while characters match.\n2. Even: `left = i`, `right = i + 1`, same.\n\nEach expansion returns a candidate substring; track the longest seen, replacing it only when the new candidate is strictly longer — scanning left to right, that naturally keeps the leftmost winner. There are 2n − 1 centers and each expansion is O(n) at worst, giving O(n²) overall, O(1) extra space.\n\nManacher's algorithm gets it to O(n) but is rarely required in an interview.",
     functionName: 'longest_palindrome',
     functionSignature: 'def longest_palindrome(s: str) -> str:',
     starter:
@@ -1795,6 +1806,7 @@ export const blind75: Blind75Problem[] = [
     starter:
       STARTER_HEADER +
       'def top_k_frequent(nums: list[int], k: int) -> list[int]:\n    pass\n',
+    compare: 'unordered',
     examples: [
       { input: [[1, 1, 1, 2, 2, 3], 2], expected: [1, 2] },
       { input: [[1], 1], expected: [1] },
@@ -1945,9 +1957,9 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Hard',
     topic: 'Graph',
     statement:
-      "An alien language reuses the English alphabet but with an unknown letter ordering. You're given a list `words` that is sorted lexicographically according to the alien's rules. Derive any consistent letter ordering and return it as a string of letters in order. If the input contradicts itself (cycle, or an invalid prefix like `['ab', 'a']`), return an empty string.",
+      "An alien language reuses the English alphabet but with an unknown letter ordering. You're given a list `words` that is sorted lexicographically according to the alien's rules. Derive a consistent letter ordering and return it as a string of letters in order. When more than one ordering is consistent, return the lexicographically smallest one (by normal English letter order). If the input contradicts itself (cycle, or an invalid prefix like `['ab', 'a']`), return an empty string.",
     explanation:
-      "This is a topological sort. Each pair of adjacent words tells you which letter comes earlier than another.\n\n1. **Collect every unique letter** that appears in any word; these are your graph's nodes. Initialize an empty adjacency list and an indegree counter for each.\n2. **Compare adjacent word pairs**. Walk character by character until you hit the first differing position; add an edge from the earlier letter to the later one (skip if you already added that edge). If you reach the end of the shorter word and the longer word is a prefix of the shorter one (e.g. `'ab'` before `'a'`), that's invalid — return `''`.\n3. **Kahn's topological sort**: queue every letter with indegree 0. Pop, append to the result, decrement indegrees of neighbors, enqueue any that hit 0.\n4. If the result includes every letter, return it. Otherwise there's a cycle — return `''`.",
+      "This is a topological sort. Each pair of adjacent words tells you which letter comes earlier than another.\n\n1. **Collect every unique letter** that appears in any word; these are your graph's nodes. Initialize an empty adjacency list and an indegree counter for each.\n2. **Compare adjacent word pairs**. Walk character by character until you hit the first differing position; add an edge from the earlier letter to the later one (skip if you already added that edge). If you reach the end of the shorter word and the longer word is a prefix of the shorter one (e.g. `'ab'` before `'a'`), that's invalid — return `''`.\n3. **Kahn's topological sort with a min-heap**: push every letter with indegree 0 onto a heap. Pop the alphabetically smallest, append it to the result, decrement indegrees of its neighbors, and push any that hit 0. The heap (instead of a plain queue) is what guarantees the lexicographically smallest valid ordering.\n4. If the result includes every letter, return it. Otherwise there's a cycle — return `''`.",
     functionName: 'alien_order',
     functionSignature: 'def alien_order(words: list[str]) -> str:',
     starter:
@@ -2854,6 +2866,7 @@ export const blind75: Blind75Problem[] = [
     starter:
       STARTER_HEADER +
       'def path_sum(root: list, target_sum: int) -> list[list[int]]:\n    pass\n',
+    compare: 'unordered',
     examples: [
       {
         input: [[5, 4, 8, 11, null, 13, 4, 7, 2, null, null, 5, 1], 22],
@@ -2899,9 +2912,9 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Easy',
     topic: 'Tree',
     statement:
-      "Given an integer list `nums` sorted in strictly ascending order, build a height-balanced binary search tree containing those values. Return the tree as a level-order array with `None` for missing nodes. Multiple valid trees may exist — any height-balanced one is accepted.",
+      "Given an integer list `nums` sorted in strictly ascending order, build a height-balanced binary search tree containing those values, always choosing the *left-middle* element of the current slice as the root (`mid = (lo + hi) // 2`). Return the tree as a level-order array with `None` for missing nodes.",
     explanation:
-      "Take the middle element as the root; everything to its left in the array forms the left subtree, everything to the right forms the right subtree. Recurse. Because each subtree gets exactly half the slice, the result is balanced.\n\nBuild the tree as Node objects first (or directly compute the level-order array via a queue traversal at the end). The canonical solution picks `mid = (lo + hi) // 2`; picking `mid = (lo + hi + 1) // 2` produces a mirror-image valid tree.\n\nO(n) time, O(log n) recursion depth.",
+      "Take the middle element as the root; everything to its left in the array forms the left subtree, everything to the right forms the right subtree. Recurse. Because each subtree gets exactly half the slice, the result is balanced.\n\nBuild the tree as Node objects first (or directly compute the level-order array via a queue traversal at the end). Stick to `mid = (lo + hi) // 2` as the statement requires — `mid = (lo + hi + 1) // 2` builds a mirror-image tree that is also balanced but serializes differently.\n\nO(n) time, O(log n) recursion depth.",
     functionName: 'sorted_array_to_bst',
     functionSignature: 'def sorted_array_to_bst(nums: list[int]) -> list:',
     starter:
@@ -3540,13 +3553,14 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Backtracking',
     statement:
-      "Given a list `nums` of distinct integers, return every subset (the power set). Output subsets in ascending size order; within each size, sort in lex order based on the *sorted* values of `nums`.",
+      "Given a list `nums` of distinct integers, return every subset (the power set), in any order. Within each subset, list the values in ascending order.",
     explanation:
-      "The classic backtracking template: walk the index `i`, and for each value decide either *include* it or *skip* it.\n\nSort `nums` first so the lex order is deterministic. Recurse with `start` and `path`. At every entry, append a *copy* of `path` to the answer. Then for `i` from `start` to `n − 1`, push `nums[i]`, recurse with `start = i + 1`, pop.\n\nThis emits subsets in increasing size and lex order — the same shape as expanding a binary representation of `2^n − 1` in ordered fashion.\n\nO(n · 2^n) time, O(n) recursion depth.",
+      "The classic backtracking template: walk the index `i`, and for each value decide either *include* it or *skip* it.\n\nSort `nums` first so the lex order is deterministic. Recurse with `start` and `path`. At every entry, append a *copy* of `path` to the answer. Then for `i` from `start` to `n − 1`, push `nums[i]`, recurse with `start = i + 1`, pop.\n\nThe order you emit subsets in doesn't matter — the grader accepts any permutation — but sorting `nums` first keeps each individual subset ascending, as required.\n\nO(n · 2^n) time, O(n) recursion depth.",
     functionName: 'subsets',
     functionSignature: 'def subsets(nums: list[int]) -> list[list[int]]:',
     starter:
       STARTER_HEADER + 'def subsets(nums: list[int]) -> list[list[int]]:\n    pass\n',
+    compare: 'unordered',
     examples: [
       {
         input: [[1, 2, 3]],

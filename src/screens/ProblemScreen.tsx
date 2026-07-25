@@ -180,9 +180,10 @@ export function AlgorithmProblemView({
     if (!runtimeReady || running) return;
     setRunning(true);
     setResult(null);
-    const allTests: (TestCase & { hidden: boolean })[] = [
-      ...problem.examples.map((t) => ({ ...t, hidden: false })),
-      ...problem.hiddenTests.map((t) => ({ ...t, hidden: true })),
+    const compare = problem.compare ?? 'exact';
+    const allTests: (TestCase & { hidden: boolean; compare: string })[] = [
+      ...problem.examples.map((t) => ({ ...t, hidden: false, compare })),
+      ...problem.hiddenTests.map((t) => ({ ...t, hidden: true, compare })),
     ];
     webRef.current?.postMessage(
       JSON.stringify({ type: 'run', fnName: problem.functionName, tests: allTests })

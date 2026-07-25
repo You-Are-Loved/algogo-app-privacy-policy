@@ -307,18 +307,24 @@ async function waitForPyodide() {
 const GRADER_PY = \`
 import json, time, sys, io, traceback
 
+def _canon_key(x):
+    # Stable sort key so unordered comparison works on nested lists/dicts.
+    return json.dumps(x, sort_keys=True, default=str)
+
 def _normalize(x):
-    # Lists of lists with order-independent semantics aren't auto-detected;
-    # we rely on equality. Convert tuples to lists for parity with JSON.
-    if isinstance(x, tuple):
+    # Convert tuples/sets to lists for parity with JSON expected values. Sets
+    # are sorted canonically so a set-shaped answer grades deterministically.
+    if isinstance(x, bool):
+        return x
+    if isinstance(x, (tuple, list)):
         return [_normalize(i) for i in x]
-    if isinstance(x, list):
-        return [_normalize(i) for i in x]
+    if isinstance(x, (set, frozenset)):
+        return sorted((_normalize(i) for i in x), key=_canon_key)
     if isinstance(x, dict):
-        return {k: _normalize(v) for k, v in x.items()}
+        return {str(k): _normalize(v) for k, v in x.items()}
     return x
 
-def _equal(a, b):
+def _equal(a, b, compare='exact'):
     a = _normalize(a)
     b = _normalize(b)
     if isinstance(a, float) or isinstance(b, float):
@@ -326,6 +332,12 @@ def _equal(a, b):
             return abs(float(a) - float(b)) < 1e-6
         except Exception:
             return False
+    if compare == 'unordered' and isinstance(a, list) and isinstance(b, list):
+        # Top-level multiset equality: element order is ignored, but each
+        # element (including nested lists) must still match exactly.
+        if len(a) != len(b):
+            return False
+        return sorted(map(_canon_key, a)) == sorted(map(_canon_key, b))
     return a == b
 
 def _run_one(fn, args):
@@ -384,7 +396,7 @@ def grade(user_code: str, fn_name: str, tests_json: str):
                 'stdout': res.get('stdout', ''),
             })
             continue
-        ok = _equal(res['value'], t['expected'])
+        ok = _equal(res['value'], t['expected'], t.get('compare', 'exact'))
         if ok:
             passed += 1
         out_cases.append({
@@ -392,7 +404,7 @@ def grade(user_code: str, fn_name: str, tests_json: str):
             'pass': ok,
             'runtime_ms': runtime_ms,
             'expected': t['expected'],
-            'actual': res['value'],
+            'actual': _normalize(res['value']),
             'stdout': res.get('stdout', ''),
         })
     return json.dumps({
@@ -401,7 +413,7 @@ def grade(user_code: str, fn_name: str, tests_json: str):
         'total': len(tests),
         'cases': out_cases,
         'total_runtime_ms': round(total_ms, 1),
-    })
+    }, default=str)
 \`;
 
 let graderLoaded = false;
