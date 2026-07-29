@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Platform, Alert } from 'react-native';
+import { Platform, Alert, Linking } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -10,6 +10,10 @@ const PRO_PRODUCT_IDS = [MONTHLY_PRODUCT_ID, ANNUAL_PRODUCT_ID];
 
 const SUBSCRIPTION_KEY = '@algogo_subscription';
 const SUBSCRIPTION_START_KEY = '@algogo_subscription_start';
+const GRACE_NOTICE_KEY = '@algogo_grace_notice';
+
+// Apple's page for fixing a failed payment method.
+const APPLE_BILLING_URL = 'https://apps.apple.com/account/billing';
 
 // Check if we're in Expo Go
 const isExpoGo = Constants.appOwnership === 'expo';
@@ -46,6 +50,12 @@ export interface SubscriptionState {
   };
   error: string | null;
   connected: boolean;
+  /**
+   * Non-null while the subscription is in Apple's billing grace period:
+   * the last renewal charge failed, Apple is retrying, and the user keeps
+   * Pro access until this timestamp (ms epoch). Null when billing is fine.
+   */
+  gracePeriodEndsAt: number | null;
 }
 
 /**
@@ -100,6 +110,7 @@ export function useSubscription() {
     products: { monthly: null, annual: null },
     error: null,
     connected: false,
+    gracePeriodEndsAt: null,
   });
 
   // Load saved subscription status
@@ -131,6 +142,32 @@ export function useSubscription() {
     } catch (e) {
       // Ignore
     }
+  };
+
+  // Alert once per grace-period episode (keyed by the episode's end date, so
+  // a fresh billing issue months later prompts again) that billing failed and
+  // access will lapse unless the payment method is fixed.
+  const notifyBillingIssueOnce = async (graceEndsAt: number) => {
+    try {
+      const seen = await AsyncStorage.getItem(GRACE_NOTICE_KEY);
+      if (seen === String(graceEndsAt)) return;
+      await AsyncStorage.setItem(GRACE_NOTICE_KEY, String(graceEndsAt));
+    } catch (e) {
+      // If storage fails, still show the alert — worst case it repeats.
+    }
+    Alert.alert(
+      'Payment Issue',
+      "There's a billing problem with your Algogo Pro subscription. You still have full access, but please update your payment method to keep it.",
+      [
+        {
+          text: 'Update Payment',
+          onPress: () => {
+            Linking.openURL(APPLE_BILLING_URL).catch(() => {});
+          },
+        },
+        { text: 'Later', style: 'cancel' },
+      ]
+    );
   };
 
   // Use the useIAP hook from expo-iap
@@ -282,6 +319,30 @@ export function useSubscription() {
           }
         } catch (e) {
           console.log('Get purchases error:', e);
+        }
+
+        // Billing grace period: StoreKit keeps grace-period subs in
+        // currentEntitlements, so the check above already preserves Pro
+        // access. Here we detect that state so we can nudge the user to fix
+        // their payment method before the grace period ends and access lapses.
+        try {
+          const activeSubs = await ExpoIAP.getActiveSubscriptions(PRO_PRODUCT_IDS);
+          const graceSub = activeSubs?.find((sub: any) => {
+            const end = sub?.renewalInfoIOS?.gracePeriodExpirationDate;
+            return typeof end === 'number' && end > Date.now();
+          });
+          const graceEndsAt =
+            graceSub?.renewalInfoIOS?.gracePeriodExpirationDate ?? null;
+          setState(prev => ({ ...prev, gracePeriodEndsAt: graceEndsAt }));
+          if (graceEndsAt) {
+            console.log(
+              'Subscription in billing grace period until',
+              new Date(graceEndsAt).toISOString()
+            );
+            notifyBillingIssueOnce(graceEndsAt);
+          }
+        } catch (e) {
+          console.log('Grace period check error:', e);
         }
       } catch (error: any) {
         console.log('IAP init error:', error);

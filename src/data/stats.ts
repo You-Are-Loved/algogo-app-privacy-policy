@@ -62,11 +62,11 @@ export function getPaywallFeatures(): PaywallFeature[] {
     },
     {
       icon: 'code-slash-outline',
-      text: `${s.algorithmProblems} algorithm problems with a real Python runtime`,
+      text: `${s.algorithmProblems} algorithm problems — real Python runtime + live visualizations`,
     },
     {
       icon: 'git-network-outline',
-      text: `${s.systemDesignProblems} system-design problems that grade themselves`,
+      text: `${s.systemDesignProblems} self-grading system-design problems`,
     },
     {
       icon: 'chatbubbles-outline',
@@ -74,15 +74,15 @@ export function getPaywallFeatures(): PaywallFeature[] {
     },
     {
       icon: 'bug-outline',
-      text: `${s.bugFixProblems} bug-fix challenges across Python, JS, and Java`,
+      text: `${s.bugFixProblems} bug-fix challenges in Python, JS & Java`,
     },
     {
-      icon: 'analytics-outline',
-      text: 'Live algorithm visualizations',
+      icon: 'timer-outline',
+      text: 'Build custom timed mock interviews',
     },
     {
       icon: 'cloud-offline-outline',
-      text: 'Works fully offline',
+      text: 'Everything works fully offline',
     },
   ];
 }

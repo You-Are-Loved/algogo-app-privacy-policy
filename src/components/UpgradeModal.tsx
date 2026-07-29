@@ -15,7 +15,13 @@ import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated'
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
-import { formatIntroDuration, formatIntroPeriod } from '../hooks/useSubscription';
+import {
+  Plan,
+  computeAnnualDiscount,
+  formatIntroDuration,
+  formatIntroPeriod,
+  formatMonthlyEquivalent,
+} from '../hooks/useSubscription';
 import { getPaywallFeatures, PaywallFeature } from '../data/stats';
 import AlgogoLogo from './AlgogoLogo';
 
@@ -38,19 +44,33 @@ export default function UpgradeModal({
 }: UpgradeModalProps) {
   const { purchase, restore, products, isLoading } = useSubscriptionContext();
   const [purchasing, setPurchasing] = useState(false);
+  const [plan, setPlan] = useState<Plan>('monthly');
   const insets = useSafeAreaInsets();
   // iPhone Pro Dynamic Island extends below the standard safe-area top inset
   // a touch, so we pad an extra ~16pt on top of insets.top for clearance.
   const heroTopPadding = insets.top + spacing.lg;
 
-  // Monthly-only paywall — the annual SKU still exists in expo-iap for
-  // grandfathered subscribers + Restore, just not exposed in the UI.
-  const product = products.monthly;
-  const priceLabel = product?.display ?? '$2.99';
+  const monthlyProduct = products.monthly;
+  const annualProduct = products.annual;
+  const monthlyPrice = monthlyProduct?.display ?? '$1.99';
+  const annualPrice = annualProduct?.display ?? '$9.99';
+  // Until StoreKit answers there's no annual price, so the toggle would show
+  // an empty pill — fall back to the monthly-only layout in the meantime.
+  const showPlans = annualProduct != null;
+  const selectedPlan: Plan = showPlans ? plan : 'monthly';
+
+  // Savings vs paying monthly ×12, and the annual price restated per month
+  // ("$9.99/yr" reads as "$0.83/mo"). Both derive from live StoreKit prices,
+  // so they track price changes and locale currency automatically.
+  const discountPct = computeAnnualDiscount(monthlyProduct?.amount, annualProduct?.amount);
+  const monthlyEquivalent = formatMonthlyEquivalent(annualProduct);
+
   // Any configured intro offer — App Store Connect surfaces these as
   // free-trial, pay-up-front (one charge covering the intro period), or
   // pay-as-you-go (a reduced per-period charge). We promote all three.
-  const offer = product?.introOffer ?? null;
+  // Offers are configured per SKU, so each plan carries its own.
+  const selectedProduct = selectedPlan === 'annual' ? annualProduct : monthlyProduct;
+  const offer = selectedProduct?.introOffer ?? null;
   const isFreeTrial = offer?.mode === 'free-trial';
   const trialDuration = isFreeTrial ? formatIntroDuration(offer) : null;
   const offerPeriod = offer ? formatIntroPeriod(offer) : null;
@@ -59,7 +79,7 @@ export default function UpgradeModal({
 
   const handlePurchase = async () => {
     setPurchasing(true);
-    const result = await purchase('monthly');
+    const result = await purchase(selectedPlan);
     setPurchasing(false);
     if (result.success) onClose();
   };
@@ -69,21 +89,28 @@ export default function UpgradeModal({
     if (result.success && result.isSubscribed) onClose();
   };
 
+  const priceUnit = selectedPlan === 'annual' ? 'yr' : 'mo';
+  const selectedPrice = selectedPlan === 'annual' ? annualPrice : monthlyPrice;
+  // Renewal price in words, with the annual price restated per month.
+  const renewalPhrase = selectedPlan === 'annual'
+    ? `${annualPrice}/year${monthlyEquivalent ? ` — just ${monthlyEquivalent}/month` : ''}`
+    : `${monthlyPrice}/month`;
+
   const ctaLabel = !offer
-    ? `Subscribe · ${priceLabel}/mo`
+    ? `Subscribe · ${selectedPrice}/${priceUnit}`
     : isFreeTrial
       ? `Start ${trialDuration} free trial`
       : offer.mode === 'pay-as-you-go'
-        ? `Subscribe · ${offer.display}/mo first ${offerPeriod}`
+        ? `Subscribe · ${offer.display}/${priceUnit} first ${offerPeriod}`
         : `Subscribe · ${offer.display} first ${offerPeriod}`;
 
   const subtitleLine = !offer
-    ? `${priceLabel}/month. Cancel anytime.`
+    ? `${renewalPhrase}. Cancel anytime.`
     : isFreeTrial
-      ? `${trialDuration === '7-day' ? '7 days' : trialDuration} free, then ${priceLabel}/month. Cancel anytime.`
+      ? `${trialDuration === '7-day' ? '7 days' : trialDuration} free, then ${renewalPhrase}. Cancel anytime.`
       : offer.mode === 'pay-as-you-go'
-        ? `${offer.display}/month for your first ${offerPeriod}, then ${priceLabel}/month. Cancel anytime.`
-        : `${offer.display} for your first ${offerPeriod}, then ${priceLabel}/month. Cancel anytime.`;
+        ? `${offer.display} for your first ${offerPeriod}, then ${renewalPhrase}. Cancel anytime.`
+        : `${offer.display} for your first ${offerPeriod}, then ${renewalPhrase}. Cancel anytime.`;
 
   const busy = isLoading || purchasing;
 
@@ -136,6 +163,27 @@ export default function UpgradeModal({
           entering={FadeInUp.delay(500).duration(400)}
           style={styles.bottomBar}
         >
+          {showPlans ? (
+            <View style={styles.planRow}>
+              <PlanPill
+                title="Monthly"
+                price={`${monthlyPrice}/mo`}
+                selected={selectedPlan === 'monthly'}
+                disabled={busy}
+                onPress={() => setPlan('monthly')}
+              />
+              <PlanPill
+                title="Annual"
+                price={monthlyEquivalent ? `${monthlyEquivalent}/mo` : `${annualPrice}/yr`}
+                sub={monthlyEquivalent ? `billed ${annualPrice}/yr` : undefined}
+                badge={discountPct ? `SAVE ${discountPct}%` : undefined}
+                selected={selectedPlan === 'annual'}
+                disabled={busy}
+                onPress={() => setPlan('annual')}
+              />
+            </View>
+          ) : null}
+
           <TouchableOpacity
             style={[styles.primaryCta, busy && { opacity: 0.6 }]}
             onPress={handlePurchase}
@@ -183,6 +231,44 @@ export default function UpgradeModal({
   );
 }
 
+function PlanPill({
+  title,
+  price,
+  sub,
+  badge,
+  selected,
+  disabled,
+  onPress,
+}: {
+  title: string;
+  price: string;
+  sub?: string;
+  badge?: string;
+  selected: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.planPill, selected && styles.planPillSelected]}
+      onPress={onPress}
+      disabled={disabled}
+      activeOpacity={0.8}
+    >
+      {badge ? (
+        <View style={styles.planBadge}>
+          <Text style={styles.planBadgeText}>{badge}</Text>
+        </View>
+      ) : null}
+      <Text style={[styles.planPillTitle, selected && styles.planPillTitleSelected]}>
+        {title}
+      </Text>
+      <Text style={styles.planPillPrice}>{price}</Text>
+      {sub ? <Text style={styles.planPillSub}>{sub}</Text> : null}
+    </TouchableOpacity>
+  );
+}
+
 function PaywallFeatureRow({
   icon,
   text,
@@ -193,7 +279,7 @@ function PaywallFeatureRow({
   return (
     <View style={styles.paywallFeatureRow}>
       <View style={styles.paywallFeatureIcon}>
-        <Ionicons name={icon} size={18} color={colors.primary} />
+        <Ionicons name={icon} size={16} color={colors.primary} />
       </View>
       <Text style={styles.paywallFeatureText}>{text}</Text>
     </View>
@@ -243,18 +329,18 @@ const styles = StyleSheet.create({
 
   // Feature list
   paywallFeatures: {
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   paywallFeatureRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingVertical: 6,
+    paddingVertical: 3,
   },
   paywallFeatureIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: `${colors.primary}1A`,
     alignItems: 'center',
     justifyContent: 'center',
@@ -274,6 +360,66 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.background,
+  },
+
+  // Plan toggle
+  planRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    // Room for the SAVE badge overlapping the annual pill's top edge.
+    marginTop: spacing.xs + 4,
+    marginBottom: spacing.md,
+  },
+  planPill: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.lg,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  planPillSelected: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}0D`,
+  },
+  planBadge: {
+    position: 'absolute',
+    top: -10,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  planBadgeText: {
+    ...typography.labelMedium,
+    color: colors.white,
+    fontSize: 10,
+    letterSpacing: 0.4,
+  },
+  planPillTitle: {
+    ...typography.labelMedium,
+    color: colors.inkLight,
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  planPillTitleSelected: {
+    color: colors.primaryDark,
+  },
+  planPillPrice: {
+    ...typography.labelLarge,
+    color: colors.ink,
+    fontSize: 16,
+    marginTop: 2,
+  },
+  planPillSub: {
+    ...typography.labelMedium,
+    color: colors.inkLight,
+    fontSize: 11,
+    marginTop: 1,
   },
   primaryCta: {
     flexDirection: 'row',
