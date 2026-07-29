@@ -21,6 +21,7 @@ const TRACKS: { type: ContentType; label: string }[] = [
   { type: 'web', label: 'Web' },
   { type: 'backend', label: 'Backend' },
   { type: 'sql', label: 'SQL' },
+  { type: 'cpp', label: 'C++' },
 ];
 
 export const quizBank: QuizBankItem[] = TRACKS.flatMap(({ type, label }) =>

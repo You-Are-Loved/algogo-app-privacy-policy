@@ -44,16 +44,17 @@ Screen readers and search engines understand semantic markup, making your conten
 • <article>: Self-contained, distributable content
 • <section>: Thematic grouping with heading`,
         codeExample: `<!DOCTYPE html>
-<html lang="en">
+<html lang="en"> <!-- lang helps screen readers + SEO -->
 <head>
+  <!-- metadata: encoding, mobile scaling, tab title -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Page Title</title>
 </head>
 <body>
   <header><nav>...</nav></header>
-  <main>
-    <article>
+  <main> <!-- only ONE main per page -->
+    <article> <!-- self-contained content -->
       <h1>Title</h1>
       <section>...</section>
     </article>
@@ -73,11 +74,13 @@ Screen readers and search engines understand semantic markup, making your conten
 • Use appropriate input types: email, tel, number, date
 • Include required and aria-required for mandatory fields`,
         codeExample: `<form>
-  <fieldset>
+  <fieldset> <!-- groups related inputs -->
     <legend>Contact Info</legend>
+    <!-- for/id link: clicking label focuses input -->
     <label for="email">Email</label>
     <input type="email" id="email" required
       aria-describedby="email-help">
+    <!-- help text announced by screen readers -->
     <span id="email-help">We won't share</span>
   </fieldset>
   <button type="submit">Submit</button>
@@ -96,12 +99,16 @@ Screen readers and search engines understand semantic markup, making your conten
 • Canonical URL: Prevent duplicate content issues`,
         codeExample: `<head>
   <meta charset="UTF-8">
+  <!-- required for mobile-friendly scaling -->
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0">
+  <!-- shown as the snippet in search results -->
   <meta name="description"
     content="Learn web development">
+  <!-- Open Graph: social share previews -->
   <meta property="og:title" content="My Site">
   <meta property="og:image" content="/preview.jpg">
+  <!-- canonical: avoids duplicate-content penalty -->
   <link rel="canonical" href="https://example.com/page">
 </head>`
       },
@@ -199,9 +206,11 @@ Avoid:
 
 Responsive tables: either let the user scroll horizontally (best for data integrity), or use CSS to stack rows on mobile while keeping the semantic table structure intact.`,
         codeExample: `<table>
+  <!-- caption = accessible title for the table -->
   <caption>Q1 2026 sales by region</caption>
   <thead>
     <tr>
+      <!-- scope="col" ties data cells to headers -->
       <th scope="col">Region</th>
       <th scope="col">Revenue</th>
       <th scope="col">Growth</th>
@@ -209,6 +218,7 @@ Responsive tables: either let the user scroll horizontally (best for data integr
   </thead>
   <tbody>
     <tr>
+      <!-- row header: announced with each cell -->
       <th scope="row">North</th>
       <td>$1.2M</td>
       <td>+12%</td>
@@ -236,15 +246,19 @@ Responsive tables: either let the user scroll horizontally (best for data integr
 • Format: WebVTT (.vtt) — time ranges with text
 
 Accessibility minimum: captions for any video with speech. Descriptions when crucial info is visual-only.`,
-        codeExample: `<video controls preload="metadata"
+        codeExample: `<!-- preload="metadata": only fetch duration/size -->
+<video controls preload="metadata"
        poster="cover.jpg"
        width="1280" height="720">
+  <!-- browser picks first format it can play -->
   <source src="lecture.av1.mp4" type="video/mp4; codecs=av01.0.05M.08" />
   <source src="lecture.h264.mp4" type="video/mp4; codecs=avc1.42E01E" />
   <source src="lecture.webm" type="video/webm" />
+  <!-- captions: dialog + sounds, for deaf/HoH users -->
   <track kind="captions" src="lecture.en.vtt" srclang="en" label="English" default />
   <track kind="captions" src="lecture.es.vtt" srclang="es" label="Español" />
   <track kind="descriptions" src="lecture.descriptions.vtt" srclang="en" />
+  <!-- fallback for very old browsers -->
   <p>Your browser doesn't support video. <a href="lecture.mp4">Download</a>.</p>
 </video>`
       },
@@ -269,6 +283,7 @@ Practical wins:
 
 Validate with Google's Rich Results Test before deploying.`,
         codeExample: `<!-- JSON-LD in <head> -->
+<!-- type tells crawlers this is structured data -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -309,6 +324,7 @@ Mobile keyboard hints:
         codeExample: `<form>
   <label>
     Email
+    <!-- autocomplete enables one-tap autofill -->
     <input
       type="email"
       autocomplete="email"
@@ -319,6 +335,7 @@ Mobile keyboard hints:
 
   <label>
     Verification code
+    <!-- one-time-code: OS offers SMS code inline -->
     <input
       type="text"
       autocomplete="one-time-code"
@@ -330,6 +347,7 @@ Mobile keyboard hints:
 
   <label>
     Country
+    <!-- list links input to datalist suggestions -->
     <input list="countries" name="country" />
   </label>
   <datalist id="countries">
@@ -540,10 +558,10 @@ Mobile keyboard hints:
 • gap: spacing between flex items`,
         codeExample: `.container {
   display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: row; /* main axis = horizontal */
+  justify-content: space-between; /* main-axis spacing */
+  align-items: center; /* cross-axis alignment */
+  gap: 1rem; /* space between items, no margin hacks */
 }
 
 .item {
@@ -563,11 +581,14 @@ Mobile keyboard hints:
 • repeat(): shorthand for repeated patterns`,
         codeExample: `.grid {
   display: grid;
+  /* 3 equal-width flexible columns */
   grid-template-columns: repeat(3, 1fr);
+  /* middle row stretches to fill space */
   grid-template-rows: auto 1fr auto;
   gap: 1rem;
 }
 
+/* 1 / -1 = span from first to last line */
 .header { grid-column: 1 / -1; }
 .sidebar { grid-row: 2 / 3; }`
       },
@@ -584,12 +605,14 @@ Mobile keyboard hints:
         codeExample: `/* Mobile first */
 .container {
   padding: 1rem;
+  /* clamp(min, preferred, max) scales with viewport */
   font-size: clamp(1rem, 2.5vw, 1.5rem);
 }
 
 /* Tablet and up */
 @media (min-width: 768px) {
   .container {
+    /* switch to sidebar + content layout */
     display: grid;
     grid-template-columns: 250px 1fr;
   }
@@ -629,19 +652,19 @@ Mobile keyboard hints:
 • sticky: hybrid of relative and fixed
 • z-index: stacking order (only on positioned elements)`,
         codeExample: `.parent {
-  position: relative;
+  position: relative; /* anchor for absolute child */
 }
 
 .tooltip {
-  position: absolute;
-  top: 100%;
+  position: absolute; /* positioned vs .parent */
+  top: 100%; /* just below the parent */
   left: 50%;
-  transform: translateX(-50%);
-  z-index: 100;
+  transform: translateX(-50%); /* center horizontally */
+  z-index: 100; /* stack above siblings */
 }
 
 .sticky-header {
-  position: sticky;
+  position: sticky; /* scrolls, then pins at top: 0 */
   top: 0;
 }`
       },
@@ -663,7 +686,8 @@ Theming pattern:
 • Switch theme = toggle the data attribute. No JS reflows components.
 
 Combine with color-mix() and oklch() for token math (e.g., generate hover/active variants from a base color at runtime).`,
-        codeExample: `:root {
+        codeExample: `/* Design tokens defined once at the root */
+:root {
   --color-bg: oklch(98% 0.01 240);
   --color-text: oklch(20% 0.02 240);
   --color-accent: oklch(65% 0.18 250);
@@ -672,11 +696,13 @@ Combine with color-mix() and oklch() for token math (e.g., generate hover/active
   --radius: 8px;
 }
 
+/* Dark mode: override the SAME token names */
 [data-theme="dark"] {
   --color-bg: oklch(15% 0.01 240);
   --color-text: oklch(95% 0.01 240);
 }
 
+/* Components read tokens — theme-agnostic */
 .card {
   background: var(--color-bg);
   color: var(--color-text);
@@ -685,6 +711,7 @@ Combine with color-mix() and oklch() for token math (e.g., generate hover/active
 }
 
 .button:hover {
+  /* derive hover tint from base at runtime */
   background: color-mix(in oklch, var(--color-accent), white 10%);
 }`
       },
@@ -704,21 +731,24 @@ Setup:
 3. Children use @container queries to respond to its size
 
 Container query units (cqw, cqh, cqi, cqb) — like vw/vh but relative to the container, not the viewport.`,
-        codeExample: `.card-grid {
+        codeExample: `/* 1. Mark the parent as a query container */
+.card-grid {
   container-type: inline-size;
   container-name: cards;
   display: grid;
   gap: 1rem;
 }
 
+/* Default (narrow) layout: stacked */
 .card {
   display: flex;
   flex-direction: column;
 }
 
+/* 2. Respond to the CONTAINER's width, not viewport */
 @container cards (min-width: 500px) {
   .card {
-    flex-direction: row;
+    flex-direction: row; /* go horizontal when roomy */
     align-items: center;
   }
   .card__title {
@@ -1143,14 +1173,17 @@ counter.increment(); // 2
         codeExample: `// Async/await
 async function fetchUser(id) {
   try {
+    // await pauses here until the promise settles
     const res = await fetch(\`/api/users/\${id}\`);
     return await res.json();
   } catch (err) {
+    // catches network errors AND rejected awaits
     console.error(err);
   }
 }
 
 // Parallel requests
+// both start immediately; await waits for both
 const [user, posts] = await Promise.all([
   fetchUser(1),
   fetchPosts(1)
@@ -1254,14 +1287,15 @@ Modern class features:
 • Public class fields (no constructor needed for simple init)`,
         codeExample: `class Animal {
   #species; // private field
-  static count = 0;
+  static count = 0; // lives on the class, not instances
 
   constructor(name, species) {
-    this.name = name;
+    this.name = name; // per-instance data
     this.#species = species;
     Animal.count++;
   }
 
+  // methods are shared via Animal.prototype
   describe() {
     return \`\${this.name} (\${this.#species})\`;
   }
@@ -1269,7 +1303,7 @@ Modern class features:
 
 class Dog extends Animal {
   constructor(name) {
-    super(name, 'Canis familiaris');
+    super(name, 'Canis familiaris'); // run parent constructor
   }
 
   bark() { return 'Woof!'; }
@@ -1506,9 +1540,10 @@ AbortController:
 • Compose with AbortSignal.timeout(ms) for time limits
 
 Pattern: every async operation that could outlive its caller (component unmount, request abandoned) should accept an AbortSignal.`,
-        codeExample: `class ApiError extends Error {
+        codeExample: `// Custom error: carries status + preserves cause chain
+class ApiError extends Error {
   constructor(message, { status, cause } = {}) {
-    super(message, { cause });
+    super(message, { cause }); // cause links original error
     this.name = 'ApiError';
     this.status = status;
   }
@@ -1517,9 +1552,11 @@ Pattern: every async operation that could outlive its caller (component unmount,
 async function getUser(id, { signal } = {}) {
   try {
     const res = await fetch(\`/users/\${id}\`, { signal });
+    // fetch doesn't throw on 4xx/5xx — check manually
     if (!res.ok) throw new ApiError(\`HTTP \${res.status}\`, { status: res.status });
     return await res.json();
   } catch (e) {
+    // let cancellation bubble up unchanged
     if (e.name === 'AbortError') throw e;
     throw new ApiError('Failed to load user', { cause: e });
   }
@@ -1738,12 +1775,14 @@ function Card({ children }) {
 function Tabs({ children, defaultTab }) {
   const [active, setActive] = useState(defaultTab);
   return (
+    // context shares state implicitly with Tab children
     <TabContext.Provider value={{ active, setActive }}>
       {children}
     </TabContext.Provider>
   );
 }
 
+// sub-component attached to parent: <Tabs.Tab id="a">
 Tabs.Tab = function Tab({ id, children }) {
   const { active, setActive } = useContext(TabContext);
   return <button onClick={() => setActive(id)}>{children}</button>;
@@ -1763,12 +1802,14 @@ Tabs.Tab = function Tab({ id, children }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // re-runs whenever the url changes
   useEffect(() => {
     const controller = new AbortController();
     fetch(url, { signal: controller.signal })
       .then(res => res.json())
       .then(setData)
       .finally(() => setLoading(false));
+    // cleanup: cancel stale request on unmount/url change
     return () => controller.abort();
   }, [url]);
 
@@ -1789,10 +1830,11 @@ const { data, loading } = useFetch('/api/users');`
 • useReducer: complex state logic with actions
 • External stores: Redux, Zustand for large apps`,
         codeExample: `// useReducer for complex state
+// pure function: (state, action) -> new state
 const reducer = (state, action) => {
   switch (action.type) {
     case 'increment':
-      return { ...state, count: state.count + 1 };
+      return { ...state, count: state.count + 1 }; // never mutate
     case 'setStep':
       return { ...state, step: action.payload };
     default:
@@ -1801,6 +1843,7 @@ const reducer = (state, action) => {
 };
 
 function Counter() {
+  // dispatch sends actions; reducer computes next state
   const [state, dispatch] = useReducer(reducer, { count: 0, step: 1 });
   return (
     <button onClick={() => dispatch({ type: 'increment' })}>
@@ -1892,6 +1935,7 @@ Mental model: Server Components are the new default; Client Components are expli
 import { db } from '@/lib/db';
 
 export default async function PostsPage() {
+  // direct DB access — this never ships to the browser
   const posts = await db.post.findMany();
   return (
     <ul>
@@ -1901,13 +1945,14 @@ export default async function PostsPage() {
 }
 
 // app/post-item.tsx — Client Component for the like button
-'use client';
+'use client'; // marks the interactivity boundary
 import { likePost } from './actions';
 
 export function PostItem({ post }) {
   return (
     <li>
       {post.title}
+      {/* form action calls the server function directly */}
       <form action={likePost.bind(null, post.id)}>
         <button>Like ({post.likes})</button>
       </form>
@@ -1916,13 +1961,13 @@ export function PostItem({ post }) {
 }
 
 // app/actions.ts — Server Action
-'use server';
+'use server'; // runs on the server, callable from client
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 
 export async function likePost(postId: string) {
   await db.post.update({ where: { id: postId }, data: { likes: { increment: 1 } } });
-  revalidatePath('/posts');
+  revalidatePath('/posts'); // refresh cached page data
 }`
       },
       {
@@ -1951,13 +1996,15 @@ Combine: Suspense for "loading", Error Boundary for "errors". Wrap routes with b
         codeExample: `// Class-based error boundary (only way today)
 class ErrorBoundary extends React.Component {
   state = { error: null };
+  // update state so next render shows fallback UI
   static getDerivedStateFromError(error) { return { error }; }
+  // side effects: log/report the error
   componentDidCatch(error, info) { reportToSentry(error, info); }
   render() {
     if (this.state.error) {
       return <Fallback onRetry={() => this.setState({ error: null })} />;
     }
-    return this.props.children;
+    return this.props.children; // normal case: render children
   }
 }
 
@@ -2079,6 +2126,7 @@ function Timer() {
 // Imperative API exposed by a custom Input
 const FancyInput = forwardRef((props, ref) => {
   const inputRef = useRef();
+  // expose ONLY these methods to the parent
   useImperativeHandle(ref, () => ({
     focus: () => inputRef.current.focus(),
     clear: () => { inputRef.current.value = ''; },
@@ -2089,7 +2137,7 @@ const FancyInput = forwardRef((props, ref) => {
 // Parent
 const myRef = useRef();
 <FancyInput ref={myRef} />;
-myRef.current.focus();
+myRef.current.focus(); // calls the exposed method
 
 // React 19: ref as prop, no forwardRef
 function FancyInput({ ref, ...props }) {
@@ -2170,9 +2218,10 @@ use() hook (React 19):
 Mental model: forms are now natively async, server actions are just functions, and use() makes async data feel like sync data inside Suspense boundaries.`,
         codeExample: `// Server Action
 'use server';
+// (prevState, formData) shape required by useActionState
 async function createPost(prevState, formData) {
   const title = formData.get('title');
-  if (!title) return { error: 'Title required' };
+  if (!title) return { error: 'Title required' }; // validation result
   await db.post.create({ data: { title } });
   return { success: true };
 }
@@ -2182,12 +2231,14 @@ async function createPost(prevState, formData) {
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 
+// reads parent form's pending state — no prop drilling
 function SubmitButton() {
   const { pending } = useFormStatus();
   return <button disabled={pending}>{pending ? 'Saving...' : 'Save'}</button>;
 }
 
 export function NewPost() {
+  // state = last return value from the action
   const [state, formAction] = useActionState(createPost, { error: null });
   return (
     <form action={formAction}>
@@ -2424,6 +2475,7 @@ const stateDecision = {
 • RTK Query: data fetching and caching`,
         codeExample: `import { createSlice, configureStore } from '@reduxjs/toolkit';
 
+// slice = reducers + auto-generated actions in one
 const userSlice = createSlice({
   name: 'user',
   initialState: { data: null, loading: false },
@@ -2435,6 +2487,7 @@ const userSlice = createSlice({
   }
 });
 
+// action creators are generated from reducer names
 export const { setUser, logout } = userSlice.actions;
 const store = configureStore({ reducer: { user: userSlice.reducer } });`
       },
@@ -2452,21 +2505,23 @@ const store = configureStore({ reducer: { user: userSlice.reducer } });`
 import { persist } from 'zustand/middleware';
 
 const useStore = create(
+  // persist middleware saves state to localStorage
   persist(
     (set, get) => ({
-      bears: 0,
+      bears: 0, // state lives next to its actions
       addBear: () => set(state => ({ bears: state.bears + 1 })),
       removeAllBears: () => set({ bears: 0 }),
-      fetchBears: async () => {
+      fetchBears: async () => { // async actions just work
         const res = await fetch('/api/bears');
         set({ bears: await res.json() });
       }
     }),
-    { name: 'bear-storage' }
+    { name: 'bear-storage' } // localStorage key
   )
 );
 
 // Usage - no Provider needed!
+// selector: re-render only when 'bears' changes
 const bears = useStore(state => state.bears);`
       },
       {
@@ -2482,6 +2537,7 @@ const bears = useStore(state => state.bears);`
         codeExample: `import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 function Posts() {
+  // queryKey identifies this data in the cache
   const { data, isLoading, error } = useQuery({
     queryKey: ['posts'],
     queryFn: () => fetch('/api/posts').then(r => r.json()),
@@ -2493,6 +2549,7 @@ function Posts() {
     mutationFn: (newPost) => fetch('/api/posts', {
       method: 'POST', body: JSON.stringify(newPost)
     }),
+    // after a write, mark cached posts stale -> refetch
     onSuccess: () => queryClient.invalidateQueries(['posts'])
   });
 }`
@@ -2605,15 +2662,19 @@ The mental shift: don't think "fetch in useEffect, store in useState." Think "de
 const mutation = useMutation({
   mutationFn: (newPost) => api.createPost(newPost),
   onMutate: async (newPost) => {
+    // stop in-flight refetches from clobbering our write
     await queryClient.cancelQueries({ queryKey: ['posts'] });
     const previous = queryClient.getQueryData(['posts']);
+    // show the new post immediately, before server confirms
     queryClient.setQueryData(['posts'], (old) => [...old, newPost]);
     return { previous }; // context for rollback
   },
   onError: (err, newPost, context) => {
+    // server rejected: restore the snapshot
     queryClient.setQueryData(['posts'], context.previous);
   },
   onSettled: () => {
+    // success or error: sync with the server's truth
     queryClient.invalidateQueries({ queryKey: ['posts'] });
   },
 });
@@ -2655,6 +2716,7 @@ When to reach for a state machine:
 • Bugs where the UI shows two contradictory things at once
 • Complex flows you have to mentally simulate to understand`,
         codeExample: `// useReducer state machine — no library
+// tagged union: impossible combos can't be represented
 type State =
   | { status: 'idle' }
   | { status: 'loading' }
@@ -2666,6 +2728,7 @@ type Event =
   | { type: 'RESOLVE'; data: User }
   | { type: 'REJECT'; error: Error };
 
+// switch on CURRENT state: only legal transitions allowed
 function reducer(state: State, event: Event): State {
   switch (state.status) {
     case 'idle':
@@ -2673,7 +2736,7 @@ function reducer(state: State, event: Event): State {
     case 'loading':
       if (event.type === 'RESOLVE') return { status: 'success', data: event.data };
       if (event.type === 'REJECT') return { status: 'error', error: event.error };
-      return state;
+      return state; // ignore irrelevant events
     case 'success':
     case 'error':
       return event.type === 'FETCH' ? { status: 'loading' } : state;
@@ -2762,18 +2825,22 @@ Pick by complexity:
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
+// schema defines the shape AND the validation rules
 const schema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
 });
 
 function LoginForm() {
+  // resolver wires zod validation into the form
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(schema),
   });
 
   return (
+    // handleSubmit validates first, then calls login
     <form onSubmit={handleSubmit(login)}>
+      {/* register: uncontrolled input, no re-renders */}
       <input {...register('email')} />
       {errors.email && <span>{errors.email.message}</span>}
       <input type="password" {...register('password')} />
@@ -3107,6 +3174,8 @@ self.addEventListener('fetch', event => {
 • Compression: optimize quality vs size
 • CDN delivery: serve from edge locations`,
         codeExample: `<!-- Responsive images -->
+<!-- srcset lists candidates with their real widths;
+     sizes says how wide the img renders per breakpoint -->
 <img
   src="image-800.jpg"
   srcset="
@@ -3119,6 +3188,7 @@ self.addEventListener('fetch', event => {
 />
 
 <!-- Picture element for format fallback -->
+<!-- browser uses first source it supports -->
 <picture>
   <source srcset="image.avif" type="image/avif">
   <source srcset="image.webp" type="image/webp">
@@ -3690,14 +3760,15 @@ Access-Control-Allow-Credentials: true`
 • Strict-Transport-Security: force HTTPS
 • Referrer-Policy: control referrer information`,
         codeExample: `// Essential security headers
+// CSP: only load resources from allowed sources
 Content-Security-Policy:
   default-src 'self';
   script-src 'self';
   style-src 'self' 'unsafe-inline';
 
-X-Frame-Options: DENY
-X-Content-Type-Options: nosniff
-Strict-Transport-Security: max-age=31536000
+X-Frame-Options: DENY // block iframe embedding (clickjacking)
+X-Content-Type-Options: nosniff // no MIME-type guessing
+Strict-Transport-Security: max-age=31536000 // force HTTPS
 Referrer-Policy: strict-origin-when-cross-origin
 
 // Express.js - use helmet
@@ -3717,13 +3788,15 @@ app.use(helmet());`
         codeExample: `// Server-side validation
 const { body, validationResult } = require('express-validator');
 
+// validation chain runs before the handler
 app.post('/user', [
   body('email').isEmail().normalizeEmail(),
   body('age').isInt({ min: 0, max: 120 }),
-  body('name').trim().escape()
+  body('name').trim().escape() // escape HTML chars
 ], (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    // reject bad input before touching the DB
     return res.status(400).json({ errors: errors.array() });
   }
 });
@@ -3795,6 +3868,7 @@ Refresh tokens:
 • Rotate refresh tokens on each exchange
 • Revoke server-side on logout`,
         codeExample: `// PKCE generation (browser)
+// random secret; only its hash leaves the app in step 1
 const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)));
 const challenge = base64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
 
@@ -3804,10 +3878,10 @@ url.searchParams.set('response_type', 'code');
 url.searchParams.set('client_id', CLIENT_ID);
 url.searchParams.set('redirect_uri', REDIRECT_URI);
 url.searchParams.set('scope', 'openid profile email');
-url.searchParams.set('state', randomState);
+url.searchParams.set('state', randomState); // CSRF guard
 url.searchParams.set('code_challenge', challenge);
 url.searchParams.set('code_challenge_method', 'S256');
-sessionStorage.setItem('verifier', verifier);
+sessionStorage.setItem('verifier', verifier); // keep for step 2
 location.href = url.toString();
 
 // Step 2 (after redirect back): exchange code
@@ -3819,6 +3893,7 @@ const res = await fetch('https://auth.example/token', {
     code,
     redirect_uri: REDIRECT_URI,
     client_id: CLIENT_ID,
+    // proves WE started the flow — thwarts code theft
     code_verifier: sessionStorage.getItem('verifier'),
   }),
 });
@@ -3915,6 +3990,7 @@ app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowed = ['https://app.example.com', 'https://app2.example.com'];
 
+  // only reflect origins from an explicit allowlist
   if (allowed.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -3922,8 +3998,9 @@ app.use((req, res, next) => {
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Max-Age', '86400');
+  res.setHeader('Access-Control-Max-Age', '86400'); // cache preflight 24h
 
+  // answer the preflight and stop here
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });

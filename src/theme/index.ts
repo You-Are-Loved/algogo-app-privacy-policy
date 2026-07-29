@@ -261,6 +261,14 @@ export const categoryColors: Record<string, { color: string; dark: string }> = {
   'sql-window-functions':    { color: '#DB2777', dark: '#9D174D' },
   'sql-indexes-performance': { color: '#D97706', dark: '#92400E' },
   'sql-transactions':        { color: '#DC2626', dark: '#991B1B' },
+  // C++ categories
+  'cpp-fundamentals':    { color: '#00599C', dark: '#004A82' },
+  'cpp-pointers-memory': { color: '#E17055', dark: '#C05A44' },
+  'cpp-oop':             { color: '#8E44AD', dark: '#71368A' },
+  'cpp-templates':       { color: '#F39C12', dark: '#C87F0A' },
+  'cpp-stl':             { color: '#16A085', dark: '#117A65' },
+  'cpp-modern':          { color: '#3498DB', dark: '#2A7AB8' },
+  'cpp-concurrency':     { color: '#E74C3C', dark: '#C0392B' },
 };
 
 // Common styles

@@ -228,6 +228,9 @@ const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   'logo-react': 'infinite-outline',
   'code-outline': 'code-outline',
   'infinite-outline': 'infinite-outline',
+  // C++ icons
+  'cube-outline': 'cube-outline',
+  'terminal-outline': 'terminal-outline',
   // iOS icons
   'phone-portrait-outline': 'phone-portrait-outline',
   'git-network-outline': 'git-network-outline',
@@ -238,7 +241,7 @@ const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   'mail-outline': 'mail-outline',
 };
 
-const TRACKS: ContentType[] = ['algorithms', 'system-design', 'ios', 'android', 'web', 'backend', 'sql'];
+const TRACKS: ContentType[] = ['algorithms', 'system-design', 'ios', 'android', 'web', 'backend', 'sql', 'cpp'];
 
 const TRACK_PILL_LABEL: Record<ContentType, string> = {
   'algorithms': 'Algorithms',
@@ -248,6 +251,7 @@ const TRACK_PILL_LABEL: Record<ContentType, string> = {
   'web': 'Web',
   'backend': 'Backend',
   'sql': 'SQL',
+  'cpp': 'C++',
 };
 
 export default function HomeScreen() {

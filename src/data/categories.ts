@@ -30,13 +30,13 @@ export const categories: Category[] = [
         id: 'sw-variable',
         title: 'Variable-Size Window',
         content: 'Window expands and shrinks based on conditions. Used when finding optimal length that satisfies a constraint.\n\nPattern:\n1. Expand right to include more elements\n2. While constraint violated, shrink from left\n3. Update result when constraint satisfied',
-        codeExample: 'function minSubarrayLen(target, nums) {\n  let left = 0, sum = 0, minLen = Infinity;\n  for (let right = 0; right < nums.length; right++) {\n    sum += nums[right];\n    while (sum >= target) {\n      minLen = Math.min(minLen, right - left + 1);\n      sum -= nums[left++];\n    }\n  }\n  return minLen === Infinity ? 0 : minLen;\n}'
+        codeExample: 'function minSubarrayLen(target, nums) {\n  let left = 0, sum = 0, minLen = Infinity;\n  for (let right = 0; right < nums.length; right++) {\n    sum += nums[right]; // Grow window rightward\n    // Shrink from left while sum still meets target\n    while (sum >= target) {\n      minLen = Math.min(minLen, right - left + 1); // Record best\n      sum -= nums[left++];\n    }\n  }\n  return minLen === Infinity ? 0 : minLen;\n}'
       },
       {
         id: 'sw-string',
         title: 'String Window with HashMap',
         content: 'For character frequency problems, use a HashMap to track what\'s in the window. The "matches" counter trick avoids comparing entire maps each iteration.',
-        codeExample: 'function findAnagrams(s, p) {\n  const result = [], need = {};\n  for (const c of p) need[c] = (need[c] || 0) + 1;\n  let have = 0, required = Object.keys(need).length;\n  const window = {};\n  for (let r = 0; r < s.length; r++) {\n    const c = s[r];\n    window[c] = (window[c] || 0) + 1;\n    if (window[c] === need[c]) have++;\n    if (r >= p.length) {\n      const left = s[r - p.length];\n      if (window[left] === need[left]) have--;\n      window[left]--;\n    }\n    if (have === required) result.push(r - p.length + 1);\n  }\n  return result;\n}'
+        codeExample: 'function findAnagrams(s, p) {\n  const result = [], need = {};\n  for (const c of p) need[c] = (need[c] || 0) + 1; // Freq of p\n  let have = 0, required = Object.keys(need).length;\n  const window = {};\n  for (let r = 0; r < s.length; r++) {\n    const c = s[r];\n    window[c] = (window[c] || 0) + 1; // Add right char\n    if (window[c] === need[c]) have++; // One more char satisfied\n    // Window full: drop char falling out on the left\n    if (r >= p.length) {\n      const left = s[r - p.length];\n      if (window[left] === need[left]) have--;\n      window[left]--;\n    }\n    // Every needed char matched: window is an anagram\n    if (have === required) result.push(r - p.length + 1);\n  }\n  return result;\n}'
       },
       {
         id: 'sw-trick',
@@ -248,19 +248,19 @@ export const categories: Category[] = [
         id: 'tp-same',
         title: 'Same Direction (Read/Write)',
         content: 'One pointer reads, one writes. Perfect for in-place array modifications where you need to keep certain elements.',
-        codeExample: 'function removeDuplicates(nums) {\n  if (nums.length === 0) return 0;\n  let write = 1; // Position to write next unique\n  for (let read = 1; read < nums.length; read++) {\n    if (nums[read] !== nums[read - 1]) {\n      nums[write] = nums[read];\n      write++;\n    }\n  }\n  return write;\n}'
+        codeExample: 'function removeDuplicates(nums) {\n  if (nums.length === 0) return 0;\n  let write = 1; // Position to write next unique\n  for (let read = 1; read < nums.length; read++) {\n    // New value found: keep it at the write pointer\n    if (nums[read] !== nums[read - 1]) {\n      nums[write] = nums[read];\n      write++;\n    }\n  }\n  return write;\n}'
       },
       {
         id: 'tp-three',
         title: 'Three Pointers (Dutch Flag)',
         content: 'For partitioning into 3 regions. Maintain: [0...low-1]=first, [low...mid-1]=second, [high+1...n]=third.\n\nProcess mid pointer, swap to correct region, move boundaries.',
-        codeExample: 'function sortColors(nums) {\n  let low = 0, mid = 0, high = nums.length - 1;\n  while (mid <= high) {\n    if (nums[mid] === 0) {\n      [nums[low], nums[mid]] = [nums[mid], nums[low]];\n      low++; mid++;\n    } else if (nums[mid] === 1) {\n      mid++;\n    } else {\n      [nums[mid], nums[high]] = [nums[high], nums[mid]];\n      high--; // Don\'t increment mid - need to check swapped value\n    }\n  }\n}'
+        codeExample: 'function sortColors(nums) {\n  let low = 0, mid = 0, high = nums.length - 1;\n  while (mid <= high) {\n    if (nums[mid] === 0) {\n      // 0 belongs left: swap into low zone\n      [nums[low], nums[mid]] = [nums[mid], nums[low]];\n      low++; mid++;\n    } else if (nums[mid] === 1) {\n      mid++; // 1 is already in the middle zone\n    } else {\n      // 2 belongs right: swap into high zone\n      [nums[mid], nums[high]] = [nums[high], nums[mid]];\n      high--; // Don\'t increment mid - need to check swapped value\n    }\n  }\n}'
       },
       {
         id: 'tp-trap',
         title: 'Trapping Rain Water Insight',
         content: 'Water at position i = min(leftMax, rightMax) - height[i].\n\nClever O(1) space: Keep leftMax and rightMax. Process from the smaller max side (guaranteed no taller bar blocking).',
-        codeExample: 'function trap(height) {\n  let left = 0, right = height.length - 1;\n  let leftMax = 0, rightMax = 0, water = 0;\n  while (left < right) {\n    if (height[left] < height[right]) {\n      leftMax = Math.max(leftMax, height[left]);\n      water += leftMax - height[left];\n      left++;\n    } else {\n      rightMax = Math.max(rightMax, height[right]);\n      water += rightMax - height[right];\n      right--;\n    }\n  }\n  return water;\n}'
+        codeExample: 'function trap(height) {\n  let left = 0, right = height.length - 1;\n  let leftMax = 0, rightMax = 0, water = 0;\n  while (left < right) {\n    // Process the shorter side: its max bounds the water\n    if (height[left] < height[right]) {\n      leftMax = Math.max(leftMax, height[left]);\n      water += leftMax - height[left]; // Water above this bar\n      left++;\n    } else {\n      rightMax = Math.max(rightMax, height[right]);\n      water += rightMax - height[right]; // Water above this bar\n      right--;\n    }\n  }\n  return water;\n}'
       }
     ],
     flashcards: [
@@ -474,7 +474,7 @@ export const categories: Category[] = [
         id: 'fs-happy',
         title: 'Happy Number Insight',
         content: 'Sum of squared digits eventually: reaches 1 (happy) OR cycles forever (unhappy).\n\nTreat the sequence as a linked list! Use fast-slow to detect if we reach 1 or enter a cycle.',
-        codeExample: 'function isHappy(n) {\n  const getNext = (num) => {\n    let sum = 0;\n    while (num > 0) {\n      const d = num % 10;\n      sum += d * d;\n      num = Math.floor(num / 10);\n    }\n    return sum;\n  };\n  let slow = n, fast = n;\n  do {\n    slow = getNext(slow);\n    fast = getNext(getNext(fast));\n  } while (fast !== 1 && slow !== fast);\n  return fast === 1;\n}'
+        codeExample: 'function isHappy(n) {\n  // Sum of squared digits = next number in the chain\n  const getNext = (num) => {\n    let sum = 0;\n    while (num > 0) {\n      const d = num % 10;\n      sum += d * d;\n      num = Math.floor(num / 10);\n    }\n    return sum;\n  };\n  // Floyd cycle detection on the number chain\n  let slow = n, fast = n;\n  do {\n    slow = getNext(slow);\n    fast = getNext(getNext(fast)); // Fast moves twice\n  } while (fast !== 1 && slow !== fast);\n  return fast === 1; // Cycle without 1 = not happy\n}'
       },
       {
         id: 'fs-applications',
@@ -912,7 +912,7 @@ export const categories: Category[] = [
         id: 'cs-duplicates',
         title: 'Finding Duplicates',
         content: 'During cyclic sort: if target position already has the correct value, we found a duplicate!\n\nAfter sort: values at wrong positions are duplicates (they couldn\'t find an empty correct spot).',
-        codeExample: 'function findDuplicates(nums) {\n  let i = 0;\n  while (i < nums.length) {\n    const j = nums[i] - 1;\n    if (nums[i] !== nums[j]) {\n      [nums[i], nums[j]] = [nums[j], nums[i]];\n    } else {\n      i++;\n    }\n  }\n  const duplicates = [];\n  for (let i = 0; i < nums.length; i++) {\n    if (nums[i] !== i + 1) {\n      duplicates.push(nums[i]);\n    }\n  }\n  return duplicates;\n}'
+        codeExample: 'function findDuplicates(nums) {\n  // Cyclic sort: place each value at index value-1\n  let i = 0;\n  while (i < nums.length) {\n    const j = nums[i] - 1; // Correct home for nums[i]\n    if (nums[i] !== nums[j]) {\n      [nums[i], nums[j]] = [nums[j], nums[i]]; // Swap home\n    } else {\n      i++; // In place (or dup already home): move on\n    }\n  }\n  // Any index not holding i+1 holds a duplicate\n  const duplicates = [];\n  for (let i = 0; i < nums.length; i++) {\n    if (nums[i] !== i + 1) {\n      duplicates.push(nums[i]);\n    }\n  }\n  return duplicates;\n}'
       },
       {
         id: 'cs-first-positive',
@@ -1333,7 +1333,7 @@ export const categories: Category[] = [
         id: 'tbfs-pattern',
         title: 'The Level-by-Level Pattern',
         content: 'Key trick: capture queue size at the start of each level. This tells you exactly how many nodes belong to the current level.',
-        codeExample: 'function levelOrder(root) {\n  if (!root) return [];\n  const result = [], queue = [root];\n  while (queue.length) {\n    const levelSize = queue.length; // Capture size!\n    const level = [];\n    for (let i = 0; i < levelSize; i++) {\n      const node = queue.shift();\n      level.push(node.val);\n      if (node.left) queue.push(node.left);\n      if (node.right) queue.push(node.right);\n    }\n    result.push(level);\n  }\n  return result;\n}'
+        codeExample: 'function levelOrder(root) {\n  if (!root) return [];\n  const result = [], queue = [root];\n  while (queue.length) {\n    const levelSize = queue.length; // Capture size!\n    const level = [];\n    for (let i = 0; i < levelSize; i++) {\n      const node = queue.shift();\n      level.push(node.val);\n      // Children queue up for the next level\n      if (node.left) queue.push(node.left);\n      if (node.right) queue.push(node.right);\n    }\n    result.push(level); // One finished level\n  }\n  return result;\n}'
       },
       {
         id: 'tbfs-min-depth',
@@ -1345,7 +1345,7 @@ export const categories: Category[] = [
         id: 'tbfs-connect',
         title: 'Connect Level Siblings',
         content: 'Add a "next" pointer from each node to its right sibling. BFS naturally processes left-to-right, so just connect as you go!',
-        codeExample: 'function connect(root) {\n  if (!root) return null;\n  const queue = [root];\n  while (queue.length) {\n    const size = queue.length;\n    for (let i = 0; i < size; i++) {\n      const node = queue.shift();\n      // Connect to next in queue (if same level)\n      node.next = (i < size - 1) ? queue[0] : null;\n      if (node.left) queue.push(node.left);\n      if (node.right) queue.push(node.right);\n    }\n  }\n  return root;\n}'
+        codeExample: 'function connect(root) {\n  if (!root) return null;\n  const queue = [root];\n  while (queue.length) {\n    const size = queue.length; // Nodes on this level\n    for (let i = 0; i < size; i++) {\n      const node = queue.shift();\n      // Connect to next in queue (if same level)\n      node.next = (i < size - 1) ? queue[0] : null;\n      if (node.left) queue.push(node.left);\n      if (node.right) queue.push(node.right);\n    }\n  }\n  return root;\n}'
       },
       {
         id: 'tbfs-variations',
@@ -1990,7 +1990,7 @@ export const categories: Category[] = [
         id: 'sub-iterative',
         title: 'Iterative Approach',
         content: 'Start with [[]]. For each element, clone all existing subsets and add the element.',
-        codeExample: 'function subsets(nums) {\n  const result = [[]];\n  for (const num of nums) {\n    const newSubsets = result.map(s => [...s, num]);\n    result.push(...newSubsets);\n  }\n  return result;\n}\n// [1,2] → [[]] → [[],[1]] → [[],[1],[2],[1,2]]'
+        codeExample: 'function subsets(nums) {\n  const result = [[]]; // Start with the empty subset\n  for (const num of nums) {\n    // Clone every subset and add num to the copy\n    const newSubsets = result.map(s => [...s, num]);\n    result.push(...newSubsets);\n  }\n  return result;\n}\n// [1,2] → [[]] → [[],[1]] → [[],[1],[2],[1,2]]'
       },
       {
         id: 'sub-backtrack',
@@ -2002,13 +2002,13 @@ export const categories: Category[] = [
         id: 'sub-duplicates',
         title: 'Handling Duplicates',
         content: 'Sort first! Then skip when nums[i] === nums[i-1] at the same decision level.\n\nThis ensures we only use each duplicate value once per position in the recursion.',
-        codeExample: 'function subsetsWithDup(nums) {\n  nums.sort((a, b) => a - b);\n  const result = [];\n  function backtrack(index, current) {\n    result.push([...current]);\n    for (let i = index; i < nums.length; i++) {\n      if (i > index && nums[i] === nums[i-1]) continue;\n      current.push(nums[i]);\n      backtrack(i + 1, current);\n      current.pop();\n    }\n  }\n  backtrack(0, []);\n  return result;\n}'
+        codeExample: 'function subsetsWithDup(nums) {\n  nums.sort((a, b) => a - b); // Sort so dups are adjacent\n  const result = [];\n  function backtrack(index, current) {\n    result.push([...current]); // Every path is a subset\n    for (let i = index; i < nums.length; i++) {\n      // Skip duplicate value at the same tree level\n      if (i > index && nums[i] === nums[i-1]) continue;\n      current.push(nums[i]);      // Choose\n      backtrack(i + 1, current);  // Explore\n      current.pop();              // Unchoose\n    }\n  }\n  backtrack(0, []);\n  return result;\n}'
       },
       {
         id: 'sub-permutations',
         title: 'Permutations',
         content: 'Unlike subsets, ORDER matters. Use "used" array to track which elements are already in the current permutation.',
-        codeExample: 'function permute(nums) {\n  const result = [], used = Array(nums.length).fill(false);\n  function backtrack(current) {\n    if (current.length === nums.length) {\n      result.push([...current]);\n      return;\n    }\n    for (let i = 0; i < nums.length; i++) {\n      if (used[i]) continue;\n      used[i] = true;\n      current.push(nums[i]);\n      backtrack(current);\n      current.pop();\n      used[i] = false;\n    }\n  }\n  backtrack([]);\n  return result;\n}'
+        codeExample: 'function permute(nums) {\n  const result = [], used = Array(nums.length).fill(false);\n  function backtrack(current) {\n    // Full length = one complete permutation\n    if (current.length === nums.length) {\n      result.push([...current]); // Copy before saving\n      return;\n    }\n    for (let i = 0; i < nums.length; i++) {\n      if (used[i]) continue; // Already in current path\n      used[i] = true;        // Choose\n      current.push(nums[i]);\n      backtrack(current);    // Explore\n      current.pop();         // Unchoose\n      used[i] = false;\n    }\n  }\n  backtrack([]);\n  return result;\n}'
       },
       {
         id: 'sub-template',
@@ -2210,7 +2210,7 @@ export const categories: Category[] = [
         id: 'bs-template',
         title: 'The Template',
         content: 'Most bugs come from boundary conditions. Use this safe template:\n• mid = start + (end - start) / 2 (avoids overflow)\n• start <= end (inclusive bounds)\n• Return -1 if not found',
-        codeExample: 'function binarySearch(arr, target) {\n  let start = 0, end = arr.length - 1;\n  while (start <= end) {\n    const mid = start + Math.floor((end - start) / 2);\n    if (arr[mid] === target) return mid;\n    if (arr[mid] < target) start = mid + 1;\n    else end = mid - 1;\n  }\n  return -1; // Not found\n}'
+        codeExample: 'function binarySearch(arr, target) {\n  let start = 0, end = arr.length - 1;\n  while (start <= end) {\n    // Midpoint written this way avoids overflow\n    const mid = start + Math.floor((end - start) / 2);\n    if (arr[mid] === target) return mid;\n    if (arr[mid] < target) start = mid + 1; // Search right half\n    else end = mid - 1; // Search left half\n  }\n  return -1; // Not found\n}'
       },
       {
         id: 'bs-first-last',
@@ -2222,7 +2222,7 @@ export const categories: Category[] = [
         id: 'bs-rotated',
         title: 'Search in Rotated Array',
         content: 'One half is ALWAYS sorted! Check which half is sorted, then check if target is in that half.\n\nKey: Compare arr[start] with arr[mid] to determine which half is sorted.',
-        codeExample: 'function search(nums, target) {\n  let start = 0, end = nums.length - 1;\n  while (start <= end) {\n    const mid = start + Math.floor((end - start) / 2);\n    if (nums[mid] === target) return mid;\n    // Left half sorted?\n    if (nums[start] <= nums[mid]) {\n      if (target >= nums[start] && target < nums[mid]) {\n        end = mid - 1;\n      } else {\n        start = mid + 1;\n      }\n    } else { // Right half sorted\n      if (target > nums[mid] && target <= nums[end]) {\n        start = mid + 1;\n      } else {\n        end = mid - 1;\n      }\n    }\n  }\n  return -1;\n}'
+        codeExample: 'function search(nums, target) {\n  let start = 0, end = nums.length - 1;\n  while (start <= end) {\n    const mid = start + Math.floor((end - start) / 2);\n    if (nums[mid] === target) return mid;\n    // Left half sorted?\n    if (nums[start] <= nums[mid]) {\n      // Target inside the sorted left half?\n      if (target >= nums[start] && target < nums[mid]) {\n        end = mid - 1;\n      } else {\n        start = mid + 1;\n      }\n    } else { // Right half sorted\n      // Target inside the sorted right half?\n      if (target > nums[mid] && target <= nums[end]) {\n        start = mid + 1;\n      } else {\n        end = mid - 1;\n      }\n    }\n  }\n  return -1;\n}'
       },
       {
         id: 'bs-answer',
@@ -2440,7 +2440,7 @@ export const categories: Category[] = [
         id: 'topk-frequency',
         title: 'Top K Frequent',
         content: 'Two steps:\n1. Count frequencies (HashMap)\n2. Top K by frequency (heap)\n\nAlternative: Bucket sort by frequency for O(n)!',
-        codeExample: 'function topKFrequent(nums, k) {\n  const freq = new Map();\n  for (const n of nums) freq.set(n, (freq.get(n) || 0) + 1);\n  \n  const minHeap = new MinHeap((a, b) => a[1] - b[1]);\n  for (const [num, count] of freq) {\n    minHeap.push([num, count]);\n    if (minHeap.size() > k) minHeap.pop();\n  }\n  return minHeap.toArray().map(x => x[0]);\n}'
+        codeExample: 'function topKFrequent(nums, k) {\n  // Count how often each number appears\n  const freq = new Map();\n  for (const n of nums) freq.set(n, (freq.get(n) || 0) + 1);\n  \n  // Min-heap of size k, ordered by count\n  const minHeap = new MinHeap((a, b) => a[1] - b[1]);\n  for (const [num, count] of freq) {\n    minHeap.push([num, count]);\n    if (minHeap.size() > k) minHeap.pop(); // Evict least frequent\n  }\n  return minHeap.toArray().map(x => x[0]); // Keep numbers only\n}'
       },
       {
         id: 'topk-quickselect',
@@ -2647,13 +2647,13 @@ export const categories: Category[] = [
         id: 'kwm-algorithm',
         title: 'The Algorithm',
         content: '1. Push first element from each array (with source info)\n2. Pop minimum → add to result\n3. Push next element from SAME source\n4. Repeat until heap empty\n\nHeap always has at most K elements!',
-        codeExample: 'function mergeKLists(lists) {\n  const heap = new MinHeap((a, b) => a.val - b.val);\n  // Add head of each list\n  for (const head of lists) {\n    if (head) heap.push({ val: head.val, node: head });\n  }\n  const dummy = { next: null };\n  let tail = dummy;\n  while (heap.size() > 0) {\n    const { node } = heap.pop();\n    tail.next = node;\n    tail = tail.next;\n    if (node.next) {\n      heap.push({ val: node.next.val, node: node.next });\n    }\n  }\n  return dummy.next;\n}'
+        codeExample: 'function mergeKLists(lists) {\n  const heap = new MinHeap((a, b) => a.val - b.val);\n  // Add head of each list\n  for (const head of lists) {\n    if (head) heap.push({ val: head.val, node: head });\n  }\n  const dummy = { next: null };\n  let tail = dummy;\n  while (heap.size() > 0) {\n    // Smallest head across all lists comes out first\n    const { node } = heap.pop();\n    tail.next = node; // Append to merged list\n    tail = tail.next;\n    // Refill heap from the list we took from\n    if (node.next) {\n      heap.push({ val: node.next.val, node: node.next });\n    }\n  }\n  return dummy.next;\n}'
       },
       {
         id: 'kwm-matrix',
         title: 'Sorted Matrix Pattern',
         content: 'Matrix sorted in rows AND columns. Treat each row as a sorted array.\n\nFor Kth smallest: pop K times from heap of first column, pushing element to the right each time.',
-        codeExample: 'function kthSmallest(matrix, k) {\n  const n = matrix.length;\n  const heap = new MinHeap((a, b) => a[0] - b[0]);\n  // Push first column\n  for (let i = 0; i < n; i++) {\n    heap.push([matrix[i][0], i, 0]); // [val, row, col]\n  }\n  for (let i = 0; i < k - 1; i++) {\n    const [val, row, col] = heap.pop();\n    if (col + 1 < n) {\n      heap.push([matrix[row][col + 1], row, col + 1]);\n    }\n  }\n  return heap.pop()[0];\n}'
+        codeExample: 'function kthSmallest(matrix, k) {\n  const n = matrix.length;\n  const heap = new MinHeap((a, b) => a[0] - b[0]);\n  // Push first column\n  for (let i = 0; i < n; i++) {\n    heap.push([matrix[i][0], i, 0]); // [val, row, col]\n  }\n  // Pop k-1 smallest; each pop feeds in its row neighbor\n  for (let i = 0; i < k - 1; i++) {\n    const [val, row, col] = heap.pop();\n    if (col + 1 < n) {\n      heap.push([matrix[row][col + 1], row, col + 1]);\n    }\n  }\n  return heap.pop()[0];\n}'
       },
       {
         id: 'kwm-range',
@@ -3091,13 +3091,13 @@ export const categories: Category[] = [
         id: 'island-dfs',
         title: 'DFS Approach',
         content: 'The most common approach uses Depth-First Search. When we find an unvisited land cell (\'1\'), we start DFS to mark all connected land cells as visited. Each DFS call explores one complete island.',
-        codeExample: 'function numIslands(grid) {\n  if (!grid || !grid.length) return 0;\n  let count = 0;\n  const rows = grid.length, cols = grid[0].length;\n  \n  function dfs(r, c) {\n    if (r < 0 || r >= rows || c < 0 || c >= cols) return;\n    if (grid[r][c] !== "1") return;\n    grid[r][c] = "0"; // Mark visited\n    dfs(r + 1, c); dfs(r - 1, c);\n    dfs(r, c + 1); dfs(r, c - 1);\n  }\n  \n  for (let r = 0; r < rows; r++) {\n    for (let c = 0; c < cols; c++) {\n      if (grid[r][c] === "1") {\n        count++;\n        dfs(r, c);\n      }\n    }\n  }\n  return count;\n}'
+        codeExample: 'function numIslands(grid) {\n  if (!grid || !grid.length) return 0;\n  let count = 0;\n  const rows = grid.length, cols = grid[0].length;\n  \n  // Flood-fill: sink every cell of one island\n  function dfs(r, c) {\n    if (r < 0 || r >= rows || c < 0 || c >= cols) return; // Off grid\n    if (grid[r][c] !== "1") return; // Water or visited\n    grid[r][c] = "0"; // Mark visited\n    dfs(r + 1, c); dfs(r - 1, c); // Explore all 4 directions\n    dfs(r, c + 1); dfs(r, c - 1);\n  }\n  \n  for (let r = 0; r < rows; r++) {\n    for (let c = 0; c < cols; c++) {\n      // Unvisited land = a brand new island\n      if (grid[r][c] === "1") {\n        count++;\n        dfs(r, c); // Sink it so it is not recounted\n      }\n    }\n  }\n  return count;\n}'
       },
       {
         id: 'island-bfs',
         title: 'BFS Approach',
         content: 'BFS uses a queue to explore level by level. Start from a land cell, add all adjacent land cells to the queue, and continue until the queue is empty. BFS is preferred when finding shortest paths in unweighted grids.',
-        codeExample: 'function numIslandsBFS(grid) {\n  const rows = grid.length, cols = grid[0].length;\n  let count = 0;\n  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];\n  \n  for (let r = 0; r < rows; r++) {\n    for (let c = 0; c < cols; c++) {\n      if (grid[r][c] === "1") {\n        count++;\n        const queue = [[r, c]];\n        grid[r][c] = "0";\n        while (queue.length) {\n          const [cr, cc] = queue.shift();\n          for (const [dr, dc] of dirs) {\n            const nr = cr + dr, nc = cc + dc;\n            if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc] === "1") {\n              queue.push([nr, nc]);\n              grid[nr][nc] = "0";\n            }\n          }\n        }\n      }\n    }\n  }\n  return count;\n}'
+        codeExample: 'function numIslandsBFS(grid) {\n  const rows = grid.length, cols = grid[0].length;\n  let count = 0;\n  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];\n  \n  for (let r = 0; r < rows; r++) {\n    for (let c = 0; c < cols; c++) {\n      // New land found: BFS floods the whole island\n      if (grid[r][c] === "1") {\n        count++;\n        const queue = [[r, c]];\n        grid[r][c] = "0"; // Mark visited immediately\n        while (queue.length) {\n          const [cr, cc] = queue.shift();\n          // Check all 4 neighbors\n          for (const [dr, dc] of dirs) {\n            const nr = cr + dr, nc = cc + dc;\n            if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc] === "1") {\n              queue.push([nr, nc]);\n              grid[nr][nc] = "0"; // Mark when enqueued, not popped\n            }\n          }\n        }\n      }\n    }\n  }\n  return count;\n}'
       },
       {
         id: 'island-variations',
@@ -3315,7 +3315,7 @@ export const categories: Category[] = [
         id: 'xor-two-single',
         title: 'Two Single Numbers',
         content: 'When two numbers appear once, XOR gives their combined result. Use a set bit to separate numbers into two groups, then XOR each group.',
-        codeExample: 'function singleNumberIII(nums) {\n  let xor = 0;\n  for (const n of nums) xor ^= n;\n  \n  // Find rightmost set bit (differs between a and b)\n  const rightmostBit = xor & (-xor);\n  \n  let a = 0, b = 0;\n  for (const n of nums) {\n    if (n & rightmostBit) a ^= n;\n    else b ^= n;\n  }\n  return [a, b];\n}'
+        codeExample: 'function singleNumberIII(nums) {\n  // XOR of all = a ^ b (pairs cancel out)\n  let xor = 0;\n  for (const n of nums) xor ^= n;\n  \n  // Find rightmost set bit (differs between a and b)\n  const rightmostBit = xor & (-xor);\n  \n  // Split by that bit; each group XORs to one answer\n  let a = 0, b = 0;\n  for (const n of nums) {\n    if (n & rightmostBit) a ^= n;\n    else b ^= n;\n  }\n  return [a, b];\n}'
       },
       {
         id: 'xor-tricks',
@@ -3528,13 +3528,13 @@ export const categories: Category[] = [
         id: 'bt-subsets',
         title: 'Subsets & Combinations',
         content: 'For subsets: at each element, choose to include or exclude.\nFor combinations: select k elements from n.\n\nKey difference from permutations: order doesn\'t matter, so we use a start index to avoid duplicates.',
-        codeExample: 'function subsets(nums) {\n  const result = [];\n  function backtrack(start, current) {\n    result.push([...current]);\n    for (let i = start; i < nums.length; i++) {\n      current.push(nums[i]);\n      backtrack(i + 1, current);\n      current.pop();\n    }\n  }\n  backtrack(0, []);\n  return result;\n}'
+        codeExample: 'function subsets(nums) {\n  const result = [];\n  function backtrack(start, current) {\n    result.push([...current]); // Record every partial set\n    for (let i = start; i < nums.length; i++) {\n      current.push(nums[i]);     // Choose\n      backtrack(i + 1, current); // Explore from next index\n      current.pop();             // Unchoose\n    }\n  }\n  backtrack(0, []);\n  return result;\n}'
       },
       {
         id: 'bt-permutations',
         title: 'Permutations',
         content: 'For permutations: order matters, so we can pick any unused element at each step. Use a "used" array or swap elements.\n\nWith duplicates: sort first, skip same values at same level.',
-        codeExample: 'function permute(nums) {\n  const result = [];\n  const used = new Array(nums.length).fill(false);\n  \n  function backtrack(current) {\n    if (current.length === nums.length) {\n      result.push([...current]);\n      return;\n    }\n    for (let i = 0; i < nums.length; i++) {\n      if (used[i]) continue;\n      used[i] = true;\n      current.push(nums[i]);\n      backtrack(current);\n      current.pop();\n      used[i] = false;\n    }\n  }\n  backtrack([]);\n  return result;\n}'
+        codeExample: 'function permute(nums) {\n  const result = [];\n  const used = new Array(nums.length).fill(false);\n  \n  function backtrack(current) {\n    // All slots filled: save one permutation\n    if (current.length === nums.length) {\n      result.push([...current]);\n      return;\n    }\n    for (let i = 0; i < nums.length; i++) {\n      if (used[i]) continue; // Skip numbers already placed\n      used[i] = true;        // Choose\n      current.push(nums[i]);\n      backtrack(current);    // Explore\n      current.pop();         // Unchoose\n      used[i] = false;\n    }\n  }\n  backtrack([]);\n  return result;\n}'
       },
       {
         id: 'bt-pruning',
@@ -3741,25 +3741,25 @@ export const categories: Category[] = [
         id: 'dp-approach',
         title: 'DP Approach',
         content: 'Define dp[i][w] = max value using first i items with capacity w.\n\nRecurrence:\n• Don\'t take item i: dp[i][w] = dp[i-1][w]\n• Take item i (if fits): dp[i][w] = dp[i-1][w-weight[i]] + value[i]\n• dp[i][w] = max of both options\n\nBase case: dp[0][w] = 0 (no items)',
-        codeExample: 'function knapsack(weights, values, capacity) {\n  const n = weights.length;\n  const dp = Array(n + 1).fill(null)\n    .map(() => Array(capacity + 1).fill(0));\n  \n  for (let i = 1; i <= n; i++) {\n    for (let w = 0; w <= capacity; w++) {\n      dp[i][w] = dp[i-1][w]; // Don\'t take\n      if (weights[i-1] <= w) {\n        dp[i][w] = Math.max(\n          dp[i][w],\n          dp[i-1][w - weights[i-1]] + values[i-1]\n        );\n      }\n    }\n  }\n  return dp[n][capacity];\n}'
+        codeExample: 'function knapsack(weights, values, capacity) {\n  const n = weights.length;\n  const dp = Array(n + 1).fill(null)\n    .map(() => Array(capacity + 1).fill(0));\n  \n  // dp[i][w] = best value using first i items, capacity w\n  for (let i = 1; i <= n; i++) {\n    for (let w = 0; w <= capacity; w++) {\n      dp[i][w] = dp[i-1][w]; // Don\'t take\n      // Item fits: try taking it, keep the better option\n      if (weights[i-1] <= w) {\n        dp[i][w] = Math.max(\n          dp[i][w],\n          dp[i-1][w - weights[i-1]] + values[i-1]\n        );\n      }\n    }\n  }\n  return dp[n][capacity];\n}'
       },
       {
         id: 'dp-space',
         title: 'Space Optimization',
         content: 'Since dp[i] only depends on dp[i-1], use 1D array!\n\nKey: iterate capacity in REVERSE to avoid using updated values from same row.',
-        codeExample: 'function knapsackOptimized(weights, values, capacity) {\n  const dp = Array(capacity + 1).fill(0);\n  \n  for (let i = 0; i < weights.length; i++) {\n    // Reverse order prevents using same item twice!\n    for (let w = capacity; w >= weights[i]; w--) {\n      dp[w] = Math.max(\n        dp[w],\n        dp[w - weights[i]] + values[i]\n      );\n    }\n  }\n  return dp[capacity];\n}'
+        codeExample: 'function knapsackOptimized(weights, values, capacity) {\n  const dp = Array(capacity + 1).fill(0); // dp[w] = best value\n  \n  for (let i = 0; i < weights.length; i++) {\n    // Reverse order prevents using same item twice!\n    for (let w = capacity; w >= weights[i]; w--) {\n      dp[w] = Math.max(\n        dp[w],\n        dp[w - weights[i]] + values[i]\n      );\n    }\n  }\n  return dp[capacity];\n}'
       },
       {
         id: 'dp-subset',
         title: 'Subset Sum Variations',
         content: 'Classic variations:\n• Subset Sum: Can we make exact target?\n• Equal Partition: Can we split into two equal subsets?\n• Target Sum: Assign +/- to make target\n• Count subsets with given sum\n\nAll use similar dp[i][sum] approach!',
-        codeExample: 'function canPartition(nums) {\n  const total = nums.reduce((a, b) => a + b, 0);\n  if (total % 2 !== 0) return false;\n  const target = total / 2;\n  \n  const dp = Array(target + 1).fill(false);\n  dp[0] = true;\n  \n  for (const num of nums) {\n    for (let j = target; j >= num; j--) {\n      dp[j] = dp[j] || dp[j - num];\n    }\n  }\n  return dp[target];\n}'
+        codeExample: 'function canPartition(nums) {\n  const total = nums.reduce((a, b) => a + b, 0);\n  if (total % 2 !== 0) return false; // Odd sum cannot split\n  const target = total / 2; // Need a subset summing to half\n  \n  // dp[j] = can some subset sum to exactly j?\n  const dp = Array(target + 1).fill(false);\n  dp[0] = true; // Empty subset sums to 0\n  \n  for (const num of nums) {\n    // Backward so each num is used at most once\n    for (let j = target; j >= num; j--) {\n      dp[j] = dp[j] || dp[j - num]; // Take num or skip it\n    }\n  }\n  return dp[target];\n}'
       },
       {
         id: 'dp-unbounded',
         title: 'Unbounded Knapsack',
         content: 'If items can be used multiple times (unbounded), iterate capacity FORWARD.\n\nExamples: Coin Change, Rod Cutting\n\nForward iteration allows same item to be used again in same row.',
-        codeExample: 'function coinChange(coins, amount) {\n  const dp = Array(amount + 1).fill(Infinity);\n  dp[0] = 0;\n  \n  for (const coin of coins) {\n    // Forward: allows reusing same coin\n    for (let j = coin; j <= amount; j++) {\n      dp[j] = Math.min(dp[j], dp[j - coin] + 1);\n    }\n  }\n  return dp[amount] === Infinity ? -1 : dp[amount];\n}'
+        codeExample: 'function coinChange(coins, amount) {\n  // dp[j] = fewest coins to make amount j\n  const dp = Array(amount + 1).fill(Infinity);\n  dp[0] = 0; // Zero coins make amount 0\n  \n  for (const coin of coins) {\n    // Forward: allows reusing same coin\n    for (let j = coin; j <= amount; j++) {\n      dp[j] = Math.min(dp[j], dp[j - coin] + 1);\n    }\n  }\n  return dp[amount] === Infinity ? -1 : dp[amount];\n}'
       },
       {
         id: 'dp-tips',
@@ -3972,13 +3972,13 @@ export const categories: Category[] = [
         id: 'ms-nse',
         title: 'Next Smaller Element',
         content: 'Use monotonic increasing stack. When current element is smaller than stack top, it\'s the next smaller for popped elements.',
-        codeExample: 'function nextSmallerElements(nums) {\n  const result = new Array(nums.length).fill(-1);\n  const stack = [];\n  \n  for (let i = 0; i < nums.length; i++) {\n    while (stack.length && nums[i] < nums[stack.at(-1)]) {\n      const idx = stack.pop();\n      result[idx] = nums[i];\n    }\n    stack.push(i);\n  }\n  return result;\n}'
+        codeExample: 'function nextSmallerElements(nums) {\n  const result = new Array(nums.length).fill(-1);\n  const stack = []; // Indices awaiting a smaller value\n  \n  for (let i = 0; i < nums.length; i++) {\n    // Current value answers every larger element on stack\n    while (stack.length && nums[i] < nums[stack.at(-1)]) {\n      const idx = stack.pop();\n      result[idx] = nums[i];\n    }\n    stack.push(i); // Wait for its own next smaller\n  }\n  return result;\n}'
       },
       {
         id: 'ms-histogram',
         title: 'Largest Rectangle in Histogram',
         content: 'Classic monotonic stack problem. For each bar, find the largest rectangle with that bar as the shortest.\n\nNeed both previous and next smaller elements to determine width.',
-        codeExample: 'function largestRectangle(heights) {\n  const stack = [];\n  let maxArea = 0;\n  heights.push(0); // Sentinel to empty stack\n  \n  for (let i = 0; i < heights.length; i++) {\n    while (stack.length && heights[i] < heights[stack.at(-1)]) {\n      const h = heights[stack.pop()];\n      const w = stack.length ? i - stack.at(-1) - 1 : i;\n      maxArea = Math.max(maxArea, h * w);\n    }\n    stack.push(i);\n  }\n  return maxArea;\n}'
+        codeExample: 'function largestRectangle(heights) {\n  const stack = [];\n  let maxArea = 0;\n  heights.push(0); // Sentinel to empty stack\n  \n  for (let i = 0; i < heights.length; i++) {\n    // Shorter bar found: bars on stack can finish here\n    while (stack.length && heights[i] < heights[stack.at(-1)]) {\n      const h = heights[stack.pop()];\n      // Width spans to previous shorter bar on the left\n      const w = stack.length ? i - stack.at(-1) - 1 : i;\n      maxArea = Math.max(maxArea, h * w);\n    }\n    stack.push(i);\n  }\n  return maxArea;\n}'
       },
       {
         id: 'ms-tips',

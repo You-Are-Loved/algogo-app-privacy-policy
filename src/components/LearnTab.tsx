@@ -5,8 +5,10 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown, Layout } from 'react-native-reanimated';
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
@@ -40,10 +42,61 @@ const getSectionId = (section: any, index: number, categoryId: string): string =
   return section.id || `${categoryId}-section-${index}`;
 };
 
+// Language-agnostic detection of comment lines (//, #, --, /* */, <!-- -->)
+// so explanatory comments read like they do in an editor. Preprocessor
+// directives (#include etc.) are code, not comments.
+const FULL_LINE_COMMENT =
+  /^\s*(\/\/|\/\*|\*|--\s|#(?!include|pragma|define|ifdef|ifndef|if\s|else|elif|endif|undef|!)|<!--)/;
+
+// Split an inline trailing comment off a code line, or null if none.
+const splitInlineComment = (line: string): [string, string] | null => {
+  const slashes = line.indexOf('//');
+  if (slashes > 0 && /\s/.test(line[slashes - 1])) {
+    return [line.slice(0, slashes), line.slice(slashes)];
+  }
+  for (const marker of [' # ', ' -- ']) {
+    const idx = line.indexOf(marker);
+    if (idx > 0) return [line.slice(0, idx), line.slice(idx)];
+  }
+  return null;
+};
+
+// Code text with comments tinted editor-green.
+function CodeText({ code, style }: { code: string; style?: object }) {
+  const lines = code.split('\n');
+  return (
+    <Text style={[styles.codeText, style]}>
+      {lines.map((line, i) => {
+        const tail = i < lines.length - 1 ? '\n' : '';
+        if (FULL_LINE_COMMENT.test(line)) {
+          return (
+            <Text key={i} style={styles.codeComment}>
+              {line + tail}
+            </Text>
+          );
+        }
+        const split = splitInlineComment(line);
+        if (split) {
+          return (
+            <Text key={i}>
+              {split[0]}
+              <Text style={styles.codeComment}>{split[1]}</Text>
+              {tail}
+            </Text>
+          );
+        }
+        return line + tail;
+      })}
+    </Text>
+  );
+}
+
 export default function LearnTab({ category, catColors }: LearnTabProps) {
   const firstSectionId = getSectionId(category.learnContent[0], 0, category.id);
   const { viewLearnSection, getCategoryProgress } = useStore();
   const progress = getCategoryProgress(category.id);
+  const insets = useSafeAreaInsets();
+  const [fullscreenCode, setFullscreenCode] = useState<{ title: string; code: string } | null>(null);
 
   // Get viewed sections from store, default to first section
   const viewedSectionIds = progress.viewedLearnSectionIds || [];
@@ -189,13 +242,23 @@ export default function LearnTab({ category, catColors }: LearnTabProps) {
                         <View style={[styles.codeDot, { backgroundColor: '#27CA40' }]} />
                       </View>
                       <Text style={styles.codeHeaderText}>Example Code</Text>
+                      <TouchableOpacity
+                        style={styles.codeExpandButton}
+                        onPress={() =>
+                          setFullscreenCode({ title: section.title, code: section.codeExample! })
+                        }
+                        activeOpacity={0.7}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="expand-outline" size={14} color="rgba(255,255,255,0.85)" />
+                      </TouchableOpacity>
                     </View>
                     <ScrollView
                       horizontal
                       showsHorizontalScrollIndicator={false}
                       style={styles.codeScrollView}
                     >
-                      <Text style={styles.codeText}>{section.codeExample}</Text>
+                      <CodeText code={section.codeExample} />
                     </ScrollView>
                   </View>
                 )}
@@ -206,6 +269,49 @@ export default function LearnTab({ category, catColors }: LearnTabProps) {
       })}
 
       <View style={{ height: spacing['3xl'] }} />
+
+      {/* Fullscreen code viewer */}
+      <Modal
+        visible={fullscreenCode !== null}
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setFullscreenCode(null)}
+      >
+        <View style={[styles.fullscreenContainer, { paddingTop: insets.top }]}>
+          <View style={[styles.fullscreenHeader, { backgroundColor: catColors.dark }]}>
+            <View style={styles.codeHeaderDots}>
+              <View style={[styles.codeDot, { backgroundColor: '#FF5F56' }]} />
+              <View style={[styles.codeDot, { backgroundColor: '#FFBD2E' }]} />
+              <View style={[styles.codeDot, { backgroundColor: '#27CA40' }]} />
+            </View>
+            <Text style={styles.fullscreenTitle} numberOfLines={1}>
+              {fullscreenCode?.title}
+            </Text>
+            <TouchableOpacity
+              style={styles.fullscreenClose}
+              onPress={() => setFullscreenCode(null)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="contract-outline" size={18} color={colors.white} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            style={styles.fullscreenScroll}
+            contentContainerStyle={{ paddingBottom: insets.bottom + spacing['2xl'] }}
+          >
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.fullscreenCodeContainer}
+            >
+              {fullscreenCode && (
+                <CodeText code={fullscreenCode.code} style={styles.fullscreenCodeText} />
+              )}
+            </ScrollView>
+          </ScrollView>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -377,5 +483,52 @@ const styles = StyleSheet.create({
     color: '#E0E0E0',
     fontSize: 13,
     lineHeight: 20,
+  },
+  codeComment: {
+    color: '#7CB472',
+    fontStyle: 'italic',
+  },
+  codeExpandButton: {
+    marginLeft: 'auto',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fullscreenContainer: {
+    flex: 1,
+    backgroundColor: '#1E1E1E',
+  },
+  fullscreenHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
+  },
+  fullscreenTitle: {
+    ...typography.labelMedium,
+    color: colors.white,
+    flex: 1,
+  },
+  fullscreenClose: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fullscreenScroll: {
+    flex: 1,
+  },
+  fullscreenCodeContainer: {
+    padding: spacing.lg,
+  },
+  fullscreenCodeText: {
+    fontSize: 14,
+    lineHeight: 22,
   },
 });

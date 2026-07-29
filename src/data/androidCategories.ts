@@ -551,6 +551,7 @@ Always clear view references in onDestroyView.
 Use viewLifecycleOwner for observing LiveData in fragments.`,
       codeExample: `class MyFragment : Fragment() {
 
+    // Binding only valid between onCreateView and onDestroyView
     private var _binding: FragmentMyBinding? = null
     private val binding get() = _binding!!
 
@@ -564,6 +565,7 @@ Use viewLifecycleOwner for observing LiveData in fragments.`,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
+        // Inflate the layout via ViewBinding
         _binding = FragmentMyBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -659,6 +661,7 @@ class HomeFragment : Fragment() {
 
 // Receive arguments
 class DetailFragment : Fragment() {
+    // Safe Args delegate: typed access to passed arguments
     private val args: DetailFragmentArgs by navArgs()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -673,6 +676,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Get controller from NavHost, wire up the ActionBar
         val navController = findNavController(R.id.nav_host_fragment)
         setupActionBarWithNavController(navController)
     }
@@ -699,6 +703,7 @@ class MainViewModel : ViewModel() {
     val users: LiveData<List<User>> = _users
 
     fun loadUsers() {
+        // Coroutine is cancelled when the ViewModel is cleared
         viewModelScope.launch {
             _users.value = repository.getUsers()
         }
@@ -716,6 +721,7 @@ class MainActivity : AppCompatActivity() {
             adapter.submitList(users)
         }
 
+        // Only load on first creation, not after rotation
         if (savedInstanceState == null) {
             viewModel.loadUsers()
         }
@@ -739,6 +745,7 @@ class SearchViewModel(
         get() = savedStateHandle["query"] ?: ""
         set(value) { savedStateHandle["query"] = value }
 
+    // Re-runs the search whenever the saved query changes
     val results = savedStateHandle.getLiveData<String>("query")
         .switchMap { query ->
             repository.search(query)
@@ -976,7 +983,8 @@ const jetpackCompose: AndroidCategory = {
 
 **Basic Composables:**
 Text, Image, Button, Row, Column, Box`,
-      codeExample: `@Composable
+      codeExample: `// A composable is a function that emits UI
+@Composable
 fun Greeting(name: String) {
     Text(text = "Hello, $name!")
 }
@@ -984,12 +992,14 @@ fun Greeting(name: String) {
 // Composables are functions that emit UI
 @Composable
 fun UserCard(user: User) {
+    // Row places avatar and text side by side
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Circular avatar image
         Image(
             painter = painterResource(R.drawable.avatar),
             contentDescription = "Avatar",
@@ -997,7 +1007,8 @@ fun UserCard(user: User) {
                 .size(48.dp)
                 .clip(CircleShape)
         )
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(16.dp))  // Gap between elements
+        // Name stacked above email
         Column {
             Text(
                 text = user.name,
@@ -1219,6 +1230,7 @@ LazyColumn {
 @Composable
 fun PhotoGrid(photos: List<Photo>) {
     LazyVerticalGrid(
+        // Fit as many 100dp+ columns as the screen allows
         columns = GridCells.Adaptive(minSize = 100.dp),
         contentPadding = PaddingValues(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1229,7 +1241,7 @@ fun PhotoGrid(photos: List<Photo>) {
                 model = photo.url,
                 contentDescription = null,
                 modifier = Modifier
-                    .aspectRatio(1f)
+                    .aspectRatio(1f)  // Square cells
                     .clip(RoundedCornerShape(8.dp))
             )
         }
@@ -1238,6 +1250,7 @@ fun PhotoGrid(photos: List<Photo>) {
 
 // Sticky headers
 LazyColumn {
+    // Group by first letter; header pins while its group scrolls
     users.groupBy { it.name.first() }.forEach { (letter, users) ->
         stickyHeader {
             Text(
@@ -1714,7 +1727,7 @@ flow
       codeExample: `// StateFlow in ViewModel
 class UserViewModel : ViewModel() {
     private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
-    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+    val uiState: StateFlow<UiState> = _uiState.asStateFlow()  // Read-only view
 
     fun loadUsers() {
         viewModelScope.launch {
@@ -1731,6 +1744,7 @@ class UserViewModel : ViewModel() {
 
 // Collecting StateFlow in Activity
 lifecycleScope.launch {
+    // Collect only while STARTED; stops in background
     repeatOnLifecycle(Lifecycle.State.STARTED) {
         viewModel.uiState.collect { state ->
             when (state) {
@@ -1756,7 +1770,7 @@ class EventViewModel : ViewModel() {
 
     fun onButtonClick() {
         viewModelScope.launch {
-            _events.emit(Event.NavigateToDetail)
+            _events.emit(Event.NavigateToDetail)  // One-shot event
         }
     }
 }
@@ -2013,6 +2027,7 @@ const architectureComponents: AndroidCategory = {
 - Activity/Fragment references`,
       codeExample: `// Basic ViewModel
 class UserViewModel : ViewModel() {
+    // Mutable privately, exposed as read-only LiveData
     private val _user = MutableLiveData<User>()
     val user: LiveData<User> = _user
 
@@ -2020,6 +2035,7 @@ class UserViewModel : ViewModel() {
     val loading: LiveData<Boolean> = _loading
 
     fun loadUser(id: String) {
+        // viewModelScope cancels automatically on clear
         viewModelScope.launch {
             _loading.value = true
             try {
@@ -2035,7 +2051,7 @@ class UserViewModel : ViewModel() {
 
 // In Activity/Fragment
 class UserFragment : Fragment() {
-    private val viewModel: UserViewModel by viewModels()
+    private val viewModel: UserViewModel by viewModels()  // Survives rotation
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         viewModel.user.observe(viewLifecycleOwner) { user ->
@@ -2052,7 +2068,7 @@ class UserFragment : Fragment() {
 
 // Shared ViewModel (Activity scope)
 class DetailFragment : Fragment() {
-    private val sharedViewModel: SharedViewModel by activityViewModels()
+    private val sharedViewModel: SharedViewModel by activityViewModels()  // Same instance for all fragments
 }
 
 // With SavedStateHandle
@@ -2086,8 +2102,8 @@ class SearchViewModel(
       codeExample: `// Entity
 @Entity(tableName = "users")
 data class User(
-    @PrimaryKey val id: String,
-    @ColumnInfo(name = "full_name") val name: String,
+    @PrimaryKey val id: String,  // Unique row identifier
+    @ColumnInfo(name = "full_name") val name: String,  // Custom column name
     val email: String,
     val createdAt: Date
 )
@@ -2096,12 +2112,12 @@ data class User(
 @Dao
 interface UserDao {
     @Query("SELECT * FROM users")
-    fun getAllUsers(): Flow<List<User>>
+    fun getAllUsers(): Flow<List<User>>  // Re-emits on table changes
 
     @Query("SELECT * FROM users WHERE id = :userId")
     suspend fun getUserById(userId: String): User?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)  // Upsert
     suspend fun insert(user: User)
 
     @Update
@@ -2121,10 +2137,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
 
     companion object {
+        // Single shared instance; @Volatile for thread visibility
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
         fun getInstance(context: Context): AppDatabase {
+            // synchronized stops two threads creating two DBs
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
                     context.applicationContext,
@@ -2137,6 +2155,7 @@ abstract class AppDatabase : RoomDatabase() {
 }
 
 // Type Converter
+// Room can't store Date directly; convert to/from Long
 class Converters {
     @TypeConverter
     fun fromTimestamp(value: Long?): Date? = value?.let { Date(it) }
@@ -2162,13 +2181,13 @@ class Converters {
 - ActivityComponent: Activity lifetime
 - FragmentComponent: Fragment lifetime`,
       codeExample: `// Application
-@HiltAndroidApp
+@HiltAndroidApp  // Generates and attaches the DI container
 class MyApplication : Application()
 
 // Activity
-@AndroidEntryPoint
+@AndroidEntryPoint  // Enables injection into this class
 class MainActivity : AppCompatActivity() {
-    @Inject lateinit var analytics: Analytics
+    @Inject lateinit var analytics: Analytics  // Field injection
 }
 
 // ViewModel with injection
@@ -2185,6 +2204,7 @@ class UserViewModel @Inject constructor(
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
+    // @Provides builds types you don't own; @Singleton caches one
     @Provides
     @Singleton
     fun provideRetrofit(): Retrofit {
@@ -2206,6 +2226,7 @@ object NetworkModule {
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
 
+    // @Binds maps an interface to its implementation
     @Binds
     @Singleton
     abstract fun bindUserRepository(
@@ -2219,6 +2240,7 @@ class UserRepositoryImpl @Inject constructor(
     private val dao: UserDao
 ) : UserRepository {
     override suspend fun getUser(id: String): User {
+        // Cache-first: try DB, else fetch from API and cache
         return dao.getUserById(id) ?: api.getUser(id).also {
             dao.insert(it)
         }
@@ -2245,6 +2267,7 @@ Dependencies point inward. Domain doesn't know about UI or data implementation.
 class GetUserUseCase @Inject constructor(
     private val repository: UserRepository
 ) {
+    // operator invoke: call the use case like a function
     suspend operator fun invoke(userId: String): Result<User> {
         return try {
             Result.success(repository.getUser(userId))
@@ -2268,6 +2291,7 @@ class UserRepositoryImpl @Inject constructor(
 ) : UserRepository {
 
     override suspend fun getUser(id: String): User {
+        // Local cache first, fall back to network and save
         return localDataSource.getUser(id)
             ?: remoteDataSource.fetchUser(id).also {
                 localDataSource.saveUser(it)
@@ -2286,7 +2310,7 @@ class UserViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<UserState>(UserState.Loading)
-    val state: StateFlow<UserState> = _state
+    val state: StateFlow<UserState> = _state  // UI observes this
 
     fun loadUser(id: String) {
         viewModelScope.launch {
@@ -2330,14 +2354,16 @@ class UploadWorker(
     params: WorkerParameters
 ) : CoroutineWorker(context, params) {
 
+    // Runs in the background; return success/retry/failure
     override suspend fun doWork(): Result {
         val data = inputData.getString("file_path")
-            ?: return Result.failure()
+            ?: return Result.failure()  // Missing input: give up
 
         return try {
             uploadFile(data)
             Result.success()
         } catch (e: Exception) {
+            // Retry up to 3 attempts, then fail permanently
             if (runAttemptCount < 3) {
                 Result.retry()
             } else {
@@ -2350,12 +2376,14 @@ class UploadWorker(
 // Enqueue work
 val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>()
     .setInputData(workDataOf("file_path" to filePath))
+    // Only run when network is up and battery is OK
     .setConstraints(
         Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .setRequiresBatteryNotLow(true)
             .build()
     )
+    // Wait longer between each retry
     .setBackoffCriteria(
         BackoffPolicy.EXPONENTIAL,
         WorkRequest.MIN_BACKOFF_MILLIS,
@@ -2367,7 +2395,7 @@ WorkManager.getInstance(context).enqueue(uploadRequest)
 
 // Periodic work
 val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(
-    15, TimeUnit.MINUTES
+    15, TimeUnit.MINUTES  // Minimum allowed period
 ).setConstraints(
     Constraints.Builder()
         .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -2377,7 +2405,7 @@ val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(
 WorkManager.getInstance(context)
     .enqueueUniquePeriodicWork(
         "sync_work",
-        ExistingPeriodicWorkPolicy.KEEP,
+        ExistingPeriodicWorkPolicy.KEEP,  // Skip if already scheduled
         syncRequest
     )
 
@@ -2396,7 +2424,7 @@ WorkManager.getInstance(context)
 // Chain work
 WorkManager.getInstance(context)
     .beginWith(downloadWork)
-    .then(processWork)
+    .then(processWork)  // Runs only after download succeeds
     .then(uploadWork)
     .enqueue()`
     }
@@ -2557,9 +2585,11 @@ const networkingStorage: AndroidCategory = {
 - @Headers: Static headers`,
       codeExample: `// API interface
 interface ApiService {
+    // {id} in the URL is filled from the @Path argument
     @GET("users/{id}")
     suspend fun getUser(@Path("id") userId: String): User
 
+    // @Query appends ?page=..&limit=.. to the URL
     @GET("users")
     suspend fun getUsers(
         @Query("page") page: Int,
@@ -2567,7 +2597,7 @@ interface ApiService {
     ): List<User>
 
     @POST("users")
-    suspend fun createUser(@Body user: User): User
+    suspend fun createUser(@Body user: User): User  // Sent as JSON body
 
     @PUT("users/{id}")
     suspend fun updateUser(
@@ -2586,10 +2616,11 @@ interface ApiService {
 // Retrofit setup
 val retrofit = Retrofit.Builder()
     .baseUrl("https://api.example.com/")
-    .addConverterFactory(GsonConverterFactory.create())
+    .addConverterFactory(GsonConverterFactory.create())  // JSON parsing
     .client(okHttpClient)
     .build()
 
+// Retrofit generates the interface implementation
 val apiService = retrofit.create(ApiService::class.java)
 
 // Using the API
@@ -2600,9 +2631,9 @@ class UserRepository @Inject constructor(
         return try {
             Result.success(api.getUser(id))
         } catch (e: HttpException) {
-            Result.failure(e)
+            Result.failure(e)  // Server returned an error status
         } catch (e: IOException) {
-            Result.failure(e)
+            Result.failure(e)  // Network failure (no connection)
         }
     }
 }`
@@ -2634,6 +2665,7 @@ class AuthInterceptor @Inject constructor(
         val request = chain.request().newBuilder()
             .addHeader("Authorization", "Bearer \${tokenProvider.token}")
             .build()
+        // Pass the modified request down the chain
         return chain.proceed(request)
     }
 }
@@ -2647,7 +2679,7 @@ class RetryInterceptor(private val maxRetries: Int = 3) : Interceptor {
         while (attempt < maxRetries) {
             try {
                 response = chain.proceed(chain.request())
-                if (response.isSuccessful) return response
+                if (response.isSuccessful) return response  // Done
             } catch (e: IOException) {
                 if (attempt == maxRetries - 1) throw e
             }
@@ -2659,6 +2691,7 @@ class RetryInterceptor(private val maxRetries: Int = 3) : Interceptor {
 
 // OkHttpClient setup
 val okHttpClient = OkHttpClient.Builder()
+    // Interceptors run in the order they are added
     .addInterceptor(authInterceptor)
     .addInterceptor(loggingInterceptor)
     .addNetworkInterceptor(cacheInterceptor)
@@ -2672,10 +2705,11 @@ suspend fun <T> safeApiCall(apiCall: suspend () -> T): Result<T> {
     return try {
         Result.success(apiCall())
     } catch (e: HttpException) {
+        // Non-2xx response: extract the error body
         val errorBody = e.response()?.errorBody()?.string()
         Result.failure(ApiException(e.code(), errorBody))
     } catch (e: IOException) {
-        Result.failure(NetworkException(e.message))
+        Result.failure(NetworkException(e.message))  // Connectivity issue
     }
 }`
     },
@@ -2693,7 +2727,7 @@ suspend fun <T> safeApiCall(apiCall: suspend () -> T): Result<T> {
 - Type safety
 - Atomic operations`,
       codeExample: `// Preferences DataStore
-val Context.dataStore by preferencesDataStore(name = "settings")
+val Context.dataStore by preferencesDataStore(name = "settings")  // App-wide singleton
 
 // Keys
 object PreferencesKeys {
@@ -2723,6 +2757,7 @@ class SettingsRepository @Inject constructor(
 
     // Write
     suspend fun setDarkMode(enabled: Boolean) {
+        // edit applies changes as one atomic transaction
         dataStore.edit { preferences ->
             preferences[PreferencesKeys.DARK_MODE] = enabled
         }
@@ -2742,10 +2777,11 @@ class SettingsViewModel @Inject constructor(
     private val repository: SettingsRepository
 ) : ViewModel() {
 
+    // Convert the cold Flow into StateFlow for the UI
     val settings = repository.settings
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = SharingStarted.WhileSubscribed(5000),  // Stop 5s after last collector
             initialValue = Settings()
         )
 
@@ -3265,10 +3301,11 @@ Test using content descriptions and test tags for stable selectors.`,
 class LoginScreenTest {
 
     @get:Rule
-    val composeTestRule = createComposeRule()
+    val composeTestRule = createComposeRule()  // Hosts composables under test
 
     @Test
     fun loginButton_showsLoadingState() {
+        // Render the UI under test
         composeTestRule.setContent {
             LoginScreen(
                 onLogin = { _, _ -> },
@@ -3276,6 +3313,7 @@ class LoginScreenTest {
             )
         }
 
+        // Find nodes by visible text or by test tag
         composeTestRule
             .onNodeWithText("Loading...")
             .assertIsDisplayed()
@@ -3324,7 +3362,7 @@ class LoginScreenTest {
 
         composeTestRule
             .onNodeWithText("Item 50")
-            .performScrollTo()
+            .performScrollTo()  // Scrolls the lazy list to the node
             .performClick()
     }
 }

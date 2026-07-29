@@ -57,15 +57,16 @@ app.post('/users', async (req, res) => {
     res.status(201).json(user);  // 201 Created
   } catch (err) {
     if (err.name === 'ValidationError') {
-      res.status(400).json({ error: err.message });
+      res.status(400).json({ error: err.message });  // client's fault
     } else {
-      res.status(500).json({ error: 'Server error' });
+      res.status(500).json({ error: 'Server error' });  // our fault
     }
   }
 });
 
 app.delete('/users/:id', async (req, res) => {
   const deleted = await User.delete(req.params.id);
+  // 404 when the resource never existed (or already gone)
   if (!deleted) return res.status(404).json({ error: 'Not found' });
   res.status(204).send();  // 204 No Content
 });`
@@ -89,6 +90,7 @@ Pagination patterns:
         codeExample: `// Pagination response
 {
   "data": [...],
+  // metadata lets clients build page controls
   "pagination": {
     "page": 2,
     "limit": 20,
@@ -97,6 +99,7 @@ Pagination patterns:
     "hasNext": true,
     "hasPrev": true
   },
+  // ready-made URLs so clients never build them by hand
   "links": {
     "self": "/api/v1/users?page=2",
     "next": "/api/v1/users?page=3",
@@ -110,7 +113,7 @@ Pagination patterns:
 {
   "data": [...],
   "cursor": {
-    "next": "eyJpZCI6MTIzfQ==",
+    "next": "eyJpZCI6MTIzfQ==",  // opaque token, not a page number
     "hasMore": true
   }
 }`
@@ -134,6 +137,7 @@ Error response format:
         codeExample: `// Zod validation
 import { z } from 'zod';
 
+// Schema declares the shape once; reused for parsing + types
 const createUserSchema = z.object({
   email: z.string().email(),
   name: z.string().min(2).max(100),
@@ -141,6 +145,7 @@ const createUserSchema = z.object({
 });
 
 app.post('/users', async (req, res) => {
+  // safeParse never throws; returns success flag + issues
   const result = createUserSchema.safeParse(req.body);
 
   if (!result.success) {
@@ -187,6 +192,7 @@ Documentation:
   "id": 123,
   "name": "John Doe",
   "email": "john@example.com",
+  // _links advertise what the client can do next
   "_links": {
     "self": { "href": "/users/123" },
     "posts": { "href": "/users/123/posts" },
@@ -201,12 +207,12 @@ paths:
     post:
       summary: Create a new user
       requestBody:
-        required: true
+        required: true  # body schema is machine-checkable
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateUser'
-      responses:
+              $ref: '#/components/schemas/CreateUser'  # reusable shape
+      responses:  # document every outcome, not just 2xx
         '201':
           description: User created
           content:
@@ -244,7 +250,7 @@ Modern reality: many companies use all three — REST for public + simple intern
         codeExample: `# gRPC .proto
 service UserService {
   rpc GetUser(GetUserRequest) returns (User);
-  rpc StreamEvents(EventFilter) returns (stream Event);
+  rpc StreamEvents(EventFilter) returns (stream Event);  # server-streaming
 }
 
 # GraphQL schema
@@ -305,12 +311,15 @@ Discoverability:
 import crypto from 'crypto';
 
 function verify(req, secret) {
+  // Header format: "t=<timestamp>,v1=<signature>"
   const sig = req.headers['stripe-signature'];
   const [tPart, vPart] = sig.split(',');
   const timestamp = tPart.split('=')[1];
   const expected = vPart.split('=')[1];
+  // Recompute HMAC over timestamp + raw (unparsed!) body
   const payload = \`\${timestamp}.\${req.rawBody}\`;
   const hmac = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  // Constant-time compare defeats timing attacks
   if (!crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(expected))) {
     throw new Error('Invalid signature');
   }
@@ -360,17 +369,20 @@ Pick:
 
 Always cap poll frequency (Retry-After), TTL old jobs, and surface errors clearly.`,
         codeExample: `// Server side
+// 1. Kick off the job — respond instantly, don't block
 POST /exports
 → 202 Accepted
   Location: /exports/abc
   Operation-Location: /exports/abc/status
   Body: { id: "abc", status: "pending" }
 
+// 2. Client polls; Retry-After caps the poll rate
 GET /exports/abc/status
 → 200 OK
   Retry-After: 3
   Body: { id: "abc", status: "running", progress: 0.42 }
 
+// 3. Terminal status includes where to fetch the result
 GET /exports/abc/status (later)
 → 200 OK
   Body: { id: "abc", status: "completed", resultUrl: "/exports/abc/file" }`
@@ -413,8 +425,10 @@ Edge caching:
         codeExample: `// Express ETag for a JSON resource
 app.get('/users/:id', async (req, res) => {
   const user = await db.users.findById(req.params.id);
+  // ETag = hash of the body; changes whenever content changes
   const etag = \`"\${crypto.createHash('sha1').update(JSON.stringify(user)).digest('hex')}"\`;
 
+  // Client's copy is still fresh → 304, skip sending the body
   if (req.headers['if-none-match'] === etag) {
     return res.status(304).end();
   }
@@ -430,6 +444,7 @@ app.get('/users/:id', async (req, res) => {
 app.put('/users/:id', async (req, res) => {
   const current = await db.users.findById(req.params.id);
   const currentEtag = computeEtag(current);
+  // Someone else changed it since the client read → 412
   if (req.headers['if-match'] !== currentEtag) {
     return res.status(412).end();
   }
@@ -481,7 +496,7 @@ info:
 paths:
   /users/{id}:
     get:
-      operationId: getUser
+      operationId: getUser  # codegen uses this as the method name
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       responses:
@@ -493,7 +508,7 @@ paths:
           content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
 
 components:
-  schemas:
+  schemas:  # shared shapes, $ref'd everywhere to avoid drift
     User:
       type: object
       required: [id, email]
@@ -549,6 +564,7 @@ Operational concerns:
 • Drain gracefully: send Close frame and let clients reconnect to other pods`,
         codeExample: `// Server: SSE
 app.get('/events', (req, res) => {
+  // These headers keep the HTTP response open as a stream
   res.set({
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
@@ -556,11 +572,13 @@ app.get('/events', (req, res) => {
   });
   res.flushHeaders();
 
+  // SSE wire format: "event:" + "data:" lines, blank line ends one
   const send = (event, data) => {
     res.write(\`event: \${event}\\n\`);
     res.write(\`data: \${JSON.stringify(data)}\\n\\n\`);
   };
 
+  // Clean up the subscription when the client disconnects
   const id = subscribe(req.user, send);
   req.on('close', () => unsubscribe(id));
 });
@@ -820,7 +838,7 @@ CREATE TABLE orders (
   product_price DECIMAL        -- Repeated!
 );
 
--- Normalized (3NF)
+-- Normalized (3NF): each fact lives in exactly one place
 CREATE TABLE customers (
   id INT PRIMARY KEY,
   name VARCHAR(100),
@@ -833,9 +851,10 @@ CREATE TABLE products (
   price DECIMAL
 );
 
+-- Orders only hold foreign keys, never copied data
 CREATE TABLE orders (
   id INT PRIMARY KEY,
-  customer_id INT REFERENCES customers(id),
+  customer_id INT REFERENCES customers(id),  -- FK enforces integrity
   product_id INT REFERENCES products(id),
   quantity INT,
   created_at TIMESTAMP
@@ -919,6 +938,7 @@ COMMIT;
 SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 
 // Node.js with Prisma
+// If the callback throws, everything inside rolls back
 await prisma.$transaction(async (tx) => {
   await tx.account.update({
     where: { id: 'A' },
@@ -969,7 +989,7 @@ SELECT * FROM users WHERE id = 123;
 
 // Application-level sharding
 function getShard(userId) {
-  const shardId = userId % NUM_SHARDS;
+  const shardId = userId % NUM_SHARDS;  // same user → same shard
   return shardConnections[shardId];
 }
 
@@ -1015,17 +1035,18 @@ Multi-tenant data:
 • Aggregate queries naturally scoped`,
         codeExample: `-- Audit columns standard
 CREATE TABLE posts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid_v7(),
-  tenant_id UUID NOT NULL,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid_v7(),  -- v7: sortable
+  tenant_id UUID NOT NULL,  -- multi-tenant scoping on every row
   title TEXT NOT NULL,
   body TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by UUID REFERENCES users(id),
-  deleted_at TIMESTAMPTZ,
-  version INT NOT NULL DEFAULT 1
+  deleted_at TIMESTAMPTZ,  -- NULL = alive (soft delete)
+  version INT NOT NULL DEFAULT 1  -- optimistic locking counter
 );
 
+-- Partial index: only live rows, smaller + faster
 CREATE INDEX posts_tenant_active ON posts(tenant_id) WHERE deleted_at IS NULL;
 
 -- Optimistic update
@@ -1066,7 +1087,9 @@ Practical safety nets:
 • Lock timeout: SET lock_timeout = '2s' so a stuck migration fails fast instead of holding writers
 • Run migrations from a dedicated user with limited connections, never from app pods`,
         codeExample: `-- Expand: add new column with backfill plan
+-- Nullable ADD COLUMN is metadata-only: instant, no rewrite
 ALTER TABLE users ADD COLUMN email_normalized TEXT;
+-- CONCURRENTLY builds in background, no write lock
 CREATE INDEX CONCURRENTLY idx_users_email_norm ON users(email_normalized);
 
 -- Backfill in batches (run as a job)
@@ -1075,6 +1098,7 @@ DECLARE batch INT := 1000;
         last_id UUID := '00000000-0000-0000-0000-000000000000';
 BEGIN
   LOOP
+    -- Keyset pagination: grab next slice of unfilled rows
     WITH cte AS (
       SELECT id FROM users
       WHERE id > last_id AND email_normalized IS NULL
@@ -1083,8 +1107,8 @@ BEGIN
     UPDATE users SET email_normalized = lower(email)
     FROM cte WHERE users.id = cte.id;
     GET DIAGNOSTICS last_id = ROW_COUNT;
-    EXIT WHEN NOT FOUND;
-    PERFORM pg_sleep(0.1);
+    EXIT WHEN NOT FOUND;  -- done when no rows left
+    PERFORM pg_sleep(0.1);  -- breathe: let normal traffic through
   END LOOP;
 END $$;`
       },
@@ -1136,7 +1160,7 @@ SELECT
   mean_exec_time::int AS mean_ms,
   rows
 FROM pg_stat_statements
-ORDER BY total_exec_time DESC
+ORDER BY total_exec_time DESC  -- total, not per-call, finds hotspots
 LIMIT 10;
 
 -- Plan with timings + I/O
@@ -1146,7 +1170,7 @@ EXPLAIN (ANALYZE, BUFFERS) SELECT ...;
 SELECT bl.pid AS blocked_pid, ka.query AS blocking_query, ka.pid AS blocking_pid
 FROM pg_locks bl
 JOIN pg_stat_activity ka ON bl.pid = ka.pid
-WHERE NOT bl.granted;`
+WHERE NOT bl.granted;  -- ungranted lock = session stuck waiting`
       },
       {
         id: 'db-9',
@@ -1524,6 +1548,7 @@ Authorization models:
 • ReBAC: Relationship-Based Access Control`,
         codeExample: `// Authentication middleware
 const authenticate = async (req, res, next) => {
+  // Expect "Authorization: Bearer <token>"
   const token = req.headers.authorization?.split(' ')[1];
 
   if (!token) {
@@ -1531,8 +1556,9 @@ const authenticate = async (req, res, next) => {
   }
 
   try {
+    // verify() checks signature + expiry, throws if invalid
     const decoded = jwt.verify(token, SECRET);
-    req.user = decoded;
+    req.user = decoded;  // attach identity for later handlers
     next();
   } catch {
     res.status(401).json({ error: 'Invalid token' });
@@ -1540,14 +1566,15 @@ const authenticate = async (req, res, next) => {
 };
 
 // Authorization middleware
+// Who you are is known; now check what you may do
 const authorize = (...roles) => (req, res, next) => {
   if (!roles.includes(req.user.role)) {
-    return res.status(403).json({ error: 'Forbidden' });
+    return res.status(403).json({ error: 'Forbidden' });  // 403, not 401
   }
   next();
 };
 
-// Usage
+// Usage: authN first, then authZ, then the handler
 app.delete('/users/:id',
   authenticate,
   authorize('admin'),
@@ -1571,12 +1598,14 @@ Best practices:
 • Use RS256 for distributed systems
 • Don't store sensitive data in payload (it's base64, not encrypted)`,
         codeExample: `// Generate tokens
+// Access token: short-lived, sent on every API call
 const accessToken = jwt.sign(
   { userId: user.id, role: user.role },
   ACCESS_SECRET,
   { expiresIn: '15m' }
 );
 
+// Refresh token: long-lived, only used to mint new access tokens
 const refreshToken = jwt.sign(
   { userId: user.id, tokenVersion: user.tokenVersion },
   REFRESH_SECRET,
@@ -1585,9 +1614,9 @@ const refreshToken = jwt.sign(
 
 // Set refresh token as httpOnly cookie
 res.cookie('refreshToken', refreshToken, {
-  httpOnly: true,
-  secure: true,
-  sameSite: 'strict',
+  httpOnly: true,   // JS can't read it → XSS can't steal it
+  secure: true,     // HTTPS only
+  sameSite: 'strict',  // blocks CSRF sends
   maxAge: 7 * 24 * 60 * 60 * 1000
 });
 
@@ -1646,7 +1675,7 @@ authUrl.searchParams.set('response_type', 'code');
 authUrl.searchParams.set('scope', 'openid profile email');
 authUrl.searchParams.set('code_challenge', codeChallenge);
 authUrl.searchParams.set('code_challenge_method', 'S256');
-authUrl.searchParams.set('state', randomState);
+authUrl.searchParams.set('state', randomState);  // anti-CSRF nonce
 
 // 3. Exchange code for tokens
 app.get('/callback', async (req, res) => {
@@ -1693,10 +1722,10 @@ const RedisStore = require('connect-redis').default;
 const redis = require('redis').createClient();
 
 app.use(session({
-  store: new RedisStore({ client: redis }),
-  secret: SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
+  store: new RedisStore({ client: redis }),  // shared across servers
+  secret: SESSION_SECRET,  // signs the cookie against tampering
+  resave: false,             // don't rewrite unchanged sessions
+  saveUninitialized: false,  // no session until login
   cookie: {
     secure: true,
     httpOnly: true,
@@ -1710,6 +1739,7 @@ app.post('/login', async (req, res) => {
   const user = await validateCredentials(req.body);
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
+  // Writing to req.session persists it to Redis automatically
   req.session.userId = user.id;
   req.session.role = user.role;
   res.json({ message: 'Logged in' });
@@ -1717,7 +1747,7 @@ app.post('/login', async (req, res) => {
 
 // Logout
 app.post('/logout', (req, res) => {
-  req.session.destroy();
+  req.session.destroy();  // server-side invalidation, instant
   res.clearCookie('connect.sid');
   res.json({ message: 'Logged out' });
 });
@@ -1754,7 +1784,7 @@ Additional measures:
 • Security headers (Helmet.js)`,
         codeExample: `// Password hashing with bcrypt
 const bcrypt = require('bcrypt');
-const SALT_ROUNDS = 12;
+const SALT_ROUNDS = 12;  // cost factor: higher = slower to brute-force
 
 // Hash password on signup
 const hash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -1762,6 +1792,7 @@ await User.create({ email, passwordHash: hash });
 
 // Verify on login
 const user = await User.findByEmail(email);
+// compare() re-hashes with the salt stored inside the hash
 const valid = await bcrypt.compare(password, user.passwordHash);
 
 // Rate limiting
@@ -1829,8 +1860,10 @@ import { authenticator } from 'otplib';
 import qrcode from 'qrcode';
 
 const secret = authenticator.generateSecret(); // base32
+// Not enabled until the user proves their app has the secret
 await db.users.update(userId, { totp_secret: secret, totp_enabled: false });
 
+// otpauth:// URI rendered as QR for the authenticator app
 const otpauth = authenticator.keyuri(user.email, 'Algogo', secret);
 const qr = await qrcode.toDataURL(otpauth);
 res.json({ qr });
@@ -1839,6 +1872,7 @@ res.json({ qr });
 app.post('/mfa/verify', async (req, res) => {
   const { code } = req.body;
   const user = await db.users.find(req.user.id);
+  // check() computes TOTP for now ±1 window (clock drift)
   if (!authenticator.check(code, user.totp_secret)) {
     return res.status(401).json({ error: 'Invalid code' });
   }
@@ -1894,6 +1928,7 @@ app.post('/password/reset/request', async (req, res) => {
   if (!user) return;
 
   const raw = crypto.randomBytes(32).toString('base64url');
+  // Store only the hash — a DB leak can't reuse tokens
   const hash = crypto.createHash('sha256').update(raw).digest('hex');
   await db.password_reset_tokens.create({
     user_id: user.id,
@@ -1908,6 +1943,7 @@ app.post('/password/reset/consume', async (req, res) => {
   const { token, password } = req.body;
   const hash = crypto.createHash('sha256').update(token).digest('hex');
 
+  // Single UPDATE = atomic single-use check (race-safe)
   const result = await db.password_reset_tokens.update({
     where: { token_hash: hash, consumed_at: null, expires_at: { gt: new Date() } },
     data: { consumed_at: new Date() },
@@ -2059,12 +2095,14 @@ Two enforcement points:
 
 Cache decisions carefully — stale "yes" is a security bug.`,
         codeExample: `// RBAC with explicit role check
+// Role → flat list of permission strings
 const ROLES = {
   admin: ['users:read', 'users:write', 'billing:read'],
   support: ['users:read'],
   user: ['profile:read', 'profile:write'],
 };
 
+// Middleware factory: guard routes by permission, not role
 function requirePermission(perm) {
   return (req, res, next) => {
     const userPerms = ROLES[req.user.role] ?? [];
@@ -2139,12 +2177,13 @@ Secret hygiene:
 async function createApiKey(userId, scopes) {
   const id = crypto.randomBytes(8).toString('hex');
   const secret = crypto.randomBytes(32).toString('base64url');
+  // Prefix + id + secret: id enables lookup and revocation
   const fullKey = \`ak_\${id}_\${secret}\`;
 
   await db.api_keys.create({
     id,
     user_id: userId,
-    secret_hash: bcrypt.hashSync(secret, 10),
+    secret_hash: bcrypt.hashSync(secret, 10),  // never store raw
     scopes,
     created_at: new Date(),
   });
@@ -2154,13 +2193,14 @@ async function createApiKey(userId, scopes) {
 // Verification
 app.use(async (req, res, next) => {
   const header = req.headers.authorization?.replace('Bearer ', '');
-  if (!header?.startsWith('ak_')) return next();
+  if (!header?.startsWith('ak_')) return next();  // not an API key
   const [, id, secret] = header.split('_');
-  const key = await db.api_keys.findById(id);
+  const key = await db.api_keys.findById(id);  // fast lookup by id
   if (!key || !await bcrypt.compare(secret, key.secret_hash)) {
     return res.status(401).end();
   }
   req.apiKey = key;
+  // Track usage — enables "disable stale keys" policies
   await db.api_keys.update(id, { last_used_at: new Date() });
   next();
 });`
@@ -2386,6 +2426,7 @@ app.get('/orders/:id', async (req, res) => {
   const order = await orderDb.find(req.params.id);
 
   // Call other services via HTTP or gRPC
+  // Promise.all = parallel fan-out, latency is the slowest call
   const [user, products] = await Promise.all([
     userService.getUser(order.userId),
     productService.getProducts(order.productIds)
@@ -2432,7 +2473,7 @@ await rabbitMQ.publish('order.created', {
 rabbitMQ.subscribe('order.created', async (msg) => {
   const order = JSON.parse(msg.content);
   await sendOrderConfirmation(order);
-  channel.ack(msg);
+  channel.ack(msg);  // ack only after success → safe redelivery
 });
 
 // Consumer (Inventory Service)
@@ -2461,19 +2502,20 @@ States of Circuit Breaker:
         codeExample: `// Circuit Breaker pattern
 class CircuitBreaker {
   constructor(options = {}) {
-    this.failureThreshold = options.threshold || 5;
-    this.resetTimeout = options.timeout || 30000;
+    this.failureThreshold = options.threshold || 5;  // failures to trip
+    this.resetTimeout = options.timeout || 30000;    // cool-down (ms)
     this.failures = 0;
-    this.state = 'CLOSED';
+    this.state = 'CLOSED';  // CLOSED = normal traffic
     this.nextAttempt = Date.now();
   }
 
   async call(fn) {
     if (this.state === 'OPEN') {
+      // Fail fast while cooling down — no load on the sick service
       if (Date.now() < this.nextAttempt) {
         throw new Error('Circuit is OPEN');
       }
-      this.state = 'HALF-OPEN';
+      this.state = 'HALF-OPEN';  // cool-down over: allow one probe
     }
 
     try {
@@ -2487,12 +2529,14 @@ class CircuitBreaker {
   }
 
   onSuccess() {
+    // Any success (incl. half-open probe) heals the circuit
     this.failures = 0;
     this.state = 'CLOSED';
   }
 
   onFailure() {
     this.failures++;
+    // Too many consecutive failures → trip open, schedule retry
     if (this.failures >= this.failureThreshold) {
       this.state = 'OPEN';
       this.nextAttempt = Date.now() + this.resetTimeout;
@@ -2587,7 +2631,7 @@ app.use(rateLimit({ windowMs: 60000, max: 100 }));
 // Route to services
 app.use('/api/users', httpProxy({
   target: 'http://user-service:3001',
-  pathRewrite: { '^/api/users': '/users' }
+  pathRewrite: { '^/api/users': '/users' }  // strip gateway prefix
 }));
 
 app.use('/api/orders', httpProxy({
@@ -2655,7 +2699,9 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 
 const sdk = new NodeSDK({
+  // Ship spans to an OTLP collector over HTTP
   traceExporter: new OTLPTraceExporter({ url: 'http://collector:4318/v1/traces' }),
+  // Auto-patches http, express, pg, redis... no code changes
   instrumentations: [getNodeAutoInstrumentations()],
 });
 sdk.start();
@@ -2665,17 +2711,18 @@ import { trace } from '@opentelemetry/api';
 const tracer = trace.getTracer('order-service');
 
 async function processOrder(order) {
+  // Child spans created inside automatically nest under this one
   return tracer.startActiveSpan('processOrder', async (span) => {
-    span.setAttribute('order.id', order.id);
+    span.setAttribute('order.id', order.id);  // searchable in tracing UI
     try {
       await chargePayment(order);
       span.setStatus({ code: SpanStatusCode.OK });
     } catch (e) {
-      span.recordException(e);
+      span.recordException(e);  // attaches stack trace to the span
       span.setStatus({ code: SpanStatusCode.ERROR, message: e.message });
       throw e;
     } finally {
-      span.end();
+      span.end();  // never forget — unended spans leak
     }
   });
 }
@@ -2731,11 +2778,12 @@ Without proper readiness, deploys cause user-visible 502s as new pods start befo
 app.get('/healthz', (req, res) => res.send('ok')); // liveness — always trivial
 
 let isReady = false;
+// Readiness DOES check deps — 503 pulls pod from the LB
 app.get('/readyz', async (req, res) => {
   if (!isReady) return res.status(503).send('starting');
   try {
-    await db.raw('SELECT 1');
-    await redis.ping();
+    await db.raw('SELECT 1');   // DB pool alive?
+    await redis.ping();         // cache reachable?
     res.send('ready');
   } catch (e) {
     res.status(503).send('dependency unhealthy');
@@ -2751,7 +2799,7 @@ async function startup() {
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
-  isReady = false;
+  isReady = false;  // stop taking new traffic first
   // Wait for endpoint propagation
   await new Promise(r => setTimeout(r, 10_000));
   server.close(() => process.exit(0));
@@ -2812,13 +2860,15 @@ async function idempotent(req, res, next) {
   const existing = await db.idempotency.findById(key);
 
   if (existing) {
+    // Same key, different payload = client bug or abuse
     if (existing.request_hash !== requestHash) {
       return res.status(422).json({ error: 'idempotency-key reused with different body' });
     }
+    // Replay: return the stored response, do no work
     return res.status(existing.status_code).json(existing.response);
   }
 
-  // Capture the response
+  // Capture the response by wrapping res.json
   const originalJson = res.json.bind(res);
   res.json = (body) => {
     db.idempotency.create({
@@ -2836,6 +2886,7 @@ async function idempotent(req, res, next) {
 // Queue consumer with DB unique constraint
 async function handleMessage(msg) {
   try {
+    // Insert acts as the dedup gate: second insert fails
     await db.processed_messages.insert({ id: msg.id, processed_at: new Date() });
   } catch (e) {
     if (e.code === 'UNIQUE_CONSTRAINT') return; // duplicate, skip
@@ -2895,8 +2946,9 @@ beforeAll(() => provider.setup());
 afterAll(() => provider.finalize());
 
 test('creates an order', async () => {
+  // Declare what this consumer expects from the provider
   await provider.addInteraction({
-    state: 'user 42 is authenticated',
+    state: 'user 42 is authenticated',  // provider seeds this state
     uponReceiving: 'a create-order request',
     withRequest: {
       method: 'POST',
@@ -2906,7 +2958,7 @@ test('creates an order', async () => {
     },
     willRespondWith: {
       status: 201,
-      body: { id: Matchers.string(), status: 'pending' },
+      body: { id: Matchers.string(), status: 'pending' },  // shape, not value
     },
   });
   const result = await api.createOrder({ items: [{ sku: 'A', qty: 1 }] });
@@ -3555,12 +3607,13 @@ Alternatives:
 const rateLimitScript = \`
 local current = redis.call('INCR', KEYS[1])
 if current == 1 then
+  -- first hit in window: start the TTL clock
   redis.call('EXPIRE', KEYS[1], ARGV[2])
 end
 if current > tonumber(ARGV[1]) then
-  return 0
+  return 0  -- over limit
 end
-return 1
+return 1  -- allowed
 \`;
 
 const allowed = await redis.eval(
@@ -3573,11 +3626,12 @@ const allowed = await redis.eval(
 if (allowed === 0) throw new Error('Rate limit exceeded');
 
 // Safe distributed-lock release (Lua)
+// Only delete if we still own the lock (token matches)
 const releaseScript = \`
 if redis.call('GET', KEYS[1]) == ARGV[1] then
   return redis.call('DEL', KEYS[1])
 else
-  return 0
+  return 0  -- someone else holds it now, don't touch
 end
 \`;
 await redis.eval(releaseScript, 1, lockKey, lockToken);`
@@ -3709,20 +3763,24 @@ const l1 = new LRU<string, any>({ max: 10_000, ttl: 60_000 });
 const redis = new Redis();
 const sub = new Redis(); // pub/sub subscriber
 
+// Other pods' writes evict our local copy
 sub.subscribe('cache:invalidate');
 sub.on('message', (_chan, key) => l1.delete(key));
 
 async function get(key: string) {
+  // 1. L1: in-process, nanoseconds
   const local = l1.get(key);
   if (local !== undefined) return local;
 
+  // 2. L2: shared Redis, sub-millisecond
   const remote = await redis.get(key);
   if (remote !== null) {
     const value = JSON.parse(remote);
-    l1.set(key, value);
+    l1.set(key, value);  // promote to L1 for next time
     return value;
   }
 
+  // 3. DB: source of truth — populate both tiers
   const fresh = await db.findById(key);
   if (fresh) {
     await redis.set(key, JSON.stringify(fresh), 'EX', 300);
@@ -3995,7 +4053,7 @@ const amqp = require('amqplib');
 // Setup
 const connection = await amqp.connect('amqp://localhost');
 const channel = await connection.createChannel();
-await channel.assertQueue('tasks', { durable: true });
+await channel.assertQueue('tasks', { durable: true });  // survives restart
 
 // Producer
 channel.sendToQueue('tasks', Buffer.from(JSON.stringify(task)), {
@@ -4026,6 +4084,7 @@ await producer.send({
 });
 
 // Consumer (with consumer group)
+// Same groupId = partitions shared; new group = full copy of stream
 const consumer = kafka.consumer({ groupId: 'my-service' });
 await consumer.connect();
 await consumer.subscribe({ topic: 'events', fromBeginning: false });
@@ -4183,7 +4242,7 @@ events
     timestamp: e.timestamp
   }))
   .groupBy(e => e.userId)
-  .windowedBy(TimeWindows.of(Duration.ofMinutes(5)))
+  .windowedBy(TimeWindows.of(Duration.ofMinutes(5)))  // 5-min buckets
   .aggregate(
     () => ({ count: 0, total: 0 }),
     (userId, event, agg) => ({
@@ -4457,6 +4516,7 @@ Performance considerations:
 async function handleMessage(msg) {
   await db.transaction(async (tx) => {
     try {
+      // Inbox insert is the dedup gate — PK on (queue, message_id)
       await tx.inbox.insert({
         queue: 'orders',
         message_id: msg.id,
@@ -4469,10 +4529,11 @@ async function handleMessage(msg) {
       throw e;
     }
     // Business logic in same transaction
+    // Inbox row + side effects commit or roll back together
     await tx.orders.create({ /* ... */ });
     await tx.audit.create({ /* ... */ });
   });
-  await msg.ack();
+  await msg.ack();  // only after the transaction committed
 }`
       },
       {
@@ -4766,17 +4827,17 @@ docker run -p 3000:3000 -d myapp:1.0
 version: '3.8'
 services:
   app:
-    build: .
+    build: .            # build from the Dockerfile above
     ports:
-      - "3000:3000"
+      - "3000:3000"     # host:container
     environment:
-      - DATABASE_URL=postgres://db:5432/app
+      - DATABASE_URL=postgres://db:5432/app  # 'db' resolves by name
     depends_on:
-      - db
+      - db              # start db first
   db:
     image: postgres:14
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data  # persist data across restarts
     environment:
       - POSTGRES_PASSWORD=secret
 
@@ -4802,6 +4863,7 @@ CD (Continuous Delivery/Deployment):
         codeExample: `# GitHub Actions workflow
 name: CI/CD
 
+# Run on pushes to main and on every PR targeting main
 on:
   push:
     branches: [main]
@@ -4816,25 +4878,27 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      - run: npm ci
+          cache: 'npm'   # reuse npm cache between runs
+      - run: npm ci      # clean install from lockfile
       - run: npm run lint
       - run: npm test
       - run: npm run build
 
   deploy:
-    needs: test
-    if: github.ref == 'refs/heads/main'
+    needs: test   # gate: only deploy if tests passed
+    if: github.ref == 'refs/heads/main'   # never deploy from PRs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Build and push Docker image
+        # Tag with commit SHA — every deploy is traceable
         run: |
           docker build -t myapp:\${{ github.sha }} .
           docker push registry.example.com/myapp:\${{ github.sha }}
 
       - name: Deploy to Kubernetes
+        # Updating the image triggers a rolling update
         run: |
           kubectl set image deployment/myapp \\
             myapp=registry.example.com/myapp:\${{ github.sha }}`
@@ -4862,8 +4926,10 @@ const logger = require('pino')();
 
 app.use((req, res, next) => {
   const start = Date.now();
+  // Propagate or mint a request ID for cross-service correlation
   const requestId = req.headers['x-request-id'] || uuid();
 
+  // Log once per request, when the response is done
   res.on('finish', () => {
     logger.info({
       requestId,
@@ -4881,17 +4947,19 @@ app.use((req, res, next) => {
 // Prometheus metrics
 const { Counter, Histogram, register } = require('prom-client');
 
+// Counter: only goes up — rates computed at query time
 const httpRequests = new Counter({
   name: 'http_requests_total',
   help: 'Total HTTP requests',
   labelNames: ['method', 'path', 'status']
 });
 
+// Histogram: latency distribution → percentiles in PromQL
 const httpDuration = new Histogram({
   name: 'http_request_duration_seconds',
   help: 'HTTP request duration',
   labelNames: ['method', 'path'],
-  buckets: [0.1, 0.5, 1, 2, 5]
+  buckets: [0.1, 0.5, 1, 2, 5]  // bucket bounds in seconds
 });
 
 app.use((req, res, next) => {
@@ -4905,7 +4973,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Metrics endpoint
+// Metrics endpoint — Prometheus scrapes this on an interval
 app.get('/metrics', async (req, res) => {
   res.set('Content-Type', register.contentType);
   res.end(await register.metrics());
@@ -4935,11 +5003,11 @@ kind: Deployment
 metadata:
   name: myapp
 spec:
-  replicas: 3
+  replicas: 3            # desired pod count, self-healed
   selector:
     matchLabels:
-      app: myapp
-  template:
+      app: myapp         # which pods this Deployment manages
+  template:              # pod blueprint
     metadata:
       labels:
         app: myapp
@@ -4950,17 +5018,17 @@ spec:
         ports:
         - containerPort: 3000
         resources:
-          requests:
+          requests:      # guaranteed — used for scheduling
             memory: "128Mi"
             cpu: "100m"
-          limits:
+          limits:        # hard cap — OOM-kill / throttle beyond
             memory: "256Mi"
             cpu: "500m"
-        livenessProbe:
+        livenessProbe:   # fail → restart container
           httpGet:
             path: /health
             port: 3000
-        readinessProbe:
+        readinessProbe:  # fail → remove from load balancer
           httpGet:
             path: /ready
             port: 3000
@@ -4973,11 +5041,11 @@ metadata:
   name: myapp
 spec:
   selector:
-    app: myapp
+    app: myapp     # routes to pods with this label
   ports:
-  - port: 80
-    targetPort: 3000
-  type: ClusterIP
+  - port: 80         # service port
+    targetPort: 3000 # container port
+  type: ClusterIP    # internal-only virtual IP
 
 ---
 # ingress.yaml
@@ -4987,7 +5055,7 @@ metadata:
   name: myapp
 spec:
   rules:
-  - host: myapp.example.com
+  - host: myapp.example.com   # external hostname → this service
     http:
       paths:
       - path: /
@@ -5016,11 +5084,12 @@ Tools:
 • Pulumi: code in real languages
 • Ansible: configuration management`,
         codeExample: `# Terraform example - AWS infrastructure
+# Pin the provider so runs are reproducible
 terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 5.0"   # any 5.x, never 6
     }
   }
 }
@@ -5048,12 +5117,13 @@ resource "aws_db_instance" "postgres" {
 
   db_name  = "myapp"
   username = "admin"
-  password = var.db_password
+  password = var.db_password  # never hardcode — pass as variable
 
+  # References create implicit dependency ordering
   vpc_security_group_ids = [aws_security_group.db.id]
   db_subnet_group_name   = aws_db_subnet_group.main.name
 
-  skip_final_snapshot = true
+  skip_final_snapshot = true  # dev only — keep snapshots in prod
 }
 
 # ECS Service
@@ -5061,8 +5131,9 @@ resource "aws_ecs_service" "myapp" {
   name            = "myapp"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.myapp.arn
-  desired_count   = 3
+  desired_count   = 3   # ECS keeps 3 tasks running
 
+  # Register tasks with the ALB target group
   load_balancer {
     target_group_arn = aws_lb_target_group.myapp.arn
     container_name   = "myapp"
@@ -5119,22 +5190,25 @@ Common mistakes:
 • Pinning to ":latest" tag — non-reproducible builds
 • Overlay-mounting host paths in production — escape vector`,
         codeExample: `# Multi-stage Node example
+# Stage 1: install deps only — cached until package.json changes
 FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci
 
+# Stage 2: compile with full toolchain
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
+# Stage 3: ship only artifacts on a distroless base
 FROM gcr.io/distroless/nodejs22-debian12 AS runtime
 WORKDIR /app
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
-USER nonroot
+USER nonroot   # never run as root in production
 EXPOSE 3000
 CMD ["dist/server.js"]
 

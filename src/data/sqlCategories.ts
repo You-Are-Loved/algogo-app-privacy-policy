@@ -1097,15 +1097,18 @@ GROUP BY a.id;
 **Materialization:** historically, Postgres materialized CTEs (computed them once into a temp result). Since Postgres 12, simple CTEs are inlined like subqueries. You can force materialization with \`WITH cte AS MATERIALIZED (...)\` or prevent it with \`NOT MATERIALIZED\`.`,
       codeExample: `-- Multi-step CTE pipeline
 WITH paid_orders AS (
+  -- Step 1: keep only completed orders
   SELECT user_id, total
   FROM orders
   WHERE status = 'paid'
 ),
 user_totals AS (
+  -- Step 2: total spend per user, built on step 1
   SELECT user_id, SUM(total) AS spent
   FROM paid_orders
   GROUP BY user_id
 )
+-- Final query reads the last CTE like a table
 SELECT u.name, ut.spent
 FROM users u
 JOIN user_totals ut ON ut.user_id = u.id
@@ -1114,10 +1117,12 @@ ORDER BY ut.spent DESC;
 
 -- CTE that wraps a write (Postgres)
 WITH inserted AS (
+  -- Copy year-old posts to archive, capture their ids
   INSERT INTO archive (id, body)
   SELECT id, body FROM posts WHERE created_at < NOW() - INTERVAL '1 year'
   RETURNING id
 )
+-- Delete exactly what was archived, in one atomic statement
 DELETE FROM posts WHERE id IN (SELECT id FROM inserted);`,
     },
     {
@@ -1148,12 +1153,14 @@ SELECT * FROM cte_name;
 **Termination:** always make sure the recursive query *eventually* returns no new rows. Add a depth limit or a visited-set guard for cyclic graphs.`,
       codeExample: `-- Org chart: every descendant of employee 1
 WITH RECURSIVE reports AS (
+  -- Anchor: the root employee we start from
   SELECT id, name, manager_id, 1 AS depth
   FROM employees
   WHERE id = 1
 
   UNION ALL
 
+  -- Recursive step: add direct reports of rows found so far
   SELECT e.id, e.name, e.manager_id, r.depth + 1
   FROM employees e
   JOIN reports r ON e.manager_id = r.id
@@ -1164,6 +1171,7 @@ ORDER BY depth, name;
 
 -- Generate a date series (no numbers table needed)
 WITH RECURSIVE days(d) AS (
+  -- Anchor is the first date; each pass adds one more day
   SELECT DATE '2026-01-01'
   UNION ALL
   SELECT d + INTERVAL '1 day' FROM days
@@ -1173,6 +1181,7 @@ SELECT d FROM days;
 
 -- Cycle-safe friend traversal with depth limit
 WITH RECURSIVE walk AS (
+  -- Anchor: direct friends (hop 1)
   SELECT user_id, friend_id, 1 AS hop
   FROM friendships
   WHERE user_id = 42
@@ -1443,6 +1452,7 @@ ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING  -- full partition
 SELECT
   day,
   active_users,
+  -- LAG pulls the previous row's value (NULL on the first row)
   LAG(active_users)   OVER (ORDER BY day) AS yesterday,
   active_users - LAG(active_users) OVER (ORDER BY day) AS delta
 FROM daily_metrics;
@@ -1452,6 +1462,7 @@ SELECT
   customer_id,
   placed_at,
   total,
+  -- Frame grows one row at a time = cumulative sum
   SUM(total) OVER (
     PARTITION BY customer_id
     ORDER BY placed_at
@@ -1462,6 +1473,7 @@ FROM orders;
 -- 7-day moving average of signups
 SELECT
   day,
+  -- Frame: this row plus the 6 before it (7-day window)
   AVG(signups) OVER (
     ORDER BY day
     ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
@@ -1474,6 +1486,7 @@ SELECT DISTINCT
   FIRST_VALUE(total) OVER w AS first_order,
   LAST_VALUE(total)  OVER w AS last_order
 FROM orders
+-- Full-partition frame so LAST_VALUE can see the final row
 WINDOW w AS (
   PARTITION BY customer_id
   ORDER BY placed_at
@@ -1509,6 +1522,7 @@ WINDOW w AS (PARTITION BY ... ORDER BY ...)
 \`\`\``,
       codeExample: `-- Sessionize page views with a 30-minute idle gap
 WITH events AS (
+  -- Step 1: seconds since the same user's previous view
   SELECT
     user_id,
     viewed_at,
@@ -1518,11 +1532,13 @@ WITH events AS (
   FROM page_views
 ),
 flagged AS (
+  -- Step 2: first view or a 30+ minute gap starts a session
   SELECT
     *,
     CASE WHEN gap_seconds IS NULL OR gap_seconds > 1800 THEN 1 ELSE 0 END AS new_session
   FROM events
 )
+-- Step 3: running sum of the flags numbers each session
 SELECT
   user_id,
   viewed_at,

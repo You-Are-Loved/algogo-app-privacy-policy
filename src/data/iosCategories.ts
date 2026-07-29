@@ -600,6 +600,7 @@ For complex navigation, extract logic into coordinators.`,
 class ListViewController: UIViewController {
     func showDetail(item: Item) {
         let detailVC = DetailViewController(item: item)
+        // Push adds to the stack; back button pops it off
         navigationController?.pushViewController(detailVC, animated: true)
     }
 }
@@ -609,6 +610,7 @@ class MainTabBarController: UITabBarController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        // Each tab wraps its root VC in its own nav stack
         let homeNav = UINavigationController(rootViewController: HomeViewController())
         homeNav.tabBarItem = UITabBarItem(title: "Home", image: UIImage(systemName: "house"), tag: 0)
 
@@ -625,8 +627,9 @@ func showSettings() {
     settingsVC.modalPresentationStyle = .pageSheet
 
     if let sheet = settingsVC.sheetPresentationController {
+        // Detents: heights the sheet can rest at (half/full)
         sheet.detents = [.medium(), .large()]
-        sheet.prefersGrabberVisible = true
+        sheet.prefersGrabberVisible = true // drag handle at top
     }
 
     present(settingsVC, animated: true)
@@ -663,6 +666,7 @@ Cells are recycled for memory efficiency. Dequeue and configure, never create ne
 - Prefetch data for smooth scrolling
 - Avoid layout in cellForRow`,
       codeExample: `// Modern Diffable Data Source approach
+// Sections and items must be Hashable so diffing works
 enum Section: Hashable {
     case main
 }
@@ -683,12 +687,14 @@ class ListViewController: UIViewController {
     }
 
     func configureCollectionView() {
+        // List layout gives table-view style rows for free
         let config = UICollectionLayoutListConfiguration(appearance: .insetGrouped)
         let layout = UICollectionViewCompositionalLayout.list(using: config)
         collectionView = UICollectionView(frame: view.bounds, collectionViewLayout: layout)
     }
 
     func configureDataSource() {
+        // Registration: how to configure a cell for an Item
         let cellRegistration = UICollectionView.CellRegistration<UICollectionViewListCell, Item> {
             cell, indexPath, item in
             var content = cell.defaultContentConfiguration()
@@ -696,6 +702,7 @@ class ListViewController: UIViewController {
             cell.contentConfiguration = content
         }
 
+        // Data source dequeues reused cells via the registration
         dataSource = UICollectionViewDiffableDataSource<Section, Item>(
             collectionView: collectionView
         ) { collectionView, indexPath, item in
@@ -706,6 +713,7 @@ class ListViewController: UIViewController {
     }
 
     func applySnapshot(items: [Item]) {
+        // Snapshot = full desired state; diffing animates changes
         var snapshot = NSDiffableDataSourceSnapshot<Section, Item>()
         snapshot.appendSections([.main])
         snapshot.appendItems(items)
@@ -1003,13 +1011,13 @@ Text("Example")
    - colorScheme, locale, etc.`,
       codeExample: `// @State - Local value type state
 struct CounterView: View {
-    @State private var count = 0
+    @State private var count = 0 // view owns this value
 
     var body: some View {
         VStack {
             Text("Count: \\(count)")
             Button("Increment") {
-                count += 1
+                count += 1 // mutation triggers a re-render
             }
         }
     }
@@ -1018,7 +1026,7 @@ struct CounterView: View {
 // @Binding - Two-way connection
 struct ToggleRow: View {
     let title: String
-    @Binding var isOn: Bool
+    @Binding var isOn: Bool // reads/writes the parent's state
 
     var body: some View {
         Toggle(title, isOn: $isOn)
@@ -1029,17 +1037,19 @@ struct SettingsView: View {
     @State private var notificationsEnabled = true
 
     var body: some View {
+        // $ prefix passes a binding, not just the value
         ToggleRow(title: "Notifications", isOn: $notificationsEnabled)
     }
 }
 
 // @StateObject - Own a reference type
 class UserViewModel: ObservableObject {
-    @Published var name = ""
+    @Published var name = ""  // changes notify observing views
     @Published var email = ""
 }
 
 struct ProfileView: View {
+    // @StateObject keeps the object alive across re-renders
     @StateObject private var viewModel = UserViewModel()
 
     var body: some View {
@@ -1070,13 +1080,14 @@ struct ProfileView: View {
 - @ObservedObject: View receives object from elsewhere
 - Use @StateObject at the source, @ObservedObject downstream`,
       codeExample: `class TaskStore: ObservableObject {
+    // @Published fires objectWillChange on every update
     @Published var tasks: [Task] = []
     @Published var isLoading = false
 
     func fetchTasks() async {
         isLoading = true
         // Fetch from API...
-        tasks = await api.getTasks()
+        tasks = await api.getTasks() // views re-render on assign
         isLoading = false
     }
 
@@ -1096,7 +1107,7 @@ struct TaskListView: View {
             }
             .navigationTitle("Tasks")
             .task {
-                await store.fetchTasks()
+                await store.fetchTasks() // runs when view appears
             }
         }
     }
@@ -1119,7 +1130,7 @@ struct MyApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(store)
+                .environmentObject(store) // inject once at the root
         }
     }
 }
@@ -1172,19 +1183,20 @@ Smooth transitions between views with shared identity.`,
                     width: isExpanded ? 300 : 100,
                     height: isExpanded ? 200 : 100
                 )
+                // Animates whenever isExpanded changes
                 .animation(.spring(response: 0.5), value: isExpanded)
                 .onTapGesture {
                     isExpanded.toggle()
                 }
 
-            // Explicit animation
+            // Explicit animation: animate this state change only
             Button("Toggle Detail") {
                 withAnimation(.easeInOut(duration: 0.3)) {
                     showDetail.toggle()
                 }
             }
 
-            // Transition
+            // Transition: how the view enters/exits
             if showDetail {
                 Text("Detail Content")
                     .transition(.asymmetric(
@@ -1198,7 +1210,7 @@ Smooth transitions between views with shared identity.`,
 
 // Matched Geometry Effect
 struct CardListView: View {
-    @Namespace private var animation
+    @Namespace private var animation // links the two views
     @State private var selectedCard: Card?
 
     var body: some View {
@@ -1208,6 +1220,7 @@ struct CardListView: View {
                 ForEach(cards) { card in
                     if selectedCard?.id != card.id {
                         CardView(card: card)
+                            // Same id: SwiftUI morphs between views
                             .matchedGeometryEffect(id: card.id, in: animation)
                             .onTapGesture {
                                 withAnimation(.spring()) {
@@ -1252,15 +1265,17 @@ Modal presentation with bindings.
 Multi-column layouts for iPad.`,
       codeExample: `// NavigationStack (iOS 16+)
 struct ContentView: View {
-    @State private var path = NavigationPath()
+    @State private var path = NavigationPath() // the nav stack
 
     var body: some View {
         NavigationStack(path: $path) {
             List(items) { item in
+                // Link pushes a value, not a view
                 NavigationLink(value: item) {
                     Text(item.title)
                 }
             }
+            // Maps each value type to its destination view
             .navigationDestination(for: Item.self) { item in
                 DetailView(item: item)
             }
@@ -1272,7 +1287,7 @@ struct ContentView: View {
 
     // Programmatic navigation
     func navigateToItem(_ item: Item) {
-        path.append(item)
+        path.append(item) // appending to path pushes a screen
     }
 }
 
@@ -1290,11 +1305,13 @@ struct MainView: View {
                 showFullScreen = true
             }
         }
+        // Sheet shows when the bound state becomes true
         .sheet(isPresented: $showSheet) {
             SheetContent()
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.medium, .large]) // heights
                 .presentationDragIndicator(.visible)
         }
+        // Covers the whole screen; no swipe-to-dismiss
         .fullScreenCover(isPresented: $showFullScreen) {
             FullScreenContent()
         }
@@ -1307,6 +1324,7 @@ struct SplitView: View {
 
     var body: some View {
         NavigationSplitView {
+            // Sidebar: selection drives the detail column
             List(items, selection: $selectedItem) { item in
                 Text(item.title)
             }
@@ -1314,7 +1332,7 @@ struct SplitView: View {
             if let item = selectedItem {
                 DetailView(item: item)
             } else {
-                Text("Select an item")
+                Text("Select an item") // empty-state placeholder
             }
         }
     }
@@ -1588,12 +1606,14 @@ func fetchDashboard() async throws -> Dashboard {
 func fetchAllUsers(ids: [String]) async throws -> [User] {
     try await withThrowingTaskGroup(of: User.self) { group in
         for id in ids {
+            // Spawn one child task per id; all run concurrently
             group.addTask {
                 try await fetchUser(id: id)
             }
         }
 
         var users: [User] = []
+        // Collect results as each task finishes (any order)
         for try await user in group {
             users.append(user)
         }
@@ -2007,7 +2027,7 @@ class UserViewController: UIViewController {
     @IBOutlet weak var nameLabel: UILabel!
     @IBOutlet weak var emailLabel: UILabel!
 
-    var user: User?
+    var user: User? // controller also holds the model state
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -2020,12 +2040,13 @@ class UserViewController: UIViewController {
             guard let data = data else { return }
             self.user = try? JSONDecoder().decode(User.self, from: data)
             DispatchQueue.main.async {
-                self.updateUI()
+                self.updateUI() // UI work must be on main thread
             }
         }.resume()
     }
 
     func updateUI() {
+        // View logic also lives in the controller
         nameLabel.text = user?.name
         emailLabel.text = user?.email
     }
@@ -2071,6 +2092,7 @@ struct User {
 
 // ViewModel (no UIKit!)
 class UserViewModel: ObservableObject {
+    // @Published state the view binds to
     @Published var displayName: String = ""
     @Published var displayEmail: String = ""
     @Published var isLoading: Bool = false
@@ -2078,6 +2100,7 @@ class UserViewModel: ObservableObject {
 
     private let userService: UserServiceProtocol
 
+    // Injected service makes the ViewModel testable
     init(userService: UserServiceProtocol = UserService()) {
         self.userService = userService
     }
@@ -2087,6 +2110,7 @@ class UserViewModel: ObservableObject {
         errorMessage = nil
 
         do {
+            // Transform the model into display-ready values
             let user = try await userService.fetchUser(id: id)
             displayName = user.name
             displayEmail = user.email
@@ -2110,12 +2134,13 @@ class UserViewController: UIViewController {
     }
 
     func bindViewModel() {
+        // Combine: subscribe to ViewModel changes, update UI
         viewModel.$displayName
             .receive(on: DispatchQueue.main)
             .sink { [weak self] name in
                 self?.nameLabel.text = name
             }
-            .store(in: &cancellables)
+            .store(in: &cancellables) // keep subscription alive
     }
 }
 
@@ -2249,7 +2274,7 @@ class NetworkService: NetworkServiceProtocol {
 
 // Mock for testing
 class MockNetworkService: NetworkServiceProtocol {
-    var mockData: Any?
+    var mockData: Any?   // canned response for tests
     var mockError: Error?
 
     func fetch<T: Decodable>(url: URL) async throws -> T {
@@ -2262,6 +2287,7 @@ class MockNetworkService: NetworkServiceProtocol {
 class UserRepository {
     private let networkService: NetworkServiceProtocol
 
+    // Default arg keeps call sites simple; tests inject mocks
     init(networkService: NetworkServiceProtocol = NetworkService()) {
         self.networkService = networkService
     }
@@ -2278,6 +2304,7 @@ class UserRepositoryTests: XCTestCase {
         let mock = MockNetworkService()
         mock.mockData = User(id: "1", name: "Test", email: "test@example.com")
 
+        // Inject the mock - no real network call happens
         let repo = UserRepository(networkService: mock)
         let user = try await repo.getUser(id: "1")
 
@@ -2289,6 +2316,7 @@ class UserRepositoryTests: XCTestCase {
 class DependencyContainer {
     static let shared = DependencyContainer()
 
+    // lazy: built once, on first use; wires the graph
     lazy var networkService: NetworkServiceProtocol = NetworkService()
     lazy var userRepository: UserRepository = UserRepository(
         networkService: networkService
@@ -2319,10 +2347,10 @@ class DependencyContainer {
 4. Coordinator pushes/presents next VC`,
       codeExample: `// Coordinator protocol
 protocol Coordinator: AnyObject {
-    var childCoordinators: [Coordinator] { get set }
+    var childCoordinators: [Coordinator] { get set } // keep alive
     var navigationController: UINavigationController { get set }
 
-    func start()
+    func start() // kicks off the flow's first screen
 }
 
 // App Coordinator
@@ -2335,6 +2363,7 @@ class AppCoordinator: Coordinator {
     }
 
     func start() {
+        // Routing decision lives here, not in a VC
         if isLoggedIn {
             showMain()
         } else {
@@ -2343,17 +2372,18 @@ class AppCoordinator: Coordinator {
     }
 
     func showAuth() {
+        // Hand the auth flow to a child coordinator
         let authCoordinator = AuthCoordinator(
             navigationController: navigationController
         )
         authCoordinator.delegate = self
-        childCoordinators.append(authCoordinator)
+        childCoordinators.append(authCoordinator) // retain it
         authCoordinator.start()
     }
 
     func showMain() {
         let mainVC = MainViewController()
-        mainVC.coordinator = self
+        mainVC.coordinator = self // VC delegates navigation back
         navigationController.setViewControllers([mainVC], animated: true)
     }
 }
@@ -2364,7 +2394,7 @@ protocol AuthCoordinatorDelegate: AnyObject {
 }
 
 class AuthCoordinator: Coordinator {
-    weak var delegate: AuthCoordinatorDelegate?
+    weak var delegate: AuthCoordinatorDelegate? // weak: no cycle
     var childCoordinators: [Coordinator] = []
     var navigationController: UINavigationController
 
@@ -2381,6 +2411,7 @@ class AuthCoordinator: Coordinator {
     }
 
     func didLogin() {
+        // Tell the parent coordinator the flow finished
         delegate?.authDidComplete()
     }
 }`
@@ -2685,6 +2716,7 @@ Each context is tied to a thread. Use perform/performAndWait for safety.`,
 class CoreDataStack {
     static let shared = CoreDataStack()
 
+    // Container bundles model, coordinator, and context
     lazy var persistentContainer: NSPersistentContainer = {
         let container = NSPersistentContainer(name: "MyApp")
         container.loadPersistentStores { _, error in
@@ -2695,11 +2727,13 @@ class CoreDataStack {
         return container
     }()
 
+    // viewContext: main-thread context for UI work
     var context: NSManagedObjectContext {
         persistentContainer.viewContext
     }
 
     func save() {
+        // Skip disk write if nothing changed
         guard context.hasChanges else { return }
         try? context.save()
     }
@@ -2719,6 +2753,7 @@ class TaskRepository {
     let context = CoreDataStack.shared.context
 
     func create(title: String) -> Task {
+        // New objects are inserted into a context, then saved
         let task = Task(context: context)
         task.id = UUID()
         task.title = title
@@ -2729,19 +2764,21 @@ class TaskRepository {
     }
 
     func fetchAll() -> [Task] {
+        // Fetch request = query; sort newest first
         let request: NSFetchRequest<Task> = Task.fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         return (try? context.fetch(request)) ?? []
     }
 
     func delete(_ task: Task) {
-        context.delete(task)
+        context.delete(task) // deletion persists only after save
         CoreDataStack.shared.save()
     }
 }
 
 // Fetch with predicate
 let request: NSFetchRequest<Task> = Task.fetchRequest()
+// Predicate filters like a SQL WHERE clause
 request.predicate = NSPredicate(format: "isCompleted == %@", NSNumber(value: false))
 request.fetchLimit = 10`
     },
@@ -2767,6 +2804,7 @@ Property wrapper for UserDefaults.`,
 class SettingsManager {
     private let defaults = UserDefaults.standard
 
+    // Computed properties wrap raw key-value access
     var username: String? {
         get { defaults.string(forKey: "username") }
         set { defaults.set(newValue, forKey: "username") }
@@ -2785,6 +2823,7 @@ class SettingsManager {
 
 // SwiftUI @AppStorage
 struct SettingsView: View {
+    // Reads/writes UserDefaults and refreshes the view
     @AppStorage("isDarkMode") private var isDarkMode = false
     @AppStorage("fontSize") private var fontSize = 14.0
 
@@ -2797,12 +2836,14 @@ struct SettingsView: View {
 // Keychain (using Security framework)
 class KeychainManager {
     static func save(key: String, data: Data) -> Bool {
+        // Query dictionary describes the keychain item
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: key,
             kSecValueData as String: data
         ]
 
+        // Delete any old value first, then add (no upsert API)
         SecItemDelete(query as CFDictionary)
         let status = SecItemAdd(query as CFDictionary, nil)
         return status == errSecSuccess
@@ -2812,13 +2853,14 @@ class KeychainManager {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: key,
-            kSecReturnData as String: true,
+            kSecReturnData as String: true, // return the data itself
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
 
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
 
+        // nil on any failure (missing item, access denied)
         return status == errSecSuccess ? result as? Data : nil
     }
 }`
@@ -2839,6 +2881,7 @@ class KeychainManager {
 - Proper error handling
 - Retry logic for transient failures`,
       codeExample: `// Endpoint definition
+// Each API route becomes a type conforming to this
 protocol Endpoint {
     var baseURL: URL { get }
     var path: String { get }
@@ -2854,7 +2897,7 @@ enum HTTPMethod: String {
     case delete = "DELETE"
 }
 
-// Network errors
+// Network errors: typed cases callers can switch on
 enum NetworkError: Error {
     case invalidURL
     case invalidResponse
@@ -2864,6 +2907,7 @@ enum NetworkError: Error {
 }
 
 // API Client
+// Protocol lets tests substitute a mock client
 protocol APIClientProtocol {
     func request<T: Decodable>(_ endpoint: Endpoint) async throws -> T
 }
@@ -2879,10 +2923,12 @@ class APIClient: APIClientProtocol {
     }
 
     func request<T: Decodable>(_ endpoint: Endpoint) async throws -> T {
+        // Build the URLRequest from the endpoint description
         var request = URLRequest(url: endpoint.baseURL.appendingPathComponent(endpoint.path))
         request.httpMethod = endpoint.method.rawValue
         request.allHTTPHeaderFields = endpoint.headers
 
+        // Encode body as JSON only when one is provided
         if let body = endpoint.body {
             request.httpBody = try JSONEncoder().encode(body)
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -2894,6 +2940,7 @@ class APIClient: APIClientProtocol {
             throw NetworkError.invalidResponse
         }
 
+        // Any non-2xx status becomes a typed error
         guard 200..<300 ~= httpResponse.statusCode else {
             throw NetworkError.httpError(statusCode: httpResponse.statusCode)
         }
@@ -2901,6 +2948,7 @@ class APIClient: APIClientProtocol {
         do {
             return try decoder.decode(T.self, from: data)
         } catch {
+            // Wrap so callers can tell decode failures apart
             throw NetworkError.decodingError(error)
         }
     }
@@ -3104,6 +3152,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options: UIScene.ConnectionOptions) {
         guard let windowScene = scene as? UIWindowScene else { return }
+        // Create the window and show the first screen
         window = UIWindow(windowScene: windowScene)
         window?.rootViewController = MainViewController()
         window?.makeKeyAndVisible()
@@ -3117,12 +3166,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 // SwiftUI App
 @main
 struct MyApp: App {
+    // scenePhase mirrors the old lifecycle callbacks
     @Environment(\\.scenePhase) var scenePhase
 
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
+        // React to foreground/background transitions
         .onChange(of: scenePhase) { phase in
             switch phase {
             case .active: print("Active")
@@ -3246,11 +3297,13 @@ class UserServiceTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
+        // Fresh SUT + mock before every test
         mockNetwork = MockNetworkService()
         sut = UserService(network: mockNetwork)
     }
 
     override func tearDown() {
+        // Release everything so tests can't leak state
         sut = nil
         mockNetwork = nil
         super.tearDown()
@@ -3294,12 +3347,12 @@ class UserServiceTests: XCTestCase {
 
 // Mock
 class MockNetworkService: NetworkServiceProtocol {
-    var mockResult: Any?
-    var mockError: Error?
+    var mockResult: Any?  // preset response
+    var mockError: Error? // preset failure
     var fetchCallCount = 0
 
     func fetch<T: Decodable>(url: URL) async throws -> T {
-        fetchCallCount += 1
+        fetchCallCount += 1 // record the interaction
         if let error = mockError { throw error }
         return mockResult as! T
     }
@@ -3333,8 +3386,9 @@ class LoginUITests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        continueAfterFailure = false
+        continueAfterFailure = false // stop at first failure
         app = XCUIApplication()
+        // Flag lets the app stub data for UI tests
         app.launchArguments = ["--uitesting"]
         app.launch()
     }
@@ -3355,7 +3409,7 @@ class LoginUITests: XCTestCase {
         // Tap login
         loginButton.tap()
 
-        // Verify navigation
+        // Verify navigation (wait: next screen loads async)
         let welcomeLabel = app.staticTexts["Welcome"]
         XCTAssertTrue(welcomeLabel.waitForExistence(timeout: 5))
     }
