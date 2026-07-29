@@ -174,8 +174,8 @@ export default function UpgradeModal({
               />
               <PlanPill
                 title="Annual"
-                price={monthlyEquivalent ? `${monthlyEquivalent}/mo` : `${annualPrice}/yr`}
-                sub={monthlyEquivalent ? `billed ${annualPrice}/yr` : undefined}
+                price={`${annualPrice}/yr`}
+                sub={monthlyEquivalent ? `just ${monthlyEquivalent}/mo` : undefined}
                 badge={discountPct ? `SAVE ${discountPct}%` : undefined}
                 selected={selectedPlan === 'annual'}
                 disabled={busy}
