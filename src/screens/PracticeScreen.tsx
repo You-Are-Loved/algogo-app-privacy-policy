@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  Modal,
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,6 +22,7 @@ import { useSubscriptionContext } from '../context/SubscriptionContext';
 import UpgradeModal from '../components/UpgradeModal';
 import BehavioralCard from '../components/BehavioralCard';
 import { TAB_BAR_CLEARANCE } from '../components/AnimatedTabBar';
+import AnchoredMenu, { AnchoredMenuItem, DropdownChevron, useAnchor } from '../components/AnchoredMenu';
 
 type NavigationProp = NativeStackNavigationProp<PracticeStackParamList>;
 
@@ -48,12 +48,32 @@ type LangFilter = 'all' | BugFixLanguage;
 
 // First N of each category are free; the rest gate behind Pro.
 const FREE_LIMIT = 2;
-const CATEGORIES: { key: Category; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'algorithms', label: 'Algorithms', icon: 'code-slash-outline' },
-  { key: 'system-design', label: 'System Design', icon: 'server-outline' },
-  { key: 'behavioral', label: 'Behavioral', icon: 'chatbubbles-outline' },
-  { key: 'bug-fix', label: 'Bug Fix', icon: 'bug-outline' },
+const CATEGORIES: {
+  key: Category;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+}[] = [
+  { key: 'algorithms', label: 'Algorithms', icon: 'code-slash-outline', color: '#8B5CF6' },
+  { key: 'system-design', label: 'System Design', icon: 'server-outline', color: '#636E72' },
+  { key: 'behavioral', label: 'Behavioral', icon: 'chatbubbles-outline', color: '#EC4899' },
+  { key: 'bug-fix', label: 'Bug Fix', icon: 'bug-outline', color: '#EF4444' },
 ];
+
+const CATEGORY_MENU: AnchoredMenuItem[] = CATEGORIES.map((c) => ({
+  key: c.key,
+  title: c.label,
+  icon: c.icon,
+  color: c.color,
+  subtitle:
+    c.key === 'algorithms'
+      ? `${blind75.length} problems · real Python runtime`
+      : c.key === 'system-design'
+        ? `${systemDesignProblems.length} problems · self-grading canvas`
+        : c.key === 'behavioral'
+          ? `${behavioralQuestions.length} prompts · notes that save`
+          : `${bugFixProblems.length} snippets · Python, JS & Java`,
+}));
 
 const LANG_FILTERS: { key: LangFilter; label: string }[] = [
   { key: 'all', label: 'All langs' },
@@ -61,6 +81,20 @@ const LANG_FILTERS: { key: LangFilter; label: string }[] = [
   { key: 'javascript', label: 'JavaScript' },
   { key: 'java', label: 'Java' },
 ];
+
+const LANG_MENU: AnchoredMenuItem[] = LANG_FILTERS.map((l) => {
+  const count =
+    l.key === 'all'
+      ? bugFixProblems.length
+      : bugFixProblems.filter((p) => p.language === l.key).length;
+  return {
+    key: l.key,
+    title: l.label,
+    subtitle: `${count} snippets`,
+    dotColor: l.key === 'all' ? colors.inkLighter : LANG_COLORS[l.key],
+    color: l.key === 'all' ? colors.ink : LANG_COLORS[l.key],
+  };
+});
 
 export default function PracticeScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -70,6 +104,8 @@ export default function PracticeScreen() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [langFilter, setLangFilter] = useState<LangFilter>('all');
   const [langPickerVisible, setLangPickerVisible] = useState(false);
+  const categoryAnchor = useAnchor();
+  const langAnchor = useAnchor();
 
   const activeCategory = CATEGORIES.find((c) => c.key === category)!;
   const activeLang = LANG_FILTERS.find((l) => l.key === langFilter)!;
@@ -115,20 +151,24 @@ export default function PracticeScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Practice</Text>
         <View style={styles.dropdownRow}>
-          <TouchableOpacity
-            style={styles.dropdown}
-            onPress={() => setPickerVisible(true)}
-            activeOpacity={0.8}
+          <Pressable
+            ref={categoryAnchor.ref}
+            style={({ pressed }) => [styles.dropdown, pressed && styles.dropdownPressed]}
+            onPress={() => categoryAnchor.measure(() => setPickerVisible(true))}
+            accessibilityRole="button"
+            accessibilityLabel={`Category: ${activeCategory.label}. Change category`}
           >
-            <Ionicons name={activeCategory.icon} size={16} color={colors.inkLight} />
+            <Ionicons name={activeCategory.icon} size={16} color={activeCategory.color} />
             <Text style={styles.dropdownLabel}>{activeCategory.label}</Text>
-            <Ionicons name="chevron-down" size={16} color={colors.inkLight} />
-          </TouchableOpacity>
+            <DropdownChevron open={pickerVisible} color={colors.inkLight} />
+          </Pressable>
           {category === 'bug-fix' && (
-            <TouchableOpacity
-              style={styles.dropdown}
-              onPress={() => setLangPickerVisible(true)}
-              activeOpacity={0.8}
+            <Pressable
+              ref={langAnchor.ref}
+              style={({ pressed }) => [styles.dropdown, pressed && styles.dropdownPressed]}
+              onPress={() => langAnchor.measure(() => setLangPickerVisible(true))}
+              accessibilityRole="button"
+              accessibilityLabel={`Language: ${activeLang.label}. Change language`}
             >
               {activeLang.key !== 'all' && (
                 <View
@@ -139,8 +179,8 @@ export default function PracticeScreen() {
                 />
               )}
               <Text style={styles.dropdownLabel}>{activeLang.label}</Text>
-              <Ionicons name="chevron-down" size={16} color={colors.inkLight} />
-            </TouchableOpacity>
+              <DropdownChevron open={langPickerVisible} color={colors.inkLight} />
+            </Pressable>
           )}
         </View>
       </View>
@@ -325,93 +365,27 @@ export default function PracticeScreen() {
         categoryName="Practice"
       />
 
-      <Modal
+      <AnchoredMenu
         visible={pickerVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPickerVisible(false)}
-      >
-        <Pressable
-          style={styles.pickerBackdrop}
-          onPress={() => setPickerVisible(false)}
-        >
-          <Pressable style={styles.pickerSheet} onPress={() => {}}>
-            <View style={styles.pickerGrabber} />
-            <Text style={styles.pickerTitle}>Category</Text>
-            {CATEGORIES.map((c) => {
-              const active = c.key === category;
-              return (
-                <TouchableOpacity
-                  key={c.key}
-                  style={[styles.pickerRow, active && styles.pickerRowActive]}
-                  activeOpacity={0.8}
-                  onPress={() => {
-                    setCategory(c.key);
-                    setPickerVisible(false);
-                  }}
-                >
-                  <Ionicons
-                    name={c.icon}
-                    size={20}
-                    color={active ? colors.primary : colors.inkLight}
-                  />
-                  <Text
-                    style={[styles.pickerRowText, active && styles.pickerRowTextActive]}
-                  >
-                    {c.label}
-                  </Text>
-                  {active && (
-                    <Ionicons name="checkmark" size={18} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </Pressable>
-        </Pressable>
-      </Modal>
+        anchor={categoryAnchor.anchor}
+        items={CATEGORY_MENU}
+        selectedKey={category}
+        onSelect={(key) => setCategory(key as Category)}
+        onClose={() => setPickerVisible(false)}
+        align="right"
+        minWidth={280}
+      />
 
-      <Modal
+      <AnchoredMenu
         visible={langPickerVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setLangPickerVisible(false)}
-      >
-        <Pressable
-          style={styles.pickerBackdrop}
-          onPress={() => setLangPickerVisible(false)}
-        >
-          <Pressable style={styles.pickerSheet} onPress={() => {}}>
-            <View style={styles.pickerGrabber} />
-            <Text style={styles.pickerTitle}>Language</Text>
-            {LANG_FILTERS.map((l) => {
-              const active = l.key === langFilter;
-              const dotColor =
-                l.key === 'all' ? colors.inkLighter : LANG_COLORS[l.key as BugFixLanguage];
-              return (
-                <TouchableOpacity
-                  key={l.key}
-                  style={[styles.pickerRow, active && styles.pickerRowActive]}
-                  activeOpacity={0.8}
-                  onPress={() => {
-                    setLangFilter(l.key);
-                    setLangPickerVisible(false);
-                  }}
-                >
-                  <View style={[styles.langDotLarge, { backgroundColor: dotColor }]} />
-                  <Text
-                    style={[styles.pickerRowText, active && styles.pickerRowTextActive]}
-                  >
-                    {l.label}
-                  </Text>
-                  {active && (
-                    <Ionicons name="checkmark" size={18} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </Pressable>
-        </Pressable>
-      </Modal>
+        anchor={langAnchor.anchor}
+        items={LANG_MENU}
+        selectedKey={langFilter}
+        onSelect={(key) => setLangFilter(key as LangFilter)}
+        onClose={() => setLangPickerVisible(false)}
+        align="right"
+        minWidth={220}
+      />
     </SafeAreaView>
   );
 }
@@ -449,63 +423,13 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
-  langDotLarge: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+  dropdownPressed: {
+    backgroundColor: colors.background,
   },
   dropdownLabel: {
     ...typography.labelMedium,
     color: colors.ink,
     fontWeight: '600',
-  },
-  pickerBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 15, 25, 0.4)',
-    justifyContent: 'flex-end',
-  },
-  pickerSheet: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xl,
-    ...shadows.lg,
-  },
-  pickerGrabber: {
-    alignSelf: 'center',
-    width: 40,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: colors.border,
-    marginBottom: spacing.md,
-  },
-  pickerTitle: {
-    ...typography.labelSmall,
-    color: colors.inkLighter,
-    letterSpacing: 1.4,
-    marginBottom: spacing.sm,
-  },
-  pickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-  },
-  pickerRowActive: {
-    backgroundColor: `${colors.primary}10`,
-  },
-  pickerRowText: {
-    ...typography.bodyMedium,
-    color: colors.ink,
-    flex: 1,
-  },
-  pickerRowTextActive: {
-    color: colors.primary,
-    fontWeight: '700',
   },
   listContent: {
     paddingHorizontal: spacing.lg,
