@@ -728,6 +728,41 @@ es.addEventListener('message-received', (e) => {
         options: ['Multiple endpoints per shape', 'Sparse fieldsets via ?fields=id,name', 'POST with filter body', 'Custom HTTP method'],
         correctAnswer: 1,
         explanation: 'Sparse fieldsets (e.g., ?fields=name,email or JSON:API\'s ?fields[users]=name,email) let clients ask for only what they need without abandoning REST semantics.'
+      },
+      {
+        id: 'rest-q-16',
+        question: 'A client POSTs /users with an email that already belongs to another account. Which status code communicates this most precisely?',
+        options: ['409 Conflict', '400 Bad Request', '422 Unprocessable Entity', '500 Internal Server Error'],
+        correctAnswer: 0,
+        explanation: '409 Conflict means the request is well-formed but conflicts with the current state of the resource — a uniqueness violation is the classic case. 422 is for a body that fails semantic validation on its own; 400 is for malformed syntax; 500 disguises a client problem as a server bug.'
+      },
+      {
+        id: 'rest-q-17',
+        question: 'Your cursor pagination sorts by created_at and encodes the last row\'s timestamp as the cursor. Thousands of rows share the same second. What goes wrong?',
+        options: ['Nothing — cursors handle ties automatically', 'Rows sharing the boundary timestamp are skipped or repeated across pages; sort and filter on a unique keyset like (created_at, id) instead', 'The query becomes O(n²)', 'The cursor expires after one page'],
+        correctAnswer: 1,
+        explanation: 'A cursor must identify a unique position. With WHERE created_at > ? the rows tied at the boundary are skipped; with >= they repeat on the next page. Ordering on (created_at, id) and comparing the tuple gives every row a unique keyset position.'
+      },
+      {
+        id: 'rest-q-18',
+        question: 'A PATCH request with Content-Type: application/merge-patch+json sends {"nickname": null}. Per RFC 7386, what should the server do?',
+        options: ['Reject it with 400 — null is not allowed', 'Set nickname to the string "null"', 'Remove (unset) the nickname field on the resource', 'Ignore the field, since null means "no change"'],
+        correctAnswer: 2,
+        explanation: 'In JSON Merge Patch, null means "delete this member"; to leave a field untouched you omit it entirely. That is also why merge patch cannot set a field to null — use JSON Patch (application/json-patch+json) operations when you need that.'
+      },
+      {
+        id: 'rest-q-19',
+        question: 'A browser SPA on app.example.com calls api.example.com with an Authorization header. The network tab shows an OPTIONS request failing and your handler never runs, yet curl works. What is happening?',
+        options: ['The API is down', 'The browser sent a CORS preflight; the server must answer OPTIONS with Access-Control-Allow-Origin and Access-Control-Allow-Headers: Authorization', 'The JWT is expired', 'The route must be lowercase'],
+        correctAnswer: 1,
+        explanation: 'Cross-origin requests with non-simple headers (Authorization) or methods trigger a preflight OPTIONS. If the server does not respond with matching Access-Control-Allow-* headers, the browser blocks the real request. curl is unaffected because CORS is enforced only by browsers.'
+      },
+      {
+        id: 'rest-q-20',
+        question: 'A client sends POST /orders with Content-Type: text/plain, but your API only accepts JSON bodies. Which status code?',
+        options: ['406 Not Acceptable', '400 Bad Request', '405 Method Not Allowed', '415 Unsupported Media Type'],
+        correctAnswer: 3,
+        explanation: '415 means the server refuses the request body\'s media type. 406 is the mirror case: the client\'s Accept header asks for a representation the server cannot produce. 405 is about the HTTP method, not the payload.'
       }
     ],
     visualizations: [
@@ -1472,6 +1507,41 @@ Cross-tenant operations:
         options: ['One query per category', 'Self-join with ORDER BY', 'Window function: ROW_NUMBER() OVER (PARTITION BY category ORDER BY sales DESC) <= 3', 'Application-side filtering'],
         correctAnswer: 2,
         explanation: 'Window functions partition rows by category and rank within each partition without collapsing. Cleaner and faster than self-joins or N queries.'
+      },
+      {
+        id: 'db-q-16',
+        question: 'An ORM loop does: users = User.all(); for u in users: print(u.posts.count()). With 500 users, how many queries run, and what is the fix?',
+        options: ['1 query — the ORM joins automatically', '501 queries (1 + N); fix with eager loading (a JOIN or a single WHERE user_id IN (...) query)', '2 queries — one per table', '500 queries; fix by adding an index on posts.user_id'],
+        correctAnswer: 1,
+        explanation: 'Lazy-loaded associations fire one query per parent row — the N+1 problem. Eager loading (includes / joinedload / select_related) fetches all children in one extra query or a JOIN. An index speeds up each of the 500 queries but does not remove the 500 round trips.'
+      },
+      {
+        id: 'db-q-17',
+        question: 'Deleting a user must also delete their sessions, but must fail if the user has any orders. Which foreign key actions?',
+        options: ['sessions.user_id ON DELETE CASCADE; orders.user_id ON DELETE RESTRICT', 'Both ON DELETE CASCADE', 'Both ON DELETE SET NULL', 'sessions ON DELETE SET NULL; orders ON DELETE CASCADE'],
+        correctAnswer: 0,
+        explanation: 'CASCADE propagates the delete to dependent rows (fine for disposable sessions). RESTRICT (or NO ACTION) rejects the delete while referencing rows exist, protecting financial records. Cascading orders would silently destroy history; SET NULL would orphan them.'
+      },
+      {
+        id: 'db-q-18',
+        question: 'UPDATE accounts SET balance = 90, version = version + 1 WHERE id = 7 AND version = 3 returns "0 rows affected". What does that mean, and what should the app do?',
+        options: ['The row was deleted; insert it again', 'The update succeeded silently', 'The database is read-only', 'Another transaction changed the row since it was read (version is no longer 3); reload the row and retry the operation'],
+        correctAnswer: 3,
+        explanation: 'This is optimistic locking with a version column. Zero affected rows means the WHERE clause failed because someone else already bumped the version. The app re-reads, reapplies its change, and retries — no long-held locks needed.'
+      },
+      {
+        id: 'db-q-19',
+        question: 'You have a B-tree index on users(email), but WHERE lower(email) = lower($1) still does a sequential scan. Why, and what fixes it?',
+        options: ['The index is corrupted; run REINDEX', 'Wrapping the column in a function hides it from the index; create an expression index ON users (lower(email)) or use a case-insensitive type/collation', 'B-tree indexes never work with text columns', 'Add LIMIT 1'],
+        correctAnswer: 1,
+        explanation: 'A B-tree indexes the stored value, not lower(value), so the planner cannot use it for a function-wrapped predicate. An expression index matches the expression exactly. Same reason WHERE created_at::date = ... or LIKE \'%foo\' cannot use a plain index.'
+      },
+      {
+        id: 'db-q-20',
+        question: 'Transaction A updates row 1 then row 2; transaction B updates row 2 then row 1, concurrently. Postgres aborts one with "deadlock detected". What is the durable fix?',
+        options: ['Increase deadlock_timeout', 'Retry the aborted transaction forever', 'Acquire locks in a consistent global order (e.g. always touch rows sorted by id) so cycles cannot form, and retry the aborted transaction once', 'Switch to SERIALIZABLE isolation'],
+        correctAnswer: 2,
+        explanation: 'Deadlocks come from lock-ordering cycles. Sorting the rows you touch (ORDER BY id in SELECT ... FOR UPDATE, or updating in id order) guarantees every transaction takes locks in the same order. Raising the timeout only delays detection; SERIALIZABLE does not prevent lock-wait cycles.'
       }
     ],
     visualizations: [
@@ -2343,6 +2413,41 @@ app.use(async (req, res, next) => {
         options: ['Backup of the password', 'Without them, a lost device = locked-out account = support burden and angry users', 'They\'re a regulatory requirement', 'They speed up login'],
         correctAnswer: 1,
         explanation: 'Devices are lost, stolen, replaced. Without offline-storable recovery codes, your only fallback is identity-verification by support — slow, error-prone, expensive. Recovery codes give the user a self-service escape hatch.'
+      },
+      {
+        id: 'auth-q-16',
+        question: 'Your JWT verifier reads alg from the token header and verifies with whatever algorithm it names. An attacker changes alg from RS256 to HS256 and signs the token with your PUBLIC key. Result?',
+        options: ['Verification fails — public keys cannot sign', 'The token is rejected as expired', 'Only alg: none is dangerous; this is harmless', 'The forged token verifies: the library treats the RSA public key as an HMAC secret. Fix: pin the allowed algorithm and key type server-side; never trust the header'],
+        correctAnswer: 3,
+        explanation: 'This is the algorithm confusion attack. With HS256 the "key" is a shared secret; if the verifier feeds the (public) RSA key into HMAC verification, anyone can forge tokens. Hard-code the expected algorithm, and reject alg: none as well.'
+      },
+      {
+        id: 'auth-q-17',
+        question: 'Access tokens are stateless JWTs with a 15-minute TTL. A user reports a stolen laptop. How do you cut off access immediately instead of waiting 15 minutes?',
+        options: ['Impossible with JWTs', 'Rotate the signing key — this logs everyone out', 'Keep a short-lived denylist (jti, or "user X issued before T") in Redis checked on every request, and revoke the refresh token so no new access tokens are minted', 'Have the user change their password; old tokens then fail automatically'],
+        correctAnswer: 2,
+        explanation: 'Stateless tokens cannot be recalled, so revocation needs a little state: a denylist whose entries expire when the token would have anyway. A password change does not invalidate an already-signed JWT unless you also check something like a per-user token version on each request.'
+      },
+      {
+        id: 'auth-q-18',
+        question: 'An attacker gets a victim to visit your site with a session cookie value the attacker chose, then the victim logs in. What attack is this, and what is the defense?',
+        options: ['Session fixation; regenerate the session ID on login (and any privilege change) and reject session IDs the server did not issue', 'CSRF; use SameSite cookies', 'XSS; use httpOnly cookies', 'Clickjacking; use X-Frame-Options'],
+        correctAnswer: 0,
+        explanation: 'Session fixation works because the pre-login session ID survives authentication, so the attacker already knows the now-authenticated ID. Issuing a fresh ID at login breaks the link. SameSite, httpOnly and X-Frame-Options defend against different attacks.'
+      },
+      {
+        id: 'auth-q-19',
+        question: 'In the OAuth 2.0 authorization code flow, which parameter binds the callback to the browser session that started the flow, defending against login CSRF?',
+        options: ['code_challenge', 'redirect_uri', 'state', 'scope'],
+        correctAnswer: 2,
+        explanation: 'The client generates a random state, stores it in the session, sends it to the authorization server, and verifies it on the redirect back. Without it an attacker can trick a victim into completing a flow with the attacker\'s authorization code. code_challenge (PKCE) protects the code from interception — a different threat.'
+      },
+      {
+        id: 'auth-q-20',
+        question: 'Your login handler returns "invalid credentials" immediately when the email is not found, but only after running bcrypt when it is. What is the problem?',
+        options: ['No problem — both paths return the same message', 'The response-time difference leaks whether the email exists; always run the hash comparison (against a dummy hash if needed) so both paths take the same time', 'bcrypt is too slow; switch to SHA-256', 'The message should say "email not found" for clarity'],
+        correctAnswer: 1,
+        explanation: 'A ~100ms bcrypt call versus a ~1ms early return is trivially measurable, so timing defeats the identical error message and enables user enumeration. Hash against a stored dummy hash when the user is missing, and use constant-time comparison for the result.'
       }
     ],
     visualizations: [
@@ -3192,6 +3297,41 @@ Detection in CI:
         options: ['HTTPS', 'Graceful shutdown — readiness flip + drain timeout before SIGTERM kills in-flight requests', 'Bigger pods', 'A WAF'],
         correctAnswer: 1,
         explanation: 'Without graceful shutdown, deploys kill connections mid-request. Pattern: flip readiness false → wait ~10s for endpoint propagation → close server → drain → exit. Done right, deploys are user-invisible.'
+      },
+      {
+        id: 'micro-q-16',
+        question: 'Why do microservice architectures prefer sagas over two-phase commit (2PC) for a transaction spanning Orders, Payments and Inventory?',
+        options: ['2PC is not supported by any modern database', 'A saga is faster because it skips validation', '2PC holds locks in every participant until the coordinator decides and stalls entirely if the coordinator dies; a saga commits each step locally and undoes earlier steps with compensating actions', 'Sagas provide full ACID isolation across services'],
+        correctAnswer: 2,
+        explanation: '2PC couples the availability of every participant and the coordinator and holds resources across network round trips. A saga uses local transactions plus compensations (refund, restock) on failure. The cost is that intermediate states are visible — sagas give no isolation.'
+      },
+      {
+        id: 'micro-q-17',
+        question: 'A circuit breaker has been OPEN for 30 seconds. How does it discover that the downstream service has recovered without unleashing full traffic on it?',
+        options: ['It polls the downstream health endpoint every second', 'It waits for an operator to reset it', 'It never recovers — the caller must be redeployed', 'It moves to HALF-OPEN and lets a small number of trial requests through; success closes the breaker, failure re-opens it'],
+        correctAnswer: 3,
+        explanation: 'Half-open is the probing state: one or a few requests are allowed. If they succeed the breaker closes and normal traffic resumes; if they fail the open timer restarts. This avoids the thundering herd a naive open-to-closed reset would cause.'
+      },
+      {
+        id: 'micro-q-18',
+        question: 'The mobile app wants tiny aggregated payloads while the web app needs rich, nested responses from the same 10 backend services. Which pattern fits?',
+        options: ['Backend-for-Frontend: a dedicated aggregation layer per client type, owned by that client\'s team', 'A single generic API gateway that returns everything to everyone', 'Have each client call all 10 services directly', 'Merge the 10 services into one'],
+        correctAnswer: 0,
+        explanation: 'A BFF sits between one client type and the microservices, shaping and aggregating responses for that client. A shared gateway remains useful for cross-cutting concerns (auth, rate limits, TLS), but per-client shaping logic belongs in a BFF so teams do not fight over one gateway.'
+      },
+      {
+        id: 'micro-q-19',
+        question: 'Service A calls B, B calls C, C calls D. Each layer retries 3 times on failure. D has a brief outage. How many requests can one user request generate at D, and what is the remedy?',
+        options: ['3 — retries do not multiply', '9 — only the two innermost layers matter', 'Up to 27 (3 × 3 × 3): retry amplification. Retry at one layer only, cap retries with a budget (e.g. ≤ 10% of traffic), and back off with jitter', '1 — circuit breakers stop all retries'],
+        correctAnswer: 2,
+        explanation: 'Nested retries multiply: each of A\'s 3 attempts triggers 3 at B, each of which triggers 3 at C. A struggling D gets 27x load exactly when it is weakest. Retry only where you own the idempotency story, enforce retry budgets, and let breakers cut the fan-out.'
+      },
+      {
+        id: 'micro-q-20',
+        question: 'You are decomposing a monolith into services with no downtime. Which pattern routes traffic feature-by-feature to new services while the monolith keeps serving the rest?',
+        options: ['Big-bang rewrite behind a feature flag', 'Strangler fig: put a routing facade in front of the monolith and migrate one endpoint or capability at a time until the monolith is empty', 'Database-first: split the database, then the code', 'Fork the monolith per team'],
+        correctAnswer: 1,
+        explanation: 'The strangler fig pattern incrementally replaces the monolith behind a proxy; each migrated route can be rolled back independently. Big-bang rewrites are the classic failure mode, and splitting the database first tends to produce a distributed monolith.'
       }
     ],
     visualizations: [
@@ -3933,6 +4073,41 @@ async function invalidate(key: string) {
         options: ['Healthy growth', 'Cardinality runaway — keys lack TTL; set EXPIRE on every session key', 'Redis is broken', 'Need bigger nodes'],
         correctAnswer: 1,
         explanation: 'Without TTL, session keys live forever. Set EXPIRE on every session write (24h or 30 days based on your sliding window). Use INFO keyspace and MEMORY USAGE to confirm.'
+      },
+      {
+        id: 'cache-q-16',
+        question: 'At startup you warm 50,000 keys, each with TTL = 3600s. What happens an hour later, and how do you prevent it?',
+        options: ['All keys expire in the same second, so misses arrive as a wave and the DB gets a synchronized load spike; add random jitter to each TTL (e.g. 3600 ± 300s)', 'Nothing — Redis spreads expirations automatically', 'Redis crashes from expiring too many keys at once', 'Keys renew themselves on read'],
+        correctAnswer: 0,
+        explanation: 'Identical TTLs turn cache warming into a scheduled stampede. Jittered TTLs de-synchronize expiry so misses trickle in continuously instead of hitting the database all at once.'
+      },
+      {
+        id: 'cache-q-17',
+        question: 'Using cache-aside, after a successful DB update should the writer SET the new value into the cache or DELETE the key?',
+        options: ['SET — it saves the next reader a miss', 'DELETE — two concurrent writers can SET in the wrong order and leave a stale value cached until TTL; a delete forces the next reader to load the committed truth', 'Neither — TTL handles it', 'SET with a longer TTL'],
+        correctAnswer: 1,
+        explanation: 'With SET, writer 1 (old value) may reach the cache after writer 2 (new value) even though the DB committed them in the opposite order, and the stale value lives until TTL. Invalidating is the safer default; the cost is a single miss.'
+      },
+      {
+        id: 'cache-q-18',
+        question: 'Attackers request /users/{random_id} millions of times. Every ID is nonexistent, so every request misses the cache and hits the DB. What is the mitigation?',
+        options: ['Increase the DB connection pool', 'Turn off the cache', 'Use a longer TTL for existing users', 'Cache the "not found" result with a short TTL (negative caching) and/or put a Bloom filter of existing IDs in front of the DB'],
+        correctAnswer: 3,
+        explanation: 'This is cache penetration: keys that never exist are never populated by a naive cache-aside loop. Storing a short-lived sentinel for misses (or rejecting impossible IDs with a Bloom filter) turns repeated lookups into cache hits.'
+      },
+      {
+        id: 'cache-q-19',
+        question: 'A per-user dashboard response is safe to cache in that user\'s browser for 60 seconds but must never be stored by the CDN. Which header?',
+        options: ['Cache-Control: public, max-age=60', 'Cache-Control: no-store', 'Cache-Control: private, max-age=60', 'Cache-Control: no-cache'],
+        correctAnswer: 2,
+        explanation: 'private restricts storage to the end user\'s browser; shared caches (CDNs, proxies) must not store it. public would let the CDN serve one user\'s dashboard to another; no-store forbids caching entirely; no-cache allows storing but forces revalidation on every use.'
+      },
+      {
+        id: 'cache-q-20',
+        question: 'A single Redis hash holds 5 million fields. Running DEL on it makes every other client stall for seconds. Why, and what should you do instead?',
+        options: ['Redis has a bug with large hashes', 'Add more replicas', 'Redis runs commands on one thread, so freeing a huge key blocks everyone; use UNLINK (frees in a background thread) and split big keys into many smaller ones', 'Set a longer TTL on the hash'],
+        correctAnswer: 2,
+        explanation: 'Commands execute one at a time on the main thread; an O(N) free of millions of entries blocks every client. UNLINK returns immediately and reclaims memory lazily. The real fix is design: shard big collections so each key stays small.'
       }
     ],
     visualizations: [
@@ -4724,6 +4899,41 @@ Don\'t scale beyond partition count: partitions are the unit of parallelism. 10 
         options: ['Partition count too low', 'Processing takes longer than max.poll.interval.ms — broker thinks consumers are stuck and rebalances', 'Wrong serializer', 'Network outage'],
         correctAnswer: 1,
         explanation: 'When poll() isn\'t called within max.poll.interval.ms, the broker considers the consumer dead and triggers rebalance. Either speed up processing, increase max.poll.interval, or reduce max.poll.records to keep batches small.'
+      },
+      {
+        id: 'mq-q-16',
+        question: 'Orders for a customer are kept in order by partitioning on customer_id. Ops raises the topic from 8 to 16 partitions for throughput. What breaks?',
+        options: ['Nothing — Kafka rebalances keys safely', 'Old messages are deleted', 'hash(key) % partitions changes, so new messages for an existing customer land on a different partition than their older ones and per-key ordering across that boundary is lost; over-provision partitions up front or migrate to a new topic', 'Consumers can no longer join the group'],
+        correctAnswer: 2,
+        explanation: 'Kafka only guarantees order within a partition. Changing the partition count changes the key-to-partition mapping for all future messages, so a consumer can see a customer\'s newer event before an older one still sitting on the old partition. Pick partition counts with headroom from day one.'
+      },
+      {
+        id: 'mq-q-17',
+        question: 'A Kafka consumer commits its offset immediately after poll(), then processes the batch. It crashes halfway through. What delivery semantics did you just implement?',
+        options: ['At-most-once — the committed offset already moved past the unprocessed messages, so they are never seen again', 'At-least-once — the batch will be redelivered', 'Exactly-once', 'Ordered delivery'],
+        correctAnswer: 0,
+        explanation: 'Committing before processing means a crash loses everything after the crash point. For at-least-once you commit after processing (and make the consumer idempotent); exactly-once needs transactions or an inbox pattern, not an offset trick.'
+      },
+      {
+        id: 'mq-q-18',
+        question: 'You want a Kafka topic to hold the latest state of every user profile so a new service can rebuild its cache by reading from the beginning — without the topic growing forever. What feature?',
+        options: ['A short retention.ms', 'A fanout exchange', 'Resetting consumer group offsets', 'Log compaction (cleanup.policy=compact): Kafka keeps at least the latest record per key and removes older ones'],
+        correctAnswer: 3,
+        explanation: 'Compaction turns a topic into a changelog snapshot: per key, only the most recent value survives. Time-based retention would drop keys that have not changed recently, so a full rebuild from the topic would be incomplete.'
+      },
+      {
+        id: 'mq-q-19',
+        question: 'Both the Billing service and the Analytics service must receive EVERY order event. In Kafka, how must they consume?',
+        options: ['Join the same consumer group so the load is shared', 'Use different group.id values: each group receives its own copy of every message, while instances within a group split the partitions', 'Read from different partitions', 'Publish every event to two topics'],
+        correctAnswer: 1,
+        explanation: 'A consumer group is a unit of work-sharing, not a subscriber. If Billing and Analytics shared a group, each event would go to only one of them. Separate groups (or, in RabbitMQ, separate queues bound to the same exchange) give independent pub/sub delivery.'
+      },
+      {
+        id: 'mq-q-20',
+        question: 'One malformed message in a partition fails processing every time. The consumer retries it endlessly, so thousands of good messages behind it are never processed. What is the fix?',
+        options: ['Increase the retry count', 'Skip all messages from that producer', 'After a bounded number of attempts, publish the message to a dead-letter topic with error metadata and commit past it so the partition keeps flowing; alert on DLQ depth', 'Restart the consumer'],
+        correctAnswer: 2,
+        explanation: 'This is head-of-line blocking caused by a poison message. Infinite retries hold the whole partition hostage. Bounded retries with a DLQ preserve the bad message for investigation while healthy traffic proceeds.'
       }
     ],
     visualizations: [
@@ -5518,7 +5728,7 @@ Metrics for SRE work:
       { id: 'devops-fc-8', front: 'What is a liveness probe in Kubernetes?', back: 'Checks if container is running. If it fails, Kubernetes restarts the container. Detects deadlocks and unresponsive applications.' },
       { id: 'devops-fc-9', front: 'Blue-green vs canary deployment?', back: 'Blue-green: switch all traffic at once between identical environments. Canary: gradually shift traffic (1%, 10%, 50%, 100%) to new version.' },
       { id: 'devops-fc-10', front: 'What is a readiness probe?', back: 'Checks if container is ready to receive traffic. Failed probe removes pod from service endpoints. Useful during startup or temporary unavailability.' },
-      { id: 'devops-fc-11', front: 'Multi-stage Docker build', back: 'Use multiple FROM statements: build in one stage with full toolchain, COPY only artifacts to a minimal final stage.\n\nResult: production image is 10–100x smaller, no build tools (compilers, package managers) to exploit. Standard pattern for any compiled or transpiled language.' },
+      { id: 'devops-fc-11', front: 'ENTRYPOINT vs CMD', back: 'ENTRYPOINT is the fixed executable; CMD supplies default arguments that `docker run image <args>` overrides.\n\nENTRYPOINT ["node"] + CMD ["server.js"] runs node server.js; `docker run image repl.js` runs node repl.js instead.\n\nUse exec (JSON array) form for both so the process is PID 1 and receives SIGTERM for graceful shutdown; shell form wraps it in /bin/sh -c, which swallows signals.' },
       { id: 'devops-fc-12', front: 'Distroless images', back: 'gcr.io/distroless/nodejs22 — base image with just the runtime, no shell, no package manager, no curl.\n\nWhy: smaller attack surface, smaller image, faster pulls. Debugging is harder (no shell to exec into); use a debug variant or kubectl debug for that.' },
       { id: 'devops-fc-13', front: 'Docker layer cache order', back: 'Each Dockerfile instruction creates a layer; cache invalidates from the first changed line.\n\nWrong: COPY . . then npm install — every code change reruns the install.\n\nRight: COPY package*.json then npm ci, then COPY . . — code changes reuse the npm layer.\n\nMultiplies CI build speed.' },
       { id: 'devops-fc-14', front: 'Why run containers as non-root?', back: 'Default container UID is 0 (root). A container compromise + a kernel exploit = host escape with root.\n\nFix: create a dedicated user in the Dockerfile (USER appuser); chown app files. Required by k8s Pod Security Standards (restricted profile).\n\nDistroless "nonroot" variants come with this set automatically.' },
@@ -5644,6 +5854,41 @@ Metrics for SRE work:
         options: ['Identify the responsible engineer', 'Be blameless — focus on systemic causes, not individuals', 'Keep them short', 'Skip if minor'],
         correctAnswer: 1,
         explanation: 'Blameless postmortems make engineers willing to discuss mistakes honestly, surfacing the deeper systemic causes that allowed the failure. Blame culture hides real issues and ensures the same incidents repeat.'
+      },
+      {
+        id: 'devops-q-16',
+        question: 'You use blue-green deploys. The new release adds a NOT NULL column the old code does not know about. What is the risk at cutover and on rollback?',
+        options: ['Both environments share one database, so schema changes must stay compatible with the old version: add the column nullable (or with a default) first, deploy code, then tighten the constraint in a later release', 'None — blue and green have separate databases', 'Rollback is always safe because the old image is still running', 'Blue-green cannot be used with relational databases'],
+        correctAnswer: 0,
+        explanation: 'Blue-green swaps application instances, not the data. If green writes rows the blue code cannot read, or blue inserts rows missing a NOT NULL column, rollback breaks. Expand-contract migrations keep every deployed version compatible with the live schema.'
+      },
+      {
+        id: 'devops-q-17',
+        question: 'To fix an urgent bug, an engineer SSHes into a production VM and edits a config file by hand. Why does immutable infrastructure forbid this even though it worked?',
+        options: ['SSH is insecure', 'Config files cannot be edited on Linux', 'It uses more CPU', 'The server is now a snowflake: its state differs from the image and its peers, the change is not in version control, and the next autoscale or redeploy silently reverts it. Rebuild the image and roll it out instead'],
+        correctAnswer: 3,
+        explanation: 'Immutable infrastructure means running servers are never modified in place; every change is a new image shipped through the pipeline. In-place edits create configuration drift that cannot be reproduced or audited and undermine the assumption that any instance can be replaced at any time.'
+      },
+      {
+        id: 'devops-q-18',
+        question: 'Following the twelve-factor app, where should the database URL that differs between staging and production live?',
+        options: ['Hard-coded in source behind an if (env === "prod") branch', 'In a config.prod.json checked into the repo', 'In environment variables injected at deploy time (credentials from a secrets manager), so one immutable image runs in every environment', 'Baked into a separate Docker image per environment'],
+        correctAnswer: 2,
+        explanation: 'Factor III (Config): strict separation of config from code. One artifact is promoted through environments with environment-specific values supplied from outside. Per-environment images or committed config files couple the build to the environment and leak secrets into Git.'
+      },
+      {
+        id: 'devops-q-19',
+        question: 'Two engineers run terraform apply against the same infrastructure at the same time from their laptops. What protects you, and what is the right setup?',
+        options: ['Terraform detects the conflict from Git automatically', 'Run terraform destroy first', 'Nothing if state is local — both can corrupt the state file. Use a remote backend with state locking (S3 + DynamoDB, GCS, Terraform Cloud) and run apply from CI rather than laptops', 'Give each engineer their own workspace'],
+        correctAnswer: 2,
+        explanation: 'Terraform state maps config to real resources; concurrent writes lose or duplicate resources. Remote backends provide locking so the second apply waits or fails, and centralizing apply in CI gives one audited path. Per-engineer workspaces would create two copies of production.'
+      },
+      {
+        id: 'devops-q-20',
+        question: 'A pod restarts every few minutes and kubectl describe shows "Last State: Terminated, Reason: OOMKilled". What happened?',
+        options: ['The container exceeded resources.limits.memory and the kernel killed it; raise the limit if the usage is legitimate, otherwise fix the leak, and set requests close to real usage so scheduling is accurate', 'The liveness probe failed', 'The node ran out of disk', 'The image is too large'],
+        correctAnswer: 0,
+        explanation: 'OOMKilled is enforced per container via cgroups when usage crosses the memory limit — it is not a probe failure. Check container_memory_working_set_bytes before simply raising the limit; a leak will just take longer to hit the new ceiling.'
       }
     ],
     visualizations: [

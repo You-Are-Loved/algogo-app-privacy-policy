@@ -269,6 +269,13 @@ export const categoryColors: Record<string, { color: string; dark: string }> = {
   'cpp-stl':             { color: '#16A085', dark: '#117A65' },
   'cpp-modern':          { color: '#3498DB', dark: '#2A7AB8' },
   'cpp-concurrency':     { color: '#E74C3C', dark: '#C0392B' },
+  'cs-data-structures':     { color: '#0EA5E9', dark: '#0284C7' },
+  'cs-complexity':          { color: '#F59E0B', dark: '#D97706' },
+  'cs-operating-systems':   { color: '#8B5CF6', dark: '#7C3AED' },
+  'cs-networking':          { color: '#10B981', dark: '#059669' },
+  'cs-oop-design-patterns': { color: '#EC4899', dark: '#DB2777' },
+  'cs-concurrency':         { color: '#EF4444', dark: '#DC2626' },
+  'cs-languages-runtimes':  { color: '#6366F1', dark: '#4F46E5' },
 };
 
 // Common styles

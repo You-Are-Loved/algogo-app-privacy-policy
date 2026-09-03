@@ -502,7 +502,23 @@ int main() {
     { id: 'cf11', front: 'What do include guards prevent?', back: 'A header being processed twice within the same translation unit, which would cause redefinition errors. Implemented with #ifndef/#define/#endif or #pragma once.' },
     { id: 'cf12', front: 'What does an anonymous namespace do?', back: 'Gives everything inside internal linkage: the names are private to that translation unit. Modern replacement for file-scope static.' },
     { id: 'cf13', front: 'What is argument-dependent lookup (ADL)?', back: 'Unqualified function calls also search the namespaces of the argument types. It is how operator<< and custom swap functions are found without qualification.' },
-    { id: 'cf14', front: 'What does auto drop during type deduction?', back: 'Top-level const and references. auto x = constRefToInt yields a mutable int copy. Use auto& or const auto& to keep reference semantics.' }
+    { id: 'cf14', front: 'What does auto drop during type deduction?', back: 'Top-level const and references. auto x = constRefToInt yields a mutable int copy. Use auto& or const auto& to keep reference semantics.' },
+    { id: 'cf15', front: 'What are the three primary value categories of a C++ expression?', back: 'lvalue: has identity and cannot be moved from (a named variable). prvalue: a pure temporary with no identity (a literal, the result of f()). xvalue: has identity but may be moved from (std::move(x), or a member of a temporary).' },
+    { id: 'cf16', front: 'When do you use static_cast versus reinterpret_cast?', back: 'static_cast performs checked, well-defined conversions: numeric conversions, up/down class hierarchy, void* round trips. reinterpret_cast reinterprets bits (pointer to integer, unrelated pointer types) with no checking and is almost always a sign of low-level or unsafe code.' },
+    { id: 'cf17', front: 'What does const_cast do, and when is using it undefined behavior?', back: 'It adds or removes const/volatile qualification. Writing through the result is UB if the original object was declared const. It is only legitimate for calling a const-incorrect legacy API on an object that is actually mutable.' },
+    { id: 'cf18', front: 'What does brace (list) initialization forbid that parentheses allow?', back: 'Narrowing conversions. int x{3.7}; and char c{300}; are compile errors, while int x(3.7); silently truncates. Braces also cannot be parsed as a function declaration.' },
+    { id: 'cf19', front: 'What is the "most vexing parse"?', back: 'Widget w(); declares a function named w returning Widget, not a default-constructed object. Anything that can be parsed as a declaration is one. Use Widget w; or Widget w{}; instead.' },
+    { id: 'cf20', front: 'Why prefer enum class over a plain enum?', back: 'Scoped enumerators do not leak into the enclosing namespace, do not implicitly convert to int, and cannot be compared with unrelated enums. You can also specify the underlying type and forward-declare it.' },
+    { id: 'cf21', front: 'Undefined vs unspecified vs implementation-defined behavior?', back: 'Undefined: the standard imposes no requirements - anything may happen (signed overflow, null deref). Unspecified: one of several valid outcomes, not documented (evaluation order of function arguments). Implementation-defined: a documented choice per compiler (sizeof(int)).' },
+    { id: 'cf22', front: 'When is a function-local static variable initialized?', back: 'Once, the first time control passes through its declaration, and it lives until program exit. Since C++11 that initialization is guaranteed thread-safe, which is why it is used for lazy singletons.' },
+    { id: 'cf23', front: 'What does the inline keyword actually mean in modern C++?', back: 'It permits a definition to appear in multiple translation units (ODR exemption) as long as all are identical - required for functions and variables defined in headers. It is only a weak hint about actual call inlining; the optimizer decides that.' },
+    { id: 'cf24', front: 'What does extern do on a variable declaration?', back: 'extern int counter; declares a variable with external linkage without defining it, so multiple files can reference one definition that lives in exactly one .cpp file. Without extern, int counter; at namespace scope is a definition.' },
+    { id: 'cf25', front: 'What goes wrong with for (size_t i = v.size() - 1; i >= 0; --i)?', back: 'size_t is unsigned, so i >= 0 is always true and the loop never ends; when i decrements past 0 it wraps to SIZE_MAX and v[i] is out of bounds. Loop with i-- inside the condition, use signed indices, or iterate with reverse iterators.' },
+    { id: 'cf26', front: 'How does decltype differ from auto?', back: 'auto deduces from an initializer and strips references and top-level const. decltype(expr) yields the exact declared type of a name, or the type plus value category of an expression (T& for lvalue expressions). decltype(auto) declares a variable or return type using decltype rules.' },
+    { id: 'cf27', front: 'What is the difference between const and constexpr on a variable?', back: 'const means the value cannot change after initialization, which may happen at runtime. constexpr means the value is computed at compile time and is usable in constant expressions (array bounds, template arguments). constexpr implies const.' },
+    { id: 'cf28', front: 'What is name mangling and why does extern "C" exist?', back: 'The compiler encodes namespaces, class names, and parameter types into symbol names so overloads can coexist. extern "C" disables mangling for a declaration so C code (or another language) can link against it, at the cost of no overloading.' },
+    { id: 'cf29', front: 'When is a forward declaration (class Foo;) enough?', back: 'Whenever the compiler does not need the size or members: pointers and references to Foo, function declarations taking or returning Foo, and unique_ptr<Foo> members with the destructor defined out of line. Anything that needs sizeof(Foo) or member access requires the full definition.' },
+    { id: 'cf30', front: 'Why is sizeof an empty class 1 and not 0?', back: 'Every distinct object must have a unique address, so an empty class still occupies one byte in an array. The empty base optimization lets an empty base class add zero bytes to a derived object.' }
   ],
 
   quizQuestions: [
@@ -568,6 +584,83 @@ int main() {
       options: ['It is moved out of the vector', 'It is accessed by reference', 'It is copied into item on every iteration', 'It is accessed through an iterator proxy'],
       correctAnswer: 2,
       explanation: 'Plain auto in a range-for copies each element. For read-only iteration over non-trivial types, write for (const auto& item : bigStrings).'
+    },
+    {
+      id: 'cfq10',
+      question: 'What does the statement Widget w(); declare?',
+      options: ['A function named w that takes no arguments and returns Widget', 'A default-constructed Widget named w', 'A Widget named w initialized with an empty initializer list', 'Nothing - it is a compile error'],
+      correctAnswer: 0,
+      explanation: 'This is the most vexing parse: the compiler reads it as a function declaration. Write Widget w; or Widget w{}; to construct an object.'
+    },
+    {
+      id: 'cfq11',
+      question: 'What happens with int x{3.7};?',
+      options: ['x becomes 3', 'x becomes 4', 'Compile error - brace initialization forbids narrowing', 'Undefined behavior'],
+      correctAnswer: 2,
+      explanation: 'List initialization rejects narrowing conversions such as double to int. int x(3.7); or int x = 3.7; would silently truncate to 3.'
+    },
+    {
+      id: 'cfq12',
+      question: 'std::vector<int> v(5); for (size_t i = v.size() - 1; i >= 0; --i) v[i] = 0; What happens?',
+      options: ['Sets all five elements to zero and stops', 'Never terminates: i is unsigned so i >= 0 is always true, and v[i] goes out of bounds after wrapping', 'Compile error comparing unsigned with 0', 'Skips element 0'],
+      correctAnswer: 1,
+      explanation: 'When i reaches 0 and decrements, it wraps to SIZE_MAX rather than becoming negative. The condition stays true and v[SIZE_MAX] is undefined behavior.'
+    },
+    {
+      id: 'cfq13',
+      question: 'enum class Color { Red, Green }; int x = Color::Red; What is the result?',
+      options: ['x == 0', 'x == 1', 'Undefined behavior', 'Compile error - scoped enums do not implicitly convert to int'],
+      correctAnswer: 3,
+      explanation: 'Unlike a plain enum, enum class requires an explicit static_cast<int>(Color::Red). That is the point: it prevents accidental mixing of enums and integers.'
+    },
+    {
+      id: 'cfq14',
+      question: 'int next() { static int n = 0; return ++n; } is called three times. How many times is n initialized, and what is the third result?',
+      options: ['Once; returns 3', 'Three times; returns 1', 'Once; returns 1', 'Three times; returns 3'],
+      correctAnswer: 0,
+      explanation: 'A function-local static is initialized exactly once, on the first call, and keeps its value across calls. The calls return 1, 2, 3.'
+    },
+    {
+      id: 'cfq15',
+      question: 'What is the primary effect of marking a function inline in modern C++?',
+      options: ['It guarantees the call is inlined by the compiler', 'It makes the function private to the translation unit', 'It allows an identical definition to appear in multiple translation units without an ODR violation', 'It forces the function to be evaluated at compile time'],
+      correctAnswer: 2,
+      explanation: 'inline is about linkage rules, letting header-defined functions and variables be included everywhere. Whether the call is actually inlined is up to the optimizer regardless of the keyword.'
+    },
+    {
+      id: 'cfq16',
+      question: 'float f = 1.5f; int bits = reinterpret_cast<int&>(f); What is the status of this code?',
+      options: ['Well-defined: it reads the raw bits of f', 'Undefined behavior - it violates strict aliasing; use std::memcpy or std::bit_cast', 'Compile error - reinterpret_cast cannot produce a reference', 'It converts 1.5 to 1 numerically'],
+      correctAnswer: 1,
+      explanation: 'Accessing a float object through an int lvalue breaks the aliasing rules, and optimizers exploit that. std::bit_cast<int>(f) (C++20) or memcpy is the sanctioned way to reinterpret bits.'
+    },
+    {
+      id: 'cfq17',
+      question: 'std::string s = "x"; what is the value category of the expression std::move(s)?',
+      options: ['lvalue', 'prvalue', 'glvalue that is also a prvalue', 'xvalue'],
+      correctAnswer: 3,
+      explanation: 'std::move returns T&&, and a function call returning an rvalue reference is an xvalue: it still names s (has identity) but may be moved from.'
+    },
+    {
+      id: 'cfq18',
+      question: 'int x = INT_MAX; x = x + 1; What does the standard say?',
+      options: ['x wraps to INT_MIN', 'Undefined behavior - signed integer overflow', 'x is clamped to INT_MAX', 'A runtime exception is thrown'],
+      correctAnswer: 1,
+      explanation: 'Signed overflow is UB, and compilers optimize on the assumption it never happens (e.g. folding x + 1 > x to true). Only unsigned arithmetic is defined to wrap.'
+    },
+    {
+      id: 'cfq19',
+      question: 'Given only the forward declaration class Foo; which of these compiles?',
+      options: ['Foo* makeFoo();', 'Foo f;', 'sizeof(Foo)', 'struct Bar { Foo member; };'],
+      correctAnswer: 0,
+      explanation: 'Declaring pointers, references, and function signatures needs only the name. Creating an object, taking its size, or embedding it as a member requires the complete class definition.'
+    },
+    {
+      id: 'cfq20',
+      question: 'A header declares void log(int level = 1); and the .cpp defines void log(int level = 1) { ... }. What happens?',
+      options: ['It compiles; the definition just repeats the default', 'The definition\'s default overrides the header\'s', 'Compile error - a default argument may only be specified once for a parameter', 'Link error - two different functions'],
+      correctAnswer: 2,
+      explanation: 'Default arguments are part of the declaration and cannot be redeclared in the same scope, even with the same value. Specify them once, in the header, so every caller sees them.'
     }
   ]
 };
@@ -1116,7 +1209,23 @@ int main() {
     { id: 'pm11', front: 'What is the advantage of make_shared over shared_ptr<T>(new T)?', back: 'make_shared allocates the object and control block in a single allocation: faster, cache-friendlier, and leak-safe if another argument\'s construction throws.' },
     { id: 'pm12', front: 'How does weak_ptr break shared_ptr reference cycles?', back: 'weak_ptr observes the object without incrementing the strong count. In parent/child graphs, the back-edge is weak, so counts reach zero and destructors run.' },
     { id: 'pm13', front: 'What is a use-after-free bug?', back: 'Accessing memory after its lifetime ended - a freed heap block, dead stack frame, or invalidated iterator. It is undefined behavior; AddressSanitizer detects it at runtime.' },
-    { id: 'pm14', front: 'Why can push_back invalidate pointers into a vector?', back: 'If size exceeds capacity, the vector reallocates: elements move to a new heap block and the old one is freed, so every prior pointer, reference, and iterator dangles.' }
+    { id: 'pm14', front: 'Why can push_back invalidate pointers into a vector?', back: 'If size exceeds capacity, the vector reallocates: elements move to a new heap block and the old one is freed, so every prior pointer, reference, and iterator dangles.' },
+    { id: 'pm15', front: 'What is stored in a shared_ptr control block?', back: 'The strong reference count, the weak reference count, the deleter, the allocator, and (with make_shared) the object itself. Every shared_ptr copy points at the same control block; the counts are updated atomically.' },
+    { id: 'pm16', front: 'What thread-safety does shared_ptr actually guarantee?', back: 'Only the reference count updates are atomic: many threads may copy or destroy their own shared_ptr instances to the same object. The pointed-to object gets no protection, and concurrently modifying one shared_ptr instance is still a data race.' },
+    { id: 'pm17', front: 'What is the downside of make_shared when weak_ptrs are involved?', back: 'The object and control block share one allocation, so the memory cannot be freed until the weak count also hits zero. A large object observed by long-lived weak_ptrs keeps its storage alive after the destructor has already run.' },
+    { id: 'pm18', front: 'How do custom deleters differ between unique_ptr and shared_ptr?', back: 'For unique_ptr the deleter is a template parameter: part of the type, and a stateless functor adds zero size. For shared_ptr it is type-erased into the control block at construction, so shared_ptr<T> stays the same type regardless of deleter.' },
+    { id: 'pm19', front: 'What does unique_ptr<T[]> add, and when should you use it?', back: 'It calls delete[] instead of delete and exposes operator[] rather than operator->. Use it only when handed a raw new[] array by a legacy API; otherwise prefer std::vector or std::array, which also know their size.' },
+    { id: 'pm20', front: 'What does weak_ptr::lock() do?', back: 'Atomically checks whether the object is still alive and, if so, returns a shared_ptr that keeps it alive while you use it; otherwise it returns an empty shared_ptr. Always lock rather than checking expired() then dereferencing, which is a race.' },
+    { id: 'pm21', front: 'What does a shared_ptr cost compared to a raw pointer?', back: 'Twice the size (object pointer plus control block pointer), an extra heap allocation unless make_shared is used, and an atomic increment/decrement on every copy and destruction. Pass by const reference when the callee does not need to share ownership.' },
+    { id: 'pm22', front: 'Why does struct { char c; int i; char d; } occupy 12 bytes, and how do you shrink it?', back: 'Alignment: int must sit on a 4-byte boundary, so 3 padding bytes follow c and 3 more follow d to make the struct size a multiple of 4. Reordering members largest-first (int, char, char) shrinks it to 8 bytes.' },
+    { id: 'pm23', front: 'What is placement new?', back: 'new (address) T(args) constructs an object in storage you already own instead of allocating. Because no allocation happened, you must not delete it; call the destructor explicitly (p->~T()) and release the buffer yourself. It underpins std::vector and allocators.' },
+    { id: 'pm24', front: 'When does binding a temporary to a const reference extend its lifetime?', back: 'const T& r = makeT(); keeps the temporary alive as long as r. It does not apply through a function boundary: a function returning const T& to a parameter it was passed, or a reference to a member of a temporary, dangles at the end of the full expression.' },
+    { id: 'pm25', front: 'Memory leak vs dangling pointer - which one is undefined behavior?', back: 'A leak is memory never freed: wasteful but well-defined. A dangling pointer refers to freed or dead storage; merely holding it is fine, but reading or writing through it is undefined behavior. Leaks are annoying; dangling pointers are security bugs.' },
+    { id: 'pm26', front: 'How should a function declare a smart pointer parameter?', back: 'unique_ptr<T> by value if it takes ownership (caller must std::move). shared_ptr<T> by value if it will store a copy. If it only uses the object, take T& or T* - do not force callers into a particular ownership model.' },
+    { id: 'pm27', front: 'Why is std::shared_ptr<T>(this) wrong, and what is enable_shared_from_this?', back: 'It creates a second, independent control block for an object already owned by another shared_ptr, so the object is deleted twice. Inheriting enable_shared_from_this<T> lets you call shared_from_this() to obtain a shared_ptr that shares the existing control block.' },
+    { id: 'pm28', front: 'What causes a stack overflow, and how big is the stack?', back: 'Deep or unbounded recursion and large local arrays exhaust the thread\'s fixed stack (typically 1 to 8 MB on the main thread, often less on worker threads). There is no bad_alloc; the process usually crashes with a segmentation fault. Move large buffers to the heap.' },
+    { id: 'pm29', front: 'unique_ptr::release() vs reset()?', back: 'release() gives up ownership and returns the raw pointer without deleting - the caller is now responsible. reset(p) deletes the current object (if any) and takes ownership of p (or nothing). Confusing the two is a classic leak or double delete.' },
+    { id: 'pm30', front: 'When is a raw pointer still appropriate in modern C++?', back: 'As a non-owning observer: a nullable parameter, a back-pointer to a parent, or an element in a container that does not own. The convention is that raw pointers never own; ownership is always expressed with unique_ptr, shared_ptr, or a container.' }
   ],
 
   quizQuestions: [
@@ -1182,6 +1291,83 @@ int main() {
       options: ['AddressSanitizer (-fsanitize=address)', 'The linker', 'clang-format', 'The preprocessor'],
       correctAnswer: 0,
       explanation: 'AddressSanitizer instruments allocations and memory accesses, reporting use-after-free, out-of-bounds reads/writes, and leaks with stack traces at modest runtime cost.'
+    },
+    {
+      id: 'pmq10',
+      question: 'std::shared_ptr<T> a(new T); std::shared_ptr<T> b(a.get()); What is the result?',
+      options: ['a and b share ownership with a use count of 2', 'b is a non-owning observer of a\'s object', 'Undefined behavior - two control blocks delete the same object twice', 'Compile error'],
+      correctAnswer: 2,
+      explanation: 'Constructing a shared_ptr from a raw pointer always creates a new control block. Each will delete T when its count hits zero. Copy a, or use make_shared, to share the same control block.'
+    },
+    {
+      id: 'pmq11',
+      question: 'On a typical 64-bit platform, what is sizeof(struct { char a; int b; char c; })?',
+      options: ['6', '8', '12', '16'],
+      correctAnswer: 2,
+      explanation: 'b needs 4-byte alignment, so 3 padding bytes follow a; then 3 tail padding bytes after c keep the struct size a multiple of its alignment. Reordering to int, char, char gives 8.'
+    },
+    {
+      id: 'pmq12',
+      question: 'std::unique_ptr<int> p(new int[10]); What happens when p is destroyed?',
+      options: ['delete[] is called correctly', 'delete is called on an array allocation - undefined behavior', 'Only the first element is freed', 'Compile error - unique_ptr rejects array pointers'],
+      correctAnswer: 1,
+      explanation: 'unique_ptr<int> uses std::default_delete<int>, which calls plain delete. You need unique_ptr<int[]> for delete[] - or better, std::vector<int>.'
+    },
+    {
+      id: 'pmq13',
+      question: 'A weak_ptr observes an object whose last shared_ptr has been destroyed. What does lock() return?',
+      options: ['A shared_ptr to the destroyed object', 'It throws std::bad_weak_ptr', 'A shared_ptr that resurrects the object', 'An empty shared_ptr (use_count 0)'],
+      correctAnswer: 3,
+      explanation: 'lock() returns an empty shared_ptr when the object is gone; only the shared_ptr constructor from an expired weak_ptr throws bad_weak_ptr. Always test the result of lock().'
+    },
+    {
+      id: 'pmq14',
+      question: 'std::string makeName(); ... const std::string& s = makeName(); Is using s afterwards safe?',
+      options: ['Yes - binding a temporary to a const reference extends its lifetime to that of s', 'No - the temporary dies at the end of the statement', 'Only if the string is short enough for SSO', 'Compile error - cannot bind a temporary to a reference'],
+      correctAnswer: 0,
+      explanation: 'Lifetime extension applies to a temporary bound directly to a local const& (or &&). It would NOT apply if makeName returned a reference to something that dies.'
+    },
+    {
+      id: 'pmq15',
+      question: 'alignas(T) char buf[sizeof(T)]; T* p = new (buf) T(); How must p be cleaned up?',
+      options: ['delete p;', 'free(p);', 'Call p->~T() explicitly; the buffer is released by its own owner', 'Nothing - placement new objects are cleaned up automatically'],
+      correctAnswer: 2,
+      explanation: 'Placement new only constructs; no allocation occurred, so delete would free memory that was never heap-allocated. Run the destructor explicitly, then let buf go out of scope.'
+    },
+    {
+      id: 'pmq16',
+      question: 'Two threads each hold their own copy of a shared_ptr to the same Widget and both call widget->update(). Which statement is correct?',
+      options: ['Safe - shared_ptr makes the object thread-safe', 'The reference counting is safe, but the concurrent update() calls are a data race unless Widget synchronizes internally', 'Undefined behavior because shared_ptr copies cannot coexist across threads', 'The second call blocks until the first finishes'],
+      correctAnswer: 1,
+      explanation: 'shared_ptr only makes its own control-block updates atomic. The pointee is an ordinary object; concurrent mutation needs a mutex or atomics just like any other shared data.'
+    },
+    {
+      id: 'pmq17',
+      question: 'A function only reads from a Widget and never stores it. Which parameter type is the best choice?',
+      options: ['std::shared_ptr<Widget> by value', 'std::unique_ptr<Widget> by value', 'std::shared_ptr<Widget>&&', 'const Widget& (or Widget* if it may be null)'],
+      correctAnswer: 3,
+      explanation: 'Passing shared_ptr by value costs an atomic increment and decrement and forces callers to use shared ownership. A function that just uses an object should take a reference or observing pointer.'
+    },
+    {
+      id: 'pmq18',
+      question: 'int arr[5]; int* end = arr + 5; Which operation is defined?',
+      options: ['*end', 'end[0] = 1', 'Comparing end with arr and computing end - arr', 'arr + 6'],
+      correctAnswer: 2,
+      explanation: 'A pointer one past the end of an array is valid for comparison and subtraction (that is how iterator ranges work) but must never be dereferenced. Forming arr + 6 is already undefined behavior.'
+    },
+    {
+      id: 'pmq19',
+      question: 'A recursive function with a missing base case is called. What is the typical outcome?',
+      options: ['std::bad_alloc is thrown when memory runs out', 'The stack overflows and the process crashes (segmentation fault)', 'The compiler detects infinite recursion and refuses to compile', 'The heap grows until the OS kills the process'],
+      correctAnswer: 1,
+      explanation: 'Each call pushes a frame onto the fixed-size thread stack. No exception mechanism covers exhausting it; the guard page is hit and the OS terminates the process.'
+    },
+    {
+      id: 'pmq20',
+      question: 'Base has a NON-virtual destructor. std::shared_ptr<Base> p = std::make_shared<Derived>(); p.reset(); Which destructor runs?',
+      options: ['Only Base::~Base - undefined behavior like raw delete', 'Neither - the object leaks', 'Base::~Base then Derived::~Derived', 'Derived::~Derived (and then Base) - shared_ptr captured a deleter for Derived at construction'],
+      correctAnswer: 3,
+      explanation: 'The control block stores the deleter based on the static type used at creation (Derived), so the correct destructor runs even through a Base pointer. unique_ptr<Base> would NOT do this - its deleter is based on Base.'
     }
   ]
 };
@@ -1700,7 +1886,23 @@ int main() {
     { id: 'oo11', front: 'What is object slicing?', back: 'Copying a derived object into a base object (by value) keeps only the base subobject — derived data and overrides are lost, and virtual calls dispatch to the base versions.' },
     { id: 'oo12', front: 'What happens when a constructor calls a virtual function?', back: 'It dispatches to the base version — during Base construction the dynamic type IS Base. Calling a pure virtual this way is undefined behavior.' },
     { id: 'oo13', front: 'Which operators must be member functions?', back: 'operator=, operator[], operator(), and operator->. Symmetric binary operators like + and == are usually better as non-members so conversions apply to both operands.' },
-    { id: 'oo14', front: 'What does a defaulted operator<=> give you in C++20?', back: 'All six comparison operators (<, <=, >, >=, ==, !=) generated from member-wise lexicographic comparison in declaration order.' }
+    { id: 'oo14', front: 'What does a defaulted operator<=> give you in C++20?', back: 'All six comparison operators (<, <=, >, >=, ==, !=) generated from member-wise lexicographic comparison in declaration order.' },
+    { id: 'oo15', front: 'What is the copy-and-swap idiom?', back: 'Write operator=(Widget other) taking the argument by value, swap *this with the copy, and let the destructor clean up the old state. One function handles copy and move assignment, is self-assignment safe, and gives the strong exception guarantee.' },
+    { id: 'oo16', front: 'What makes a class abstract, and can a pure virtual function have a body?', back: 'At least one pure virtual function (= 0) makes the class non-instantiable. A pure virtual function may still have an out-of-line definition, which derived classes can call explicitly — a pure virtual destructor always needs one.' },
+    { id: 'oo17', front: 'What is the diamond problem and how does virtual inheritance solve it?', back: 'When B and C both derive from A and D derives from both, D contains two A subobjects, making A\'s members ambiguous. Declaring B and C with virtual inheritance (class B : virtual public A) makes them share a single A.' },
+    { id: 'oo18', front: 'Who initializes a virtual base class?', back: 'The most-derived class, always — its constructor calls the virtual base constructor directly, and the initializer for that base written in intermediate classes is ignored. That is why virtual bases usually need a default constructor.' },
+    { id: 'oo19', front: 'What does final do on a function or a class?', back: 'On a virtual function it forbids further overriding; on a class it forbids derivation. Beyond expressing intent, it lets the compiler devirtualize calls when the type is known to be final.' },
+    { id: 'oo20', front: 'How does dynamic_cast behave on pointers vs references?', back: 'It requires a polymorphic source type (at least one virtual function) and uses RTTI at runtime. A failed pointer cast returns nullptr; a failed reference cast throws std::bad_cast. It is also the only cast that can cross-cast between siblings.' },
+    { id: 'oo21', front: 'What is the Non-Virtual Interface (NVI) idiom?', back: 'Public non-virtual functions that call private (or protected) virtual hooks. The base class controls pre/post conditions, logging, and locking around the customization point, while derived classes only supply the varying step.' },
+    { id: 'oo22', front: 'Why must a hand-written copy assignment operator worry about self-assignment?', back: 'x = x; with a naive "delete old buffer, copy from other" frees the buffer it is about to copy from. Check this != &other, or use copy-and-swap, which copies before it releases anything.' },
+    { id: 'oo23', front: 'What are delegating constructors?', back: 'C++11 lets one constructor call another in its initializer list: Widget() : Widget(0, "default") {}. Common initialization logic lives in one place. The target constructor runs completely before the delegating body.' },
+    { id: 'oo24', front: 'What does using Base::Base; do in a derived class?', back: 'Inherits all of the base class constructors, so Derived can be constructed with Base\'s argument lists without rewriting forwarding constructors. Derived members are default-initialized (or use default member initializers).' },
+    { id: 'oo25', front: 'What is the difference between = default and = delete?', back: '= default asks for the compiler-generated version of a special member explicitly (and can restore a suppressed one). = delete declares the function but makes any use a compile error — used to forbid copying or to reject specific overloads like f(double) = delete.' },
+    { id: 'oo26', front: 'What does a virtual function cost at runtime?', back: 'One vptr per object, one vtable per class, and an indirect call through the vptr that cannot be inlined unless devirtualized. The real cost is usually the lost inlining and branch prediction, not the extra load.' },
+    { id: 'oo27', front: 'Can a constructor be virtual? How do you copy a polymorphic object?', back: 'No — a constructor creates the object whose dynamic type is not yet known. Use the virtual clone idiom: virtual std::unique_ptr<Base> clone() const, overridden in each derived class to return a copy of itself.' },
+    { id: 'oo28', front: 'Why are default arguments on virtual functions a trap?', back: 'Default arguments are bound statically by the static type of the pointer or reference, while the function is dispatched dynamically. Calling through Base* uses Base\'s defaults even when Derived\'s override runs.' },
+    { id: 'oo29', front: 'What is private inheritance and when would you use it?', back: 'class D : private B makes all inherited members private and blocks the implicit D-to-B conversion outside D: "implemented in terms of", not "is-a". Prefer composition; use private inheritance mainly when you need to override a virtual or exploit the empty base optimization.' },
+    { id: 'oo30', front: 'What is a covariant return type?', back: 'An override may return a pointer or reference to a MORE derived class than the base version: Base* clone() in Base, Derived* clone() in Derived. Callers with a Derived know statically that they get a Derived back.' }
   ],
 
   quizQuestions: [
@@ -1811,6 +2013,138 @@ int main() {
       ],
       correctAnswer: 2,
       explanation: 'Name hiding: any f in the derived class hides ALL base overloads of f. The int converts to double. Fix with using Base::f; in the derived class.'
+    },
+    {
+      id: 'ooq10',
+      question: 'struct A { int id; }; struct B : A {}; struct C : A {}; struct D : B, C {}; D d; d.id = 1; What happens?',
+      options: [
+        'Compiles; both A subobjects get id = 1',
+        'Compile error: ambiguous member id, because D contains two A subobjects',
+        'Compiles; only B\'s A subobject is updated',
+        'Undefined behavior'
+      ],
+      correctAnswer: 1,
+      explanation: 'Without virtual inheritance, D has an A via B and another via C. Either qualify (d.B::id) or declare B and C with virtual public A so they share one A.'
+    },
+    {
+      id: 'ooq11',
+      question: 'struct Base { int x; }; struct Derived : Base {}; Base* b = new Derived; auto* d = dynamic_cast<Derived*>(b); What happens?',
+      options: [
+        'd points to the Derived object',
+        'd is nullptr',
+        'Undefined behavior at runtime',
+        'Compile error: dynamic_cast requires a polymorphic (virtual) source type'
+      ],
+      correctAnswer: 3,
+      explanation: 'dynamic_cast relies on RTTI stored via the vtable. Base has no virtual functions, so the cast is ill-formed. Give Base a virtual destructor, or use static_cast if you already know the type.'
+    },
+    {
+      id: 'ooq12',
+      question: 'struct Base { virtual void f(int x = 1); }; struct Derived : Base { void f(int x = 2) override; }; Base* p = new Derived; p->f(); What runs and with what x?',
+      options: [
+        'Derived::f with x = 1',
+        'Derived::f with x = 2',
+        'Base::f with x = 1',
+        'Compile error: overrides must repeat the same default'
+      ],
+      correctAnswer: 0,
+      explanation: 'Dispatch is dynamic (Derived::f) but default arguments are resolved statically from the pointer type (Base), so x = 1. Never redefine defaults on overrides.'
+    },
+    {
+      id: 'ooq13',
+      question: 'class Shape { virtual void draw(); }; class Circle final : public Shape {}; class SpecialCircle : public Circle {}; What happens?',
+      options: [
+        'Compiles; final only affects virtual functions',
+        'Compiles with a warning',
+        'Compile error: cannot derive from a final class',
+        'Compiles, but SpecialCircle cannot override draw'
+      ],
+      correctAnswer: 2,
+      explanation: 'final on a class forbids any further derivation. On a virtual function it forbids overriding that function only.'
+    },
+    {
+      id: 'ooq14',
+      question: 'What is the ONLY difference between struct and class in C++?',
+      options: [
+        'struct cannot have member functions or constructors',
+        'Default member access and default inheritance are public for struct, private for class',
+        'struct is a plain C type with no vtable support',
+        'class supports templates, struct does not'
+      ],
+      correctAnswer: 1,
+      explanation: 'Both define classes with identical capabilities. The convention is struct for passive data aggregates and class for types with invariants, but the language difference is just the defaults.'
+    },
+    {
+      id: 'ooq15',
+      question: 'struct Base { virtual ~Base() = 0; }; struct Derived : Base {}; Derived d; What is needed for this to link?',
+      options: [
+        'Nothing - pure virtual functions never need a body',
+        'Derived must declare its own destructor',
+        'Base::~Base() must still be defined out of line, because Derived\'s destructor calls it',
+        'Base must not be abstract to be used as a base'
+      ],
+      correctAnswer: 2,
+      explanation: 'A derived destructor always invokes the base destructor non-virtually. A pure virtual destructor makes the class abstract but still needs a definition (Base::~Base() {}), or you get an undefined reference.'
+    },
+    {
+      id: 'ooq16',
+      question: 'A class declares only a move constructor: Widget(Widget&&). What happens to its other special members?',
+      options: [
+        'Copy operations are still generated implicitly',
+        'The move assignment operator is generated implicitly',
+        'All four copy/move operations remain available',
+        'Copy constructor and copy assignment are implicitly deleted; move assignment is not declared'
+      ],
+      correctAnswer: 3,
+      explanation: 'Declaring a move operation deletes the implicit copy operations (a class that moves specially probably should not be copied). Move assignment is simply not generated - add = default if you want it.'
+    },
+    {
+      id: 'ooq17',
+      question: 'Widget& Widget::operator=(Widget other) { swap(*this, other); return *this; } What does this implementation provide?',
+      options: [
+        'Strong exception safety, self-assignment safety, and one body for both copy and move assignment',
+        'Faster assignment than a hand-written one in all cases',
+        'Assignment that skips the copy when the sizes match',
+        'A compile error - operator= must take a reference'
+      ],
+      correctAnswer: 0,
+      explanation: 'The by-value parameter performs the copy (or move) before any state is touched; if it throws, *this is unchanged. Swapping then lets other\'s destructor release the old resources.'
+    },
+    {
+      id: 'ooq18',
+      question: 'struct A { A(int); }; struct B : virtual A { B() : A(1) {} }; struct C : virtual A { C() : A(2) {} }; struct D : B, C { D() : A(3) {} }; With what argument is A constructed for a D?',
+      options: [
+        '1, from B',
+        '2, from C',
+        '3 - the most-derived class initializes the virtual base',
+        'Compile error: ambiguous initialization of A'
+      ],
+      correctAnswer: 2,
+      explanation: 'A virtual base is constructed once, by the most-derived class, before any non-virtual bases. The A(1) and A(2) initializers in B and C are ignored when constructing a D.'
+    },
+    {
+      id: 'ooq19',
+      question: 'struct Base { virtual Base* clone() const; }; struct Derived : Base { Derived* clone() const override; }; Is this a valid override?',
+      options: [
+        'No - override requires an identical return type',
+        'Yes - covariant return types allow a more-derived pointer or reference',
+        'Only if Derived* is explicitly cast to Base*',
+        'Yes, but the call through Base* will return nullptr'
+      ],
+      correctAnswer: 1,
+      explanation: 'Return type covariance is allowed for pointers and references to classes. Through Base* you get Base*; through Derived you get Derived* - no cast needed.'
+    },
+    {
+      id: 'ooq20',
+      question: 'class Stack : private std::vector<int> { ... }; Stack s; std::vector<int>* p = &s; What is the result?',
+      options: [
+        'Compiles; p can now call push_back on the stack',
+        'Compiles, but p is nullptr',
+        'Undefined behavior',
+        'Compile error: the base-class conversion is inaccessible outside Stack'
+      ],
+      correctAnswer: 3,
+      explanation: 'Private inheritance hides the is-a relationship from the outside world: only Stack\'s own members and friends can convert to the base. That is what makes it "implemented in terms of" rather than "is-a".'
     }
   ]
 };
@@ -2357,7 +2691,23 @@ int main() {
     { id: 'tg11', front: 'What is a C++20 concept?', back: 'A named compile-time predicate on template arguments, e.g. template<typename T> concept Numeric = std::is_arithmetic_v<T>. Used to constrain templates with readable errors.' },
     { id: 'tg12', front: 'What does the fold expression (args + ... + 0) compute?', back: 'A binary left fold: ((0 + a1) + a2) + ... . The init value 0 makes the empty pack valid. Unary folds like (args + ...) reject empty packs for most operators.' },
     { id: 'tg13', front: 'What is CRTP?', back: 'Curiously Recurring Template Pattern: class Derived : Base<Derived>. The base static_casts this to Derived*, giving compile-time (static) polymorphism with no vtable cost.' },
-    { id: 'tg14', front: 'When would you choose virtual dispatch over CRTP?', back: 'When you need runtime substitution — heterogeneous containers of Base*, plugin-style extension, types chosen at runtime. CRTP fixes the type at compile time.' }
+    { id: 'tg14', front: 'When would you choose virtual dispatch over CRTP?', back: 'When you need runtime substitution — heterogeneous containers of Base*, plugin-style extension, types chosen at runtime. CRTP fixes the type at compile time.' },
+    { id: 'tg15', front: 'How does std::enable_if work?', back: 'enable_if<Cond, T>::type exists only when Cond is true. Placing it in a template signature (a default template argument, return type, or parameter) makes substitution fail for non-matching types, and SFINAE removes that overload from consideration.' },
+    { id: 'tg16', front: 'When must you write typename before a name inside a template?', back: 'When the name depends on a template parameter and refers to a type: typename T::value_type v;. Without it the compiler assumes T::value_type is a value (it cannot know until instantiation), and the parse fails.' },
+    { id: 'tg17', front: 'When is the .template disambiguator needed?', back: 'When calling a member template on a dependent object with explicit template arguments: obj.template get<0>(). Otherwise the < is parsed as less-than. Same rule as typename, but for member templates.' },
+    { id: 'tg18', front: 'What problem does perfect forwarding solve, and what is the canonical signature?', back: 'A wrapper (factory, emplace, bind) must pass its arguments to another function without losing whether they were lvalues or rvalues. template<class... Args> void wrap(Args&&... args) { f(std::forward<Args>(args)...); } preserves value category and constness.' },
+    { id: 'tg19', front: 'Why must you not std::forward the same parameter twice?', back: 'If the argument was an rvalue, the first forward moves from it and the second call sees a moved-from object. Forward only on the last use, and pass the parameter as an lvalue for any earlier uses.' },
+    { id: 'tg20', front: 'What are type traits?', back: 'Compile-time predicates and transformations on types in <type_traits>: std::is_same_v<A, B>, std::is_integral_v<T>, std::remove_reference_t<T>, std::decay_t<T>. The _v suffix gives the bool value and _t the resulting type.' },
+    { id: 'tg21', front: 'What does sizeof...(args) give, and how do you process a pack without folds?', back: 'sizeof... returns the number of elements in a parameter pack. Pre-C++17 packs were processed by recursion: a base overload f() plus f(T first, Rest... rest) that peels one argument per call. if constexpr (sizeof...(rest) > 0) removes the need for the base overload.' },
+    { id: 'tg22', front: 'What is a non-type template parameter?', back: 'A template parameter that is a value rather than a type: template<typename T, std::size_t N> class array. It must be a constant expression. C++20 also allows floating-point values and structural class types.' },
+    { id: 'tg23', front: 'requires-clause vs requires-expression?', back: 'A requires-clause constrains a template: template<class T> requires std::integral<T>. A requires-expression is a compile-time check that yields bool: requires(T t) { t.size(); } - typically used to define a concept.' },
+    { id: 'tg24', front: 'What is template code bloat and how do you limit it?', back: 'Every distinct set of template arguments generates separate code, so vector<int*>, vector<char*>, and vector<Widget*> triple the binary. Mitigations: a thin templated wrapper over a non-template core (e.g. void*), extern template declarations, and fewer template parameters.' },
+    { id: 'tg25', front: 'What does extern template do?', back: 'extern template class std::vector<int>; tells the compiler not to instantiate that specialization in this translation unit because one explicit instantiation exists elsewhere. It cuts compile time and duplicate object code for heavily used instantiations.' },
+    { id: 'tg26', front: 'What is a template template parameter?', back: 'A template parameter that is itself a template: template<template<class...> class Container> class Stack. It lets a class be parameterized by a container kind (vector, deque) rather than a fully specified type.' },
+    { id: 'tg27', front: 'What is tag dispatch and what replaced it?', back: 'Overloading on an empty tag type (std::true_type/false_type, iterator category tags) chosen at compile time to select an implementation. if constexpr and concepts now express the same choice inline, without extra overloads.' },
+    { id: 'tg28', front: 'What is an abbreviated function template?', back: 'C++20 lets you write void print(const auto& x) instead of template<class T> void print(const T& x). Each auto parameter introduces an invented template parameter; the function is still a template with all the same rules.' },
+    { id: 'tg29', front: 'What does std::decay_t do?', back: 'Applies the conversions of pass-by-value: strips references and cv-qualifiers, turns arrays into pointers and functions into function pointers. decay_t<const char(&)[6]> is const char*. It is what auto and by-value template deduction produce.' },
+    { id: 'tg30', front: 'Why does a derived class template need this-> to call a base template member?', back: 'When the base is dependent (Base<T>), its members are not looked up at definition time because Base<T> could be specialized to lack them. this->foo() or using Base<T>::foo; defers the lookup to instantiation.' }
   ],
 
   quizQuestions: [
@@ -2453,6 +2803,123 @@ int main() {
       ],
       correctAnswer: 2,
       explanation: 'CTAD deduces class template arguments from the constructor call: pair<int, double>. std::pair needs no user-provided deduction guide; its constructors are enough.'
+    },
+    {
+      id: 'tgq10',
+      question: 'template<class T> void relay(T&& x) { sink(std::forward<T>(x)); } std::string s = "hi"; relay(s); What does sink receive, and what happens to s?',
+      options: [
+        'An rvalue; s is moved-from',
+        'An lvalue std::string&; s is unchanged',
+        'A copy of s by value',
+        'Compile error: cannot forward an lvalue'
+      ],
+      correctAnswer: 1,
+      explanation: 'For an lvalue argument T deduces to std::string&, so std::forward<std::string&> yields an lvalue. Only when relay is called with an rvalue does forward cast back to an rvalue.'
+    },
+    {
+      id: 'tgq11',
+      question: 'Inside template<class T> void f() { T::iterator it; } what does the compiler assume T::iterator is, and how do you fix it?',
+      options: [
+        'A type; nothing to fix',
+        'A template; add .template',
+        'A value (non-type); write typename T::iterator it;',
+        'A function; add parentheses'
+      ],
+      correctAnswer: 2,
+      explanation: 'Dependent qualified names are assumed to be non-types unless prefixed with typename. T::iterator it; is parsed as a multiplication-like expression and fails.'
+    },
+    {
+      id: 'tgq12',
+      question: 'template<class T> void twice(T&& v) { g(std::forward<T>(v)); h(std::forward<T>(v)); } called with an rvalue std::vector. What is the risk?',
+      options: [
+        'h may receive a moved-from (likely empty) vector because g already moved it',
+        'Compile error: forward can only appear once',
+        'Nothing - forward never moves',
+        'g receives a copy, h receives the original'
+      ],
+      correctAnswer: 0,
+      explanation: 'Both forwards cast v to an rvalue. If g takes by value or by &&, it moves from v, and h sees the leftover state. Forward only in the final use.'
+    },
+    {
+      id: 'tgq13',
+      question: 'template<class T> std::enable_if_t<std::is_integral_v<T>, T> half(T x) { return x / 2; } is the only overload. What does half(3.0) do?',
+      options: [
+        'Returns 1.5',
+        'Returns 1 after converting to int',
+        'Returns 1.5 with a warning',
+        'Compile error: no matching function - the overload was removed by SFINAE'
+      ],
+      correctAnswer: 3,
+      explanation: 'enable_if_t<false, double> has no ::type, so substitution fails and the candidate is discarded silently. With no remaining candidates, the call is an error.'
+    },
+    {
+      id: 'tgq14',
+      question: 'template<class T> struct Base { void hello(); }; template<class T> struct Derived : Base<T> { void run() { hello(); } }; What happens?',
+      options: [
+        'Compiles; hello is found in the base at instantiation',
+        'Compile error: hello is not declared - the dependent base is not searched at definition time; use this->hello()',
+        'Compiles only if T is int',
+        'Link error'
+      ],
+      correctAnswer: 1,
+      explanation: 'Because Base<T> could be specialized without hello, unqualified names are not looked up in dependent bases. this->hello() or using Base<T>::hello; fixes it.'
+    },
+    {
+      id: 'tgq15',
+      question: 'template<int N> struct Buf { char data[N]; }; Buf<3> a; Buf<4> b; a = b; What happens?',
+      options: [
+        'a gets a copy of b\'s first 3 bytes',
+        'a is resized to 4',
+        'Compile error: Buf<3> and Buf<4> are unrelated types',
+        'Undefined behavior'
+      ],
+      correctAnswer: 2,
+      explanation: 'Different template arguments - type OR non-type - produce distinct, unrelated classes. There is no implicit conversion between them.'
+    },
+    {
+      id: 'tgq16',
+      question: 'template<class... Ts> void f(Ts... ts) { constexpr auto n = sizeof...(ts); } f(1, 2.0, "x"); What is n?',
+      options: ['3', 'The total bytes of all arguments', '16', 'sizeof(Ts) for the first type'],
+      correctAnswer: 0,
+      explanation: 'sizeof...(pack) is the number of elements in the pack, evaluated at compile time. It has nothing to do with the byte sizes of the arguments.'
+    },
+    {
+      id: 'tgq17',
+      question: 'What is std::decay_t<const char(&)[6]>?',
+      options: ['const char[6]', 'const char&', 'char*', 'const char*'],
+      correctAnswer: 3,
+      explanation: 'decay strips the reference, then applies array-to-pointer conversion. The element constness stays: const char*. This is why auto s = "hello"; gives const char*.'
+    },
+    {
+      id: 'tgq18',
+      question: 'What does std::is_same_v<int, const int> evaluate to?',
+      options: ['true', 'false', 'Compile error', 'Depends on the compiler'],
+      correctAnswer: 1,
+      explanation: 'is_same compares exact types, and const int is a different type from int. Use std::is_same_v<std::remove_cv_t<T>, int> (or remove_cvref_t) to ignore qualifiers.'
+    },
+    {
+      id: 'tgq19',
+      question: 'In C++20, void show(const auto& x); is what?',
+      options: [
+        'A function taking a std::any-like object',
+        'A function using type erasure',
+        'A function template - each auto parameter is an invented template parameter',
+        'A syntax error; auto is not allowed in parameters'
+      ],
+      correctAnswer: 2,
+      explanation: 'Abbreviated function templates are sugar for template<class T> void show(const T& x). The definition must be visible where called, just like any template.'
+    },
+    {
+      id: 'tgq20',
+      question: 'What does extern template class std::vector<int>; do in a translation unit?',
+      options: [
+        'Suppresses implicit instantiation here; the code comes from an explicit instantiation in another TU',
+        'Forces vector<int> to be instantiated here',
+        'Declares that vector<int> is defined in a shared library',
+        'Makes vector<int> usable without including <vector>'
+      ],
+      correctAnswer: 0,
+      explanation: 'It is the template analogue of an extern variable declaration: use it, but do not generate it. One .cpp must contain template class std::vector<int>; to provide the code.'
     }
   ]
 };
@@ -2939,7 +3406,23 @@ int main() {
     { id: 'st11', front: 'What must a comparator passed to std::sort satisfy?', back: 'Strict weak ordering: irreflexive (comp(a,a) is false), asymmetric, transitive. Using <= instead of < violates it and causes undefined behavior.' },
     { id: 'st12', front: 'What is Small String Optimization (SSO)?', back: 'std::string stores short strings (~15-22 chars, implementation-defined) inline in the object itself, avoiding heap allocation entirely.' },
     { id: 'st13', front: 'What is std::string_view and its main danger?', back: 'A non-owning pointer + length over character data; copying is trivial and substr is O(1). Danger: it dangles if the underlying string is destroyed - never view a temporary.' },
-    { id: 'st14', front: 'When would you pick a sorted vector over std::map?', back: 'When the data is built once and queried many times. Sort once, then binary-search with lower_bound: same O(log n) lookups but contiguous memory, far less overhead, and better cache behavior.' }
+    { id: 'st14', front: 'When would you pick a sorted vector over std::map?', back: 'When the data is built once and queried many times. Sort once, then binary-search with lower_bound: same O(log n) lookups but contiguous memory, far less overhead, and better cache behavior.' },
+    { id: 'st15', front: 'emplace_back vs push_back?', back: 'emplace_back forwards its arguments to the element constructor, building the object directly in the vector\'s storage. push_back needs an already constructed object (a temporary that is then moved). For types with cheap moves the difference is small; for non-movable types emplace is the only option.' },
+    { id: 'st16', front: 'reserve vs resize on a vector?', back: 'reserve(n) grows capacity only - size stays the same and no elements are constructed; it prevents reallocations when the final size is known. resize(n) changes size, default-constructing or destroying elements to reach n.' },
+    { id: 'st17', front: 'What is the load factor of an unordered_map and when does it rehash?', back: 'load_factor = size / bucket_count. When an insertion would push it above max_load_factor (default 1.0), the table rehashes into more buckets. reserve(n) pre-sizes the bucket array so n elements fit without rehashing.' },
+    { id: 'st18', front: 'lower_bound vs upper_bound vs equal_range?', back: 'On a sorted range, lower_bound(x) is the first element not less than x; upper_bound(x) is the first element greater than x; equal_range(x) returns both, bracketing all elements equal to x. All are O(log n) binary searches.' },
+    { id: 'st19', front: 'What does std::partition do?', back: 'Reorders a range so every element satisfying the predicate comes before those that do not, returning the boundary iterator. O(n), not stable; std::stable_partition preserves relative order at extra cost. It is the core of quicksort and quickselect.' },
+    { id: 'st20', front: 'Why is std::vector<bool> a notorious special case?', back: 'It is specialized to pack bits, so operator[] returns a proxy object rather than bool&. You cannot take a reference or pointer to an element, and generic code that expects T& breaks. Use std::vector<char> or std::bitset when that matters.' },
+    { id: 'st21', front: 'How is std::priority_queue implemented and what are its complexities?', back: 'A binary heap stored in an underlying std::vector (a max-heap by default, using std::less). top() is O(1); push and pop are O(log n). Pass std::greater<T> for a min-heap. There is no way to iterate or decrease-key.' },
+    { id: 'st22', front: 'Why prefer std::array over a C array?', back: 'It knows its size, does not decay to a pointer when passed to functions, supports copying and comparison, works with range-for and algorithms, and has at() for bounds checking - all with zero overhead over a raw array.' },
+    { id: 'st23', front: 'What are the iterator categories?', back: 'Input (single pass read), output (single pass write), forward (multi-pass), bidirectional (also --), random access (+n, [], subtraction in O(1)), and contiguous (C++20: elements are adjacent in memory). Algorithms require a minimum category; std::sort needs random access.' },
+    { id: 'st24', front: 'How do you erase elements from a vector while iterating?', back: 'Use the iterator erase returns: it = v.erase(it) when removing, ++it otherwise. Incrementing an erased iterator is undefined behavior. For bulk removal, erase-remove or std::erase_if is simpler and O(n).' },
+    { id: 'st25', front: 'std::sort vs std::stable_sort?', back: 'stable_sort preserves the relative order of equal elements, which matters when sorting by one key after another. It is mergesort-based: O(n log n) with a temporary buffer, degrading to O(n log^2 n) if no memory is available. sort is faster but unstable.' },
+    { id: 'st26', front: 'Does erasing or clearing a vector release its memory?', back: 'No. Capacity never shrinks on erase or clear; the buffer is kept for reuse. To free it call shrink_to_fit() (a non-binding request) or swap with an empty vector: std::vector<T>().swap(v).' },
+    { id: 'st27', front: 'What is std::span?', back: 'A C++20 non-owning view over a contiguous sequence: pointer plus size. It accepts arrays, std::array, vector, and pointer/length pairs uniformly, replacing (T*, size_t) parameters. Like string_view, it dangles if the underlying storage dies.' },
+    { id: 'st28', front: 'How do you use a custom struct as an unordered_map key?', back: 'Provide operator== and a hash: either specialize std::hash<Key> or pass a hasher type as the third template argument. Combine member hashes (e.g. h1 ^ (h2 << 1) or a proper hash_combine) so distinct keys spread across buckets.' },
+    { id: 'st29', front: 'What is heterogeneous lookup in associative containers?', back: 'With a transparent comparator (std::map<std::string, V, std::less<>>) find and count accept any comparable type, so looking up a const char* or string_view does not construct a temporary std::string. C++20 adds the same for unordered containers.' },
+    { id: 'st30', front: 'map::insert vs operator[] vs try_emplace vs insert_or_assign?', back: 'insert and try_emplace do nothing if the key exists (try_emplace also avoids constructing the value in that case). operator[] default-constructs then assigns, requiring a default constructor. insert_or_assign always ends with the new value, returning whether it inserted.' }
   ],
 
   quizQuestions: [
@@ -3005,6 +3488,83 @@ int main() {
       options: ['It stores all elements in one contiguous buffer', 'It offers O(1) push at both ends using chunked storage', 'It is a linked list of single elements', 'It does not support random access'],
       correctAnswer: 1,
       explanation: 'deque uses fixed-size blocks with an index map, giving O(1) push_front/push_back and O(1) random access with one extra indirection.'
+    },
+    {
+      id: 'stq10',
+      question: 'for (auto it = v.begin(); it != v.end(); ++it) { if (*it % 2 == 0) v.erase(it); } What is wrong?',
+      options: ['Nothing - erase does not affect the loop', 'It skips every other element but is otherwise safe', 'Undefined behavior: it is invalidated by erase, then incremented', 'Compile error: cannot erase while iterating'],
+      correctAnswer: 2,
+      explanation: 'erase invalidates the erased iterator and everything after it. Use it = v.erase(it) in the erase branch and ++it otherwise, or std::erase_if(v, pred).'
+    },
+    {
+      id: 'stq11',
+      question: 'std::vector<int> v; v.reserve(100); What are v.size() and v.capacity()?',
+      options: ['size 100, capacity 100', 'size 0, capacity at least 100', 'size 100, capacity 0', 'Both unchanged - reserve is only a hint'],
+      correctAnswer: 1,
+      explanation: 'reserve allocates storage but constructs no elements. Accessing v[0] is still undefined behavior; use resize(100) if you want 100 elements.'
+    },
+    {
+      id: 'stq12',
+      question: 'std::vector<int> v = {1, 3, 3, 5, 8}; auto it = std::lower_bound(v.begin(), v.end(), 4); What does *it equal?',
+      options: ['5 - the first element not less than 4', '3 - the last element less than 4', '8', 'Undefined - 4 is not in the vector'],
+      correctAnswer: 0,
+      explanation: 'lower_bound returns the first position where the value could be inserted without breaking the order: the first element >= 4. It never fails; it returns end() if all elements are smaller.'
+    },
+    {
+      id: 'stq13',
+      question: 'An unordered_map has max_load_factor 1.0 and 8 buckets with 8 elements. What happens on the next insertion of a new key?',
+      options: ['It is rejected until you call rehash', 'It goes into an overflow list with O(1) access', 'Elements are moved to a bigger contiguous array like vector', 'The table rehashes into more buckets, invalidating all iterators but not references'],
+      correctAnswer: 3,
+      explanation: 'Exceeding max_load_factor triggers a rehash that grows the bucket array and relinks the nodes. Iterators are invalidated; pointers and references to elements stay valid because nodes are not moved.'
+    },
+    {
+      id: 'stq14',
+      question: 'std::vector<bool> flags(10); bool& b = flags[0]; What happens?',
+      options: ['b refers to the first element', 'Compile error: operator[] returns a proxy object, not bool&', 'b is a dangling reference', 'It works but is slow'],
+      correctAnswer: 1,
+      explanation: 'vector<bool> packs bits, so there is no bool object to refer to. operator[] returns std::vector<bool>::reference, a proxy. auto b = flags[0]; gets the proxy; bool b = flags[0]; gets a copy.'
+    },
+    {
+      id: 'stq15',
+      question: 'std::priority_queue<int> pq; pq.push(3); pq.push(9); pq.push(1); What does pq.top() return and at what cost?',
+      options: ['1, O(1)', '3, O(log n)', '9, O(1)', '9, O(log n)'],
+      correctAnswer: 2,
+      explanation: 'The default comparator is std::less, giving a max-heap: top() is the largest element and is O(1). Only push and pop are O(log n). Use std::greater<int> for a min-heap.'
+    },
+    {
+      id: 'stq16',
+      question: 'std::vector<std::pair<int, std::string>> v; What is the advantage of v.emplace_back(1, "one") over v.push_back({1, "one"})?',
+      options: ['The pair is constructed directly in the vector\'s storage from the arguments - no temporary pair', 'emplace_back never reallocates', 'It avoids constructing the std::string', 'There is none; they generate identical code'],
+      correctAnswer: 0,
+      explanation: 'push_back must first build a temporary pair, then move it in. emplace_back forwards the arguments to the pair constructor in place. The string is constructed either way.'
+    },
+    {
+      id: 'stq17',
+      question: 'std::vector<int> v = {5, 1, 4}; bool found = std::binary_search(v.begin(), v.end(), 4); What is the result?',
+      options: ['true, guaranteed', 'false, guaranteed', 'Compile error', 'Unreliable - binary_search requires a sorted range'],
+      correctAnswer: 3,
+      explanation: 'Binary search assumes ordering to discard half the range each step. On unsorted input the result is meaningless (here it probably returns false). Sort first, or use std::find for O(n).'
+    },
+    {
+      id: 'stq18',
+      question: 'You sort employees by name, then want to sort by department while keeping names ordered within each department. Which call is correct?',
+      options: ['std::sort by department - sort preserves prior order', 'std::stable_sort by department - it preserves the relative order of equal elements', 'std::partial_sort by department', 'std::nth_element by department'],
+      correctAnswer: 1,
+      explanation: 'std::sort gives no guarantee about the order of equal keys, so the earlier name ordering may be scrambled. stable_sort keeps it, at the cost of extra memory.'
+    },
+    {
+      id: 'stq19',
+      question: 'std::set<std::string> names; names.find("alice"); What hidden cost does this have, and how do you avoid it?',
+      options: ['None - find takes const char* directly', 'A rehash of the set', 'A temporary std::string is constructed for the lookup; declare the set with std::less<> to enable heterogeneous lookup', 'A copy of the entire set'],
+      correctAnswer: 2,
+      explanation: 'With the default std::less<std::string>, find takes const std::string&, so the literal is converted (possibly with a heap allocation). A transparent comparator lets find compare the const char* directly.'
+    },
+    {
+      id: 'stq20',
+      question: 'std::map<std::string, int> m; m.insert({"a", 1}); m.insert({"a", 2}); What is m["a"]?',
+      options: ['1 - insert does not overwrite an existing key', '2 - the later insert wins', 'Compile error: duplicate key', 'Undefined - map has two entries for "a"'],
+      correctAnswer: 0,
+      explanation: 'insert returns a pair whose bool is false when the key already exists, leaving the map untouched. Use insert_or_assign or operator[] if you want to overwrite.'
     }
   ]
 };
@@ -3515,7 +4075,23 @@ int main() {
     { id: 'mc11', front: 'What does "if (auto it = m.find(k); it != m.end())" give you over the classic form?', back: 'The C++17 if-init statement scopes the iterator to the if/else block only - no variable leaking into the surrounding scope.' },
     { id: 'mc12', front: 'constexpr function vs consteval function?', back: 'constexpr: may run at compile time or runtime depending on the arguments. consteval (C++20): must run at compile time; calling it with runtime values is a compile error.' },
     { id: 'mc13', front: 'What is the key difference between if constexpr and regular if in a template?', back: 'if constexpr discards the untaken branch at compile time - it never needs to be valid for the current type. A regular if compiles both branches for every instantiation.' },
-    { id: 'mc14', front: 'Why can C++20 views iterate an infinite range like views::iota(0)?', back: 'Views are lazy - they compute elements only when pulled. Combined with views::take(n), only n elements are ever generated.' }
+    { id: 'mc14', front: 'Why can C++20 views iterate an infinite range like views::iota(0)?', back: 'Views are lazy - they compute elements only when pulled. Combined with views::take(n), only n elements are ever generated.' },
+    { id: 'mc15', front: 'What does C++17 guarantee about copy elision?', back: 'Initializing from a prvalue (T t = T(); or return T();) constructs the object in place with no copy or move at all - the type does not even need a move constructor. Named return value optimization (returning a local variable) is still only permitted, not required.' },
+    { id: 'mc16', front: 'When do you use std::move and when std::forward?', back: 'std::move when you know you are done with an object and want to unconditionally treat it as an rvalue. std::forward<T> only on a forwarding reference (T&&) to pass the argument along with the value category the caller used.' },
+    { id: 'mc17', front: 'What does std::function cost compared to a template or auto parameter?', back: 'It type-erases the callable: an indirect call that blocks inlining and, for callables larger than its small-buffer, a heap allocation. Use a template parameter or auto for hot paths and std::function only when you need to store heterogeneous callables.' },
+    { id: 'mc18', front: 'What is a generic lambda?', back: 'A lambda with auto parameters: [](auto a, auto b) { return a + b; }. Its operator() is a member template instantiated per argument type, so one closure works for ints, doubles, and strings without writing a template by hand.' },
+    { id: 'mc19', front: 'Why is capturing this in a lambda risky, and what does [*this] do?', back: '[this] (and [=] before C++20) captures the pointer only; if the object is destroyed before the lambda runs - common with callbacks - every member access dangles. [*this] (C++17) copies the whole object into the closure.' },
+    { id: 'mc20', front: 'Do structured bindings copy the source object?', back: 'auto [a, b] = pair; copies pair into a hidden variable and the names alias its members - modifying a does not touch the original. auto& [a, b] = pair; binds to the original, and const auto& avoids the copy for read-only use.' },
+    { id: 'mc21', front: 'std::string_view vs const std::string& as a parameter?', back: 'string_view accepts std::string, string literals, and substrings without any allocation or copy, and substr is O(1). Prefer it for read-only inputs. Caveats: it is not null-terminated (do not pass .data() to C APIs) and must not outlive the source.' },
+    { id: 'mc22', front: 'When would you use std::any instead of std::variant?', back: 'When the set of possible types is open, e.g. arbitrary user data attached to a framework object. variant is closed and type-safe with std::visit; any needs any_cast with the exact type and may heap-allocate. Reach for variant by default.' },
+    { id: 'mc23', front: 'What happens when a function declared noexcept throws?', back: 'std::terminate is called immediately - the exception does not propagate and stack unwinding may not happen. noexcept is a hard promise used by the optimizer and by std::vector to choose moves, not documentation.' },
+    { id: 'mc24', front: 'What do C++20 modules fix compared to headers?', back: 'A module is compiled once and imported as a binary interface, not textually pasted into every user. Macros do not leak out, declaration order inside the importer does not matter, and builds avoid reparsing the same headers thousands of times.' },
+    { id: 'mc25', front: 'What does [[nodiscard]] do?', back: 'Makes the compiler warn when a function\'s return value is ignored. Use it on functions whose result is the whole point (empty(), error codes, factory functions) to catch bugs like calling v.empty() intending to clear.' },
+    { id: 'mc26', front: 'What is std::exchange and why is it handy in move constructors?', back: 'std::exchange(obj, newValue) sets obj to newValue and returns the old value. Widget(Widget&& o) : ptr(std::exchange(o.ptr, nullptr)) steals the pointer and nulls the source in one expression, leaving the moved-from object safely empty.' },
+    { id: 'mc27', front: 'What is decltype(auto) for?', back: 'A return type or variable that preserves references and constness exactly as decltype would, where plain auto would strip them. A forwarding wrapper decltype(auto) get() { return f(); } returns T& if f returns T&, and T if f returns by value.' },
+    { id: 'mc28', front: 'What are designated initializers (C++20)?', back: 'Aggregate initialization by member name: Config c{.host = "localhost", .port = 8080};. Members must appear in declaration order; omitted ones are value-initialized. They make call sites self-documenting and catch reordered fields.' },
+    { id: 'mc29', front: 'What do C++20 ranges algorithms add over the classic iterator-pair versions?', back: 'They take a whole range (std::ranges::sort(v)), are constrained by concepts for readable errors, and accept projections: ranges::sort(people, {}, &Person::age) sorts by a member without writing a comparator.' },
+    { id: 'mc30', front: 'What is the immediately-invoked lambda idiom for const initialization?', back: 'const auto config = [&] { Config c; ... complex setup ...; return c; }(); lets a variable be const even when its value needs multiple statements to compute, instead of a mutable variable that is only assigned once.' }
   ],
 
   quizQuestions: [
@@ -3581,6 +4157,83 @@ int main() {
       options: ['The compiler errors if any alternative is unhandled', 'It is always O(1) while get_if is O(n)', 'It automatically adds new alternatives', 'It works on raw unions too'],
       correctAnswer: 0,
       explanation: 'std::visit requires the visitor to be invocable with every alternative. Add a new type to the variant and every non-exhaustive visit fails to compile - like an exhaustive when over a sealed class.'
+    },
+    {
+      id: 'mcq10',
+      question: 'const std::string src = "data"; std::string dst = std::move(src); What happens?',
+      options: ['dst steals src\'s buffer; src is empty', 'dst is copy-constructed - const std::string&& cannot bind to the move constructor', 'Compile error: cannot move a const object', 'Undefined behavior'],
+      correctAnswer: 1,
+      explanation: 'std::move yields const std::string&&, which cannot bind to std::string&& but happily binds to const std::string&. The move silently becomes a copy - a common performance bug.'
+    },
+    {
+      id: 'mcq11',
+      question: 'struct NoMove { NoMove() = default; NoMove(const NoMove&) = delete; NoMove(NoMove&&) = delete; }; NoMove make() { return NoMove(); } NoMove n = make(); In C++17, what happens?',
+      options: ['Compile error: no copy or move constructor', 'Compiles only with -O2 where the compiler elides', 'Compiles: guaranteed copy elision constructs n directly from the prvalue', 'Runtime error'],
+      correctAnswer: 2,
+      explanation: 'Since C++17, initializing from a prvalue is not a copy or move at all, so deleted move/copy constructors are irrelevant. Returning a NAMED local would still require a move constructor.'
+    },
+    {
+      id: 'mcq12',
+      question: 'A hot inner loop calls a std::function<int(int)> instead of a lambda passed as a template parameter. What is the likely cost?',
+      options: ['An indirect call through type erasure that cannot be inlined (plus a possible heap allocation when the callable was stored)', 'None - std::function is a zero-cost abstraction', 'A copy of the lambda on every call', 'A dynamic_cast on every call'],
+      correctAnswer: 0,
+      explanation: 'std::function hides the callable\'s type behind a virtual-like call, so the optimizer cannot inline it into the loop. A template parameter keeps the concrete type and inlines fully.'
+    },
+    {
+      id: 'mcq13',
+      question: 'class Widget { void start() { timer.onFire([this] { count++; }); } }; The Widget is destroyed before the timer fires. What happens?',
+      options: ['The lambda holds a copy of the Widget, so it is safe', 'The lambda is automatically cancelled', 'Compile error: this cannot be captured', 'Undefined behavior: the captured this pointer dangles'],
+      correctAnswer: 3,
+      explanation: 'Capturing this stores only a pointer. Either ensure the callback is cancelled in the destructor, capture a weak_ptr and lock it inside the lambda, or capture [*this] if a copy is acceptable.'
+    },
+    {
+      id: 'mcq14',
+      question: 'void f() noexcept { throw std::runtime_error("x"); } is called inside a try/catch block. What happens?',
+      options: ['The catch block handles it normally', 'std::terminate is called', 'Compile error: noexcept functions cannot contain throw', 'The exception is converted to std::bad_exception'],
+      correctAnswer: 1,
+      explanation: 'noexcept is enforced at runtime: an exception escaping the function calls std::terminate immediately. The compiler only warns (if at all) about a throw inside a noexcept function.'
+    },
+    {
+      id: 'mcq15',
+      question: 'std::pair<int, int> p{1, 2}; auto [a, b] = p; a = 10; What is p.first afterwards?',
+      options: ['10', 'Undefined', '1 - a aliases a member of a hidden copy of p', 'Compile error: structured bindings are const'],
+      correctAnswer: 2,
+      explanation: 'auto [a, b] = p copies p into an unnamed object and binds a and b to that copy\'s members. Write auto& [a, b] = p; to bind to p itself.'
+    },
+    {
+      id: 'mcq16',
+      question: 'void greet(std::string_view name); greet("world"); What allocation occurs?',
+      options: ['None - the view points directly at the string literal', 'A temporary std::string is heap-allocated', 'The literal is copied onto the stack', 'Compile error: cannot convert const char* to string_view'],
+      correctAnswer: 0,
+      explanation: 'string_view has a constructor from const char* that computes the length and stores the pointer. With const std::string& you would construct a temporary string instead.'
+    },
+    {
+      id: 'mcq17',
+      question: 'template<class T> void store(T&& item) { items.push_back(std::move(item)); } std::string s = "keep"; store(s); What is wrong?',
+      options: ['Nothing - this is idiomatic', 'Compile error: cannot move from T&&', 'items gets a copy because move on T&& is ignored', 'The caller\'s s is silently moved-from even though it was passed as an lvalue; std::forward<T> should be used'],
+      correctAnswer: 3,
+      explanation: 'std::move unconditionally casts to rvalue, so an lvalue argument is stolen. std::forward<T>(item) moves only when the caller passed an rvalue.'
+    },
+    {
+      id: 'mcq18',
+      question: 'int x = 5; auto f = [x]() mutable { return ++x; }; f(); int r = f(); What are r and x?',
+      options: ['r == 6, x == 6', 'r == 7, x == 5', 'r == 7, x == 7', 'Compile error: cannot modify a captured variable'],
+      correctAnswer: 1,
+      explanation: 'The closure holds its own copy of x, and mutable lets calls modify that copy, which persists between calls (6, then 7). The original x is untouched.'
+    },
+    {
+      id: 'mcq19',
+      question: 'Which is a real benefit of C++20 modules over header files?',
+      options: ['Templates no longer need to be visible at the point of use', 'Modules remove the need for a linker', 'Macros defined inside a module do not leak to importers, and the module is compiled once instead of reparsed per includer', 'Modules make all functions inline'],
+      correctAnswer: 2,
+      explanation: 'A module interface is compiled to a binary form and imported; the preprocessor state of the module does not affect the importer. Templates are still exported through the module interface and instantiated by users.'
+    },
+    {
+      id: 'mcq20',
+      question: 'Buffer(Buffer&& o) noexcept : data(std::exchange(o.data, nullptr)), size(std::exchange(o.size, 0)) {} What does std::exchange accomplish here?',
+      options: ['Takes each member from the source and resets the source to a safe empty state in one expression', 'Swaps the two objects', 'Deep-copies the buffer', 'Marks the source as destroyed so its destructor is skipped'],
+      correctAnswer: 0,
+      explanation: 'exchange returns the old value while storing the new one. The moved-from Buffer ends with data == nullptr and size == 0, so its destructor is a harmless no-op.'
     }
   ]
 };
@@ -4168,7 +4821,22 @@ void fill(std::vector<Message>& log) {
     { id: 'cc12', front: 'How do exceptions cross threads with futures?', back: 'An exception thrown in the async task (or set via promise::set_exception) is stored in the shared state and rethrown when the consumer calls future::get(). Clean cross-thread error propagation.' },
     { id: 'cc13', front: 'How do you run ThreadSanitizer and what are its limits?', back: 'Compile and link with -fsanitize=thread -g, then run your tests. It reports both racing stacks. Costs ~5-15x slowdown, only finds races that actually execute, and cannot be combined with ASan.' },
     { id: 'cc14', front: 'What is false sharing and how do you fix it?', back: 'Two threads write different variables that live on the same 64-byte cache line, so the line ping-pongs between cores. Fix: pad/align per-thread data with alignas(std::hardware_destructive_interference_size).' },
-    { id: 'cc15', front: 'Why is "return std::move(local);" usually wrong?', back: 'It disables NRVO/copy elision, forcing a move where the compiler could have constructed the object directly in the caller. Return the local by name; elision is mandatory for prvalues since C++17.' }
+    { id: 'cc15', front: 'Why is "return std::move(local);" usually wrong?', back: 'It disables NRVO/copy elision, forcing a move where the compiler could have constructed the object directly in the caller. Return the local by name; elision is mandatory for prvalues since C++17.' },
+    { id: 'cc16', front: 'Data race vs race condition - what is the difference?', back: 'A data race is a low-level, well-defined term: unsynchronized concurrent access to one memory location with a write, which is undefined behavior. A race condition is a logic bug where correctness depends on timing (check-then-act). Code can have either without the other.' },
+    { id: 'cc17', front: 'How do you write a thread-safe lazy singleton in modern C++?', back: 'static Instance& get() { static Instance inst; return inst; } Since C++11 the initialization of a function-local static is guaranteed to happen exactly once, with other threads blocking until it completes ("magic statics"). No double-checked locking needed.' },
+    { id: 'cc18', front: 'When do you use std::call_once instead of a magic static?', back: 'When the one-time initialization is not a static local: initializing a member lazily, running setup code with side effects, or when the target lives in an object with several instances. Pair a std::once_flag with std::call_once(flag, fn); it is also exception-safe (a throwing call lets another caller retry).' },
+    { id: 'cc19', front: 'What mutex types does the standard provide, and when do you pick each?', back: 'std::mutex: default. recursive_mutex: same thread may relock (usually a design smell). timed_mutex: try_lock_for/until. shared_mutex (C++17): many readers via shared_lock or one writer via unique_lock - worthwhile only when reads vastly outnumber writes and critical sections are long.' },
+    { id: 'cc20', front: 'Why is std::recursive_mutex considered a code smell?', back: 'It usually means a public locked function calls another public locked function, hiding the locking structure. It is slower, makes invariants unclear (the inner call sees partially updated state), and cannot be used with condition_variable. Refactor into private unlocked helpers instead.' },
+    { id: 'cc21', front: 'std::promise vs std::packaged_task vs std::async?', back: 'promise: manually set a value or exception that a future will receive - lowest level. packaged_task: wraps a callable so its return value goes to a future; you decide when and where to run it (e.g. a thread pool). async: runs the callable for you, possibly on a new thread.' },
+    { id: 'cc22', front: 'What is the difference between std::launch::async and std::launch::deferred?', back: 'async runs the task on a new thread immediately. deferred runs it lazily on the calling thread when get() or wait() is called - never, if nobody asks. The default policy is async | deferred, letting the implementation choose, so specify launch::async when you need concurrency.' },
+    { id: 'cc23', front: 'Is std::atomic<T> always lock-free?', back: 'No. Small trivially copyable types (int, pointers, usually 8-byte structs) are lock-free on mainstream hardware; larger T falls back to an internal lock. Check with is_lock_free() or std::atomic<T>::is_always_lock_free at compile time.' },
+    { id: 'cc24', front: 'compare_exchange_weak vs compare_exchange_strong?', back: 'Both atomically replace the value if it equals expected, otherwise load the current value into expected. weak may fail spuriously even when the values match, which is fine inside a retry loop and cheaper on LL/SC architectures (ARM). Use strong when a spurious failure would be wrong or the loop is expensive.' },
+    { id: 'cc25', front: 'What does memory_order_seq_cst add over acquire/release?', back: 'A single total order of all seq_cst operations that every thread agrees on. Acquire/release only orders pairs that synchronize; with two flags each set by a different thread, two observers can disagree on which was set first. seq_cst forbids that, at the cost of extra fences on weakly ordered CPUs.' },
+    { id: 'cc26', front: 'notify_one vs notify_all, and how do you avoid a lost wakeup?', back: 'notify_one wakes a single waiter (a queue with one item); notify_all wakes everyone (a broadcast state change like shutdown). Modify the shared condition while holding the mutex, then notify; otherwise a waiter can check the predicate, see false, and miss the notify before it sleeps.' },
+    { id: 'cc27', front: 'How are arguments passed to a std::thread, and how do you pass a reference?', back: 'Arguments are copied (decayed) into thread-owned storage and passed as rvalues, so void f(int&) will not compile with a plain argument. Wrap with std::ref(x) - and then you own the responsibility that x outlives the thread.' },
+    { id: 'cc28', front: 'What is std::shared_future for?', back: 'std::future::get() may be called exactly once and moves the result out. shared_future can be copied to many consumers, each of which may call get() and receive a const reference to the same value - e.g. several worker threads waiting on one "go" signal or configuration load.' },
+    { id: 'cc29', front: 'Why use a thread pool instead of spawning a thread per task?', back: 'Thread creation costs tens of microseconds plus a stack allocation, and more runnable threads than cores causes oversubscription and context switching. A pool sized around std::thread::hardware_concurrency() reuses threads and bounds memory and contention.' },
+    { id: 'cc30', front: 'Spinlock vs mutex - when does spinning win?', back: 'A spinlock (std::atomic_flag test_and_set loop) avoids the kernel and is fastest for critical sections of a few dozen instructions when the holder is running on another core. If the holder may be descheduled or the section is long, spinning burns CPU; use std::mutex, which spins briefly then blocks.' }
   ],
 
   quizQuestions: [
@@ -4241,6 +4909,76 @@ void fill(std::vector<Message>& log) {
       options: ['A data race on the counters', 'Lock contention on a hidden mutex', 'Branch misprediction', 'False sharing: both counters live on the same cache line'],
       correctAnswer: 3,
       explanation: 'Each write invalidates the shared cache line in the other core, causing constant coherence traffic despite no logical sharing. Fix by aligning each counter to its own line with alignas(std::hardware_destructive_interference_size).'
+    },
+    {
+      id: 'ccq11',
+      question: 'void bump(int& n) { ++n; } int x = 0; std::thread t(bump, x); t.join(); What happens?',
+      options: ['x becomes 1', 'x stays 0 because a copy was incremented', 'Compile error: the thread passes a copy as an rvalue, which cannot bind to int&; use std::ref(x)', 'Data race on x'],
+      correctAnswer: 2,
+      explanation: 'std::thread decays and copies its arguments and invokes the callable with rvalues. int& cannot bind to that, so the constructor is ill-formed. std::ref(x) passes a reference_wrapper that converts back to int&.'
+    },
+    {
+      id: 'ccq12',
+      question: 'Logger& Logger::instance() { static Logger inst; return inst; } Two threads call instance() simultaneously for the first time. What happens?',
+      options: ['Exactly one Logger is constructed; the other thread waits for initialization to finish', 'Two Loggers may be constructed - you need a mutex', 'Undefined behavior - a data race on inst', 'The second thread gets a partially constructed object'],
+      correctAnswer: 0,
+      explanation: 'Since C++11 the initialization of a function-local static is guaranteed thread-safe. This is the simplest correct singleton; double-checked locking is unnecessary.'
+    },
+    {
+      id: 'ccq13',
+      question: 'std::mutex m; void a() { std::lock_guard<std::mutex> g(m); b(); } void b() { std::lock_guard<std::mutex> g(m); } Calling a() does what?',
+      options: ['Works - the same thread can relock', 'Throws std::system_error every time', 'The second lock is silently ignored', 'Undefined behavior - in practice the thread deadlocks on itself'],
+      correctAnswer: 3,
+      explanation: 'std::mutex is not recursive; locking it again from the owning thread is UB and typically hangs forever. Split b into an unlocked private helper called by both, or (less ideally) use recursive_mutex.'
+    },
+    {
+      id: 'ccq14',
+      question: 'std::future<int> f = std::async(compute); int a = f.get(); int b = f.get(); What is the status of the second get()?',
+      options: ['Returns the cached result again', 'Undefined behavior - the future is no longer valid after get(); use std::shared_future for multiple reads', 'Blocks forever', 'Re-runs compute'],
+      correctAnswer: 1,
+      explanation: 'get() moves the result out and releases the shared state; valid() becomes false. Calling get() on an invalid future is UB (implementations often throw future_error). shared_future allows repeated get().'
+    },
+    {
+      id: 'ccq15',
+      question: 'std::atomic<int> hits{0}; Two threads each run hits = hits + 1; 1000 times. Is the final value guaranteed to be 2000?',
+      options: ['Yes - every operation on an atomic is atomic', 'Yes, if memory_order_seq_cst is used', 'No - the load and the store are separate atomic operations; increments can be lost. Use ++hits or fetch_add', 'No - std::atomic<int> is not lock-free'],
+      correctAnswer: 2,
+      explanation: 'hits + 1 reads the value, then the assignment stores a new one. Another thread can update between them. Only the read-modify-write operations (++, +=, fetch_add) are atomic as a whole.'
+    },
+    {
+      id: 'ccq16',
+      question: 'A configuration map is read thousands of times per second and updated once an hour. Which locking scheme fits best?',
+      options: ['std::shared_mutex: readers take std::shared_lock, the writer takes std::unique_lock', 'std::mutex with lock_guard for everyone', 'std::recursive_mutex', 'No lock - reads are safe as long as writes are rare'],
+      correctAnswer: 0,
+      explanation: 'shared_mutex lets many readers proceed concurrently while excluding them only during the rare write. Option 4 is a data race: even one unsynchronized write makes concurrent reads UB.'
+    },
+    {
+      id: 'ccq17',
+      question: 'Producer: ready = true; cv.notify_one(); (no lock held). Consumer: unique_lock lk(m); cv.wait(lk, []{ return ready; }); with bool ready. What can go wrong?',
+      options: ['Nothing - the predicate makes the wait safe', 'The consumer wakes twice', 'notify_one without a lock throws', 'A data race on ready, and a lost wakeup: the consumer can read false, then the producer sets and notifies before the consumer sleeps'],
+      correctAnswer: 3,
+      explanation: 'The write to ready must happen under the same mutex the consumer holds while checking the predicate. That closes the window between the check and the sleep. Notifying after unlocking is fine; writing without the lock is not.'
+    },
+    {
+      id: 'ccq18',
+      question: 'while (!head.compare_exchange_weak(newNode->next, newNode)) {} Why is the weak version acceptable here?',
+      options: ['weak is always faster and never fails', 'The loop retries on spurious failure anyway, and weak avoids an inner loop on LL/SC hardware', 'weak provides stronger memory ordering', 'strong cannot be used with pointers'],
+      correctAnswer: 1,
+      explanation: 'compare_exchange_weak may fail even when the value matched; inside a retry loop that just costs one more iteration, and on ARM-style architectures it maps to a single LL/SC pair. Use strong only when spurious failure would change behavior.'
+    },
+    {
+      id: 'ccq19',
+      question: 'auto f = std::async(std::launch::deferred, expensive); The program never calls f.get() or f.wait(). When does expensive run?',
+      options: ['Immediately on a new thread', 'When f is destroyed', 'Never', 'At program exit'],
+      correctAnswer: 2,
+      explanation: 'deferred means lazy execution on the thread that eventually calls get() or wait(). If nobody does, the task is simply dropped - a source of "my async work never happened" bugs when the default policy picks deferred.'
+    },
+    {
+      id: 'ccq20',
+      question: 'Which of these is a data race?',
+      options: ['Two threads calling push_back on the same std::vector with no lock', 'Two threads reading the same const std::vector concurrently', 'Two threads incrementing the same std::atomic<int> with fetch_add', 'Two threads each holding their own copy of a std::shared_ptr to the same object and reading through it'],
+      correctAnswer: 0,
+      explanation: 'push_back writes to size and possibly reallocates, so concurrent calls are unsynchronized writes to shared memory - UB. Concurrent reads, atomics, and separate shared_ptr copies are all safe.'
     }
   ]
 };

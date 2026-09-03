@@ -8,9 +8,10 @@ import { webCategories } from './webCategories';
 import { backendCategories } from './backendCategories';
 import { sqlCategories } from './sqlCategories';
 import { cppCategories } from './cppCategories';
+import { csCategories } from './csCategories';
 
 // Content type definition
-export type ContentType = 'algorithms' | 'system-design' | 'ios' | 'android' | 'web' | 'backend' | 'sql' | 'cpp';
+export type ContentType = 'algorithms' | 'system-design' | 'ios' | 'android' | 'web' | 'backend' | 'sql' | 'cpp' | 'cs';
 
 // Get all categories for a specific content type
 export const getCategoriesByType = (type: ContentType): Category[] => {
@@ -31,6 +32,8 @@ export const getCategoriesByType = (type: ContentType): Category[] => {
       return sqlCategories as Category[];
     case 'cpp':
       return cppCategories as Category[];
+    case 'cs':
+      return csCategories;
     default:
       return [];
   }
@@ -47,6 +50,7 @@ export const getAllCategories = (): Category[] => {
     ...(backendCategories as Category[]),
     ...(sqlCategories as Category[]),
     ...(cppCategories as Category[]),
+    ...csCategories,
   ];
 };
 
@@ -84,6 +88,10 @@ export const getCategoryBySlug = (slug: string): Category | undefined => {
   category = (cppCategories as Category[]).find(cat => cat.slug === slug);
   if (category) return category;
 
+  // Check CS Fundamentals
+  category = csCategories.find(cat => cat.slug === slug);
+  if (category) return category;
+
   return undefined;
 };
 
@@ -113,6 +121,9 @@ export const getCategoryById = (id: string): Category | undefined => {
   category = (cppCategories as Category[]).find(cat => cat.id === id);
   if (category) return category;
 
+  category = csCategories.find(cat => cat.id === id);
+  if (category) return category;
+
   return undefined;
 };
 
@@ -126,6 +137,7 @@ export const getContentTypeFromCategoryId = (id: string): ContentType | null => 
   if ((backendCategories as Category[]).find(cat => cat.id === id)) return 'backend';
   if ((sqlCategories as Category[]).find(cat => cat.id === id)) return 'sql';
   if ((cppCategories as Category[]).find(cat => cat.id === id)) return 'cpp';
+  if (csCategories.find(cat => cat.id === id)) return 'cs';
   return null;
 };
 
@@ -211,5 +223,11 @@ export const contentTypeInfo = {
     subtitle: '7 core C++ topics',
     icon: 'terminal-outline',
     color: '#00599C', // C++ blue
+  },
+  cs: {
+    title: 'CS Fundamentals',
+    subtitle: '7 under-the-hood topics',
+    icon: 'school-outline',
+    color: '#0EA5E9', // sky blue
   },
 };

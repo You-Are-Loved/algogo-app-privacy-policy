@@ -375,7 +375,22 @@ coroutineScope {
     { id: 'kf12', front: 'What is a platform type in Kotlin?', back: 'A type coming from Java with unknown nullability (shown as Type!). Handle carefully as null safety is not enforced.' },
     { id: 'kf13', front: 'What is the difference between launch and async?', back: 'launch: fire-and-forget, returns Job. async: returns Deferred<T> for getting a result with await(). Use async for parallel execution with results.' },
     { id: 'kf14', front: 'What is "it" in a lambda?', back: 'Implicit name for a single parameter in a lambda. Example: list.map { it * 2 } instead of list.map { x -> x * 2 }.' },
-    { id: 'kf15', front: 'What is a trailing lambda?', back: 'If the last parameter of a function is a lambda, it can be placed outside the parentheses. Enables DSL-like syntax.' }
+    { id: 'kf15', front: 'What is a trailing lambda?', back: 'If the last parameter of a function is a lambda, it can be placed outside the parentheses. Enables DSL-like syntax.' },
+    { id: 'kf16', front: 'What is a value class (@JvmInline) and when is it boxed?', back: 'A class wrapping a single value that the compiler inlines to the underlying type, so UserId(String) costs nothing at runtime. It is boxed (allocated) when used as a nullable, a generic type argument, or through an interface it implements.' },
+    { id: 'kf17', front: 'What is the difference between a sealed class and a sealed interface?', back: 'Both restrict subtypes to the same module/package and enable exhaustive when. A sealed interface lets a subtype also extend another class or implement several sealed interfaces; a sealed class can hold constructor state and shared implementation.' },
+    { id: 'kf18', front: 'When would you pick a sealed class over an enum?', back: 'Enum constants are fixed singletons that all share the same fields. Sealed subclasses can each carry different data and have multiple instances (e.g., Error(message), Success(data)). Use enum for a flat set of constants, sealed for state with payloads.' },
+    { id: 'kf19', front: 'What is the difference between object and companion object?', back: 'object declares a lazily initialized, thread-safe singleton. A companion object is a single object tied to a class, accessed through the class name, often used for factories and constants; it can implement interfaces and expose @JvmStatic members to Java.' },
+    { id: 'kf20', front: 'What is the difference between lateinit and by lazy?', back: 'lateinit is a non-null var (no primitives) you promise to initialize before use; reading it early throws UninitializedPropertyAccessException. by lazy is a val computed on first access and cached; it is thread-safe (SYNCHRONIZED) by default.' },
+    { id: 'kf21', front: 'What does reified do and why does it require inline?', back: 'Generics are erased at runtime, so T::class or x is T normally will not compile. Marking an inline function\'s type parameter reified makes the compiler substitute the concrete type at each call site, which only works because the body is inlined.' },
+    { id: 'kf22', front: 'What do noinline and crossinline mean on lambda parameters?', back: 'noinline keeps a lambda as a real object so it can be stored or passed on instead of inlined. crossinline still inlines it but forbids non-local return because the lambda is invoked from another context (nested lambda, other thread).' },
+    { id: 'kf23', front: 'Why is a data class with var properties dangerous as a HashSet element or map key?', back: 'hashCode() is computed from the constructor properties. Mutating one after insertion changes the hash, so the set can no longer find the element. Prefer val properties and copy() for changes.' },
+    { id: 'kf24', front: 'What is the difference between == and === in Kotlin?', back: '== is structural equality and calls equals() (null-safe). === is referential equality and checks whether both references point to the same object.' },
+    { id: 'kf25', front: 'Does val make an object immutable?', back: 'No. val only prevents reassigning the reference; the object it points to can still be mutable (val list: MutableList). Immutability comes from the type (List, immutable data class with val fields), not from val alone.' },
+    { id: 'kf26', front: 'Is Kotlin\'s List actually immutable?', back: 'List is only a read-only interface. The underlying object is usually a mutable ArrayList, and another holder of a MutableList reference can change it. For guaranteed immutability use kotlinx.collections.immutable or defensive copies.' },
+    { id: 'kf27', front: 'What is the Nothing type?', back: 'A type with no values, used for expressions that never complete normally, such as throw or TODO(). Because Nothing is a subtype of every type, val x = y ?: throw Exception() still infers x as non-null.' },
+    { id: 'kf28', front: 'What does class Wrapper(inner: Api) : Api by inner do?', back: 'Class delegation: the compiler generates forwarding implementations of every Api member to inner. You can override only the members you care about. It favors composition over inheritance without boilerplate.' },
+    { id: 'kf29', front: 'Why are Kotlin classes final by default?', back: 'To avoid the fragile base class problem: a class must opt in to inheritance with open. Frameworks that need proxies (Hilt, Mockito) rely on the all-open plugin or interfaces; MockK can mock final classes.' },
+    { id: 'kf30', front: 'What do out and in mean on a generic type parameter?', back: 'out T makes the type covariant: it only produces T, so List<String> can be used as List<Any>. in T makes it contravariant: it only consumes T, so Comparable<Any> can be used as Comparable<String>. Invariant types like MutableList allow neither.' }
   ],
 
   quizQuestions: [
@@ -448,6 +463,76 @@ coroutineScope {
       options: ['Android-only type', 'Java type with unknown nullability', 'Primitive type', 'Generic type'],
       correctAnswer: 1,
       explanation: 'Platform types (Type!) come from Java with unknown nullability. Kotlin doesn\'t enforce null safety on them.'
+    },
+    {
+      id: 'kfq11',
+      question: 'data class User(val name: String) { var age = 0 }. Is age used by equals() and hashCode()?',
+      options: ['Yes, all properties are used', 'Only if it is declared with var', 'No, only primary constructor properties are used', 'Only if annotated with @Include'],
+      correctAnswer: 2,
+      explanation: 'Data classes generate equals(), hashCode(), toString() and copy() from primary constructor properties only. Properties declared in the body are ignored.'
+    },
+    {
+      id: 'kfq12',
+      question: 'What happens when you read a lateinit var before it is assigned?',
+      options: ['It returns null', 'UninitializedPropertyAccessException is thrown', 'A compile error', 'It returns the type\'s default value'],
+      correctAnswer: 1,
+      explanation: 'lateinit defers the null check to runtime. Reading before assignment throws UninitializedPropertyAccessException; use ::prop.isInitialized to check first.'
+    },
+    {
+      id: 'kfq13',
+      question: 'Why does fun <T> isType(x: Any) = x is T fail to compile?',
+      options: ['Generic types are erased at runtime; the function must be inline with reified T', 'T must be declared as T : Any', 'is cannot be used on Any', 'Generic functions cannot return Boolean'],
+      correctAnswer: 0,
+      explanation: 'Because of type erasure the JVM does not know T at runtime. Only an inline function with a reified type parameter can check x is T, since the concrete type is substituted at each call site.'
+    },
+    {
+      id: 'kfq14',
+      question: 'What thread-safety mode does by lazy use by default?',
+      options: ['LazyThreadSafetyMode.NONE', 'LazyThreadSafetyMode.PUBLICATION', 'LazyThreadSafetyMode.SYNCHRONIZED', 'It is not thread-safe by default'],
+      correctAnswer: 2,
+      explanation: 'The default is SYNCHRONIZED: only one thread runs the initializer and all others see the same value. Pass NONE when you know only one thread will access the property to avoid locking.'
+    },
+    {
+      id: 'kfq15',
+      question: '@JvmInline value class UserId(val raw: String). When does UserId get boxed into a real object?',
+      options: ['Never, it is always inlined', 'Always, it is an ordinary class', 'When used as a nullable, generic type argument, or through an interface', 'Only when called from Java'],
+      correctAnswer: 2,
+      explanation: 'The compiler inlines the wrapper where the static type is UserId. Positions that need a reference type (UserId?, List<UserId>, an interface it implements) require boxing.'
+    },
+    {
+      id: 'kfq16',
+      question: 'What is the difference between == and === in Kotlin?',
+      options: ['There is none', '== is structural (calls equals), === is referential identity', '== is referential identity, === is structural', '=== compares hashCode values'],
+      correctAnswer: 1,
+      explanation: '== translates to a null-safe equals() call. === checks whether two references point to the same object.'
+    },
+    {
+      id: 'kfq17',
+      question: 'fun process(list: List<Int>) { list.forEach { if (it == 0) return; println(it) } }. What does return do?',
+      options: ['Returns from process() entirely (non-local return)', 'Exits only the current lambda iteration', 'Compile error: return is not allowed in a lambda', 'Throws an exception'],
+      correctAnswer: 0,
+      explanation: 'forEach is an inline function, so a bare return inside its lambda is a non-local return from the enclosing function. Use return@forEach to skip only the current element.'
+    },
+    {
+      id: 'kfq18',
+      question: 'Which allows a subtype to also extend an unrelated class?',
+      options: ['sealed class', 'sealed interface', 'Both', 'Neither'],
+      correctAnswer: 1,
+      explanation: 'A class can extend only one superclass, so a sealed class subtype cannot extend anything else. Sealed interfaces have no such limit and a class can implement several of them.'
+    },
+    {
+      id: 'kfq19',
+      question: 'Can a List<String> be passed where a List<Any> is expected?',
+      options: ['Yes, List is declared as List<out E>, so it is covariant', 'No, generics are invariant', 'Only with an unchecked cast', 'Only for MutableList'],
+      correctAnswer: 0,
+      explanation: 'The read-only List interface is declared with out, so List<String> is a subtype of List<Any>. MutableList is invariant because it both produces and consumes E.'
+    },
+    {
+      id: 'kfq20',
+      question: 'What is the Nothing return type used for?',
+      options: ['Functions that return Unit', 'A nullable version of Unit', 'Abstract functions without a body', 'Functions that never return normally, e.g. always throw'],
+      correctAnswer: 3,
+      explanation: 'Nothing has no instances and marks code that never completes normally (throw, exitProcess, TODO). Being a subtype of every type, it lets the Elvis-throw idiom type-check.'
     }
   ]
 };
@@ -875,7 +960,22 @@ val startForResult = registerForActivityResult(
     { id: 'af12', front: 'When is onDestroyView called but not onDestroy?', back: 'When fragment is added to back stack. The view is destroyed but fragment instance remains. View recreated when popped.' },
     { id: 'af13', front: 'What is SavedStateHandle?', back: 'A key-value map in ViewModel that survives process death. Can be used with Hilt injection for saving ViewModel state.' },
     { id: 'af14', front: 'What lifecycle method pairs should be matched?', back: 'onCreate/onDestroy, onStart/onStop, onResume/onPause. Resources acquired in one should be released in its pair.' },
-    { id: 'af15', front: 'What happens when you press the Home button?', back: 'Activity goes through onPause → onStop. It\'s still alive but not visible. Returns through onRestart → onStart → onResume.' }
+    { id: 'af15', front: 'What happens when you press the Home button?', back: 'Activity goes through onPause → onStop. It\'s still alive but not visible. Returns through onRestart → onStart → onResume.' },
+    { id: 'af16', front: 'What is the practical difference between onPause and onStop?', back: 'onPause: the activity lost focus but may still be partially visible (dialog, multi-window), so keep it light and fast. onStop: the activity is no longer visible; release heavier resources (camera, sensors, location updates) here.' },
+    { id: 'af17', front: 'What is process death and how do you reproduce it?', back: 'The OS kills a backgrounded app to reclaim memory. On return, the activity is recreated with its saved instance state Bundle but all in-memory objects, including ViewModels, are gone (only SavedStateHandle survives). Reproduce with adb shell am kill <package> or the Terminate Application button in Logcat.' },
+    { id: 'af18', front: 'What does android:configChanges do and why is it discouraged?', back: 'Declaring configChanges (e.g. orientation|screenSize) stops the system from recreating the activity and calls onConfigurationChanged instead, so you must update resources manually. It is discouraged except for cases like video playback or games where recreation is too costly.' },
+    { id: 'af19', front: 'What is a PendingIntent?', back: 'A token that lets another process (system, notification manager, AlarmManager, widgets) perform an Intent later with your app\'s identity and permissions. On Android 12+ you must specify FLAG_IMMUTABLE or FLAG_MUTABLE.' },
+    { id: 'af20', front: 'What are the four activity launch modes?', back: 'standard: new instance every time. singleTop: reuse if already at the top of the stack (onNewIntent). singleTask: one instance per task; launching it clears activities above it. singleInstance: like singleTask but the activity is alone in its task.' },
+    { id: 'af21', front: 'What is a task in Android?', back: 'A collection of activities the user interacts with, arranged in a back stack. Back pops the top activity; Recents shows tasks. Flags like FLAG_ACTIVITY_NEW_TASK and taskAffinity control which task an activity joins.' },
+    { id: 'af22', front: 'When is onNewIntent called?', back: 'When an existing activity instance (singleTop, singleTask, or FLAG_ACTIVITY_SINGLE_TOP) receives a new Intent instead of being recreated. getIntent() still returns the original intent unless you call setIntent(intent) yourself.' },
+    { id: 'af23', front: 'How should back navigation be handled today?', back: 'Register an OnBackPressedCallback with the OnBackPressedDispatcher instead of overriding the deprecated onBackPressed(). This works with fragments, Compose (BackHandler) and predictive back (android:enableOnBackInvokedCallback).' },
+    { id: 'af24', front: 'What is the difference between childFragmentManager and parentFragmentManager?', back: 'childFragmentManager manages fragments nested inside this fragment and follows its lifecycle. parentFragmentManager is the manager that hosts this fragment (the activity\'s supportFragmentManager or a parent fragment\'s childFragmentManager).' },
+    { id: 'af25', front: 'How should two fragments communicate?', back: 'Through a shared ViewModel scoped to the activity or navigation graph, or the Fragment Result API (setFragmentResult / setFragmentResultListener). Avoid holding direct references to sibling fragments or casting the activity to an interface.' },
+    { id: 'af26', front: 'Why must a Fragment have a public no-argument constructor?', back: 'On configuration change or process death the FragmentManager re-instantiates fragments reflectively, so constructor parameters would be lost. Pass data through the arguments Bundle, or use a FragmentFactory for constructor injection.' },
+    { id: 'af27', front: 'What is the difference between commit(), commitNow() and commitAllowingStateLoss()?', back: 'commit() schedules the transaction asynchronously on the main thread. commitNow() executes it synchronously but cannot be added to the back stack. commitAllowingStateLoss() will not throw after onSaveInstanceState, but the transaction may be lost if the activity is recreated.' },
+    { id: 'af28', front: 'What causes "Can not perform this action after onSaveInstanceState"?', back: 'Committing a FragmentTransaction after the activity state was saved. The transaction would not be restored after process death, so FragmentManager throws IllegalStateException. Commit only while the lifecycle is at least STARTED, e.g. from a lifecycle-aware observer.' },
+    { id: 'af29', front: 'How do you know whether onDestroy is due to finish() or a configuration change?', back: 'isFinishing() is true when the activity is really going away (finish() or back). isChangingConfigurations() is true during rotation or other config changes, where the activity will be recreated immediately.' },
+    { id: 'af30', front: 'When must registerForActivityResult be called?', back: 'Before the activity or fragment reaches STARTED, typically as a property initializer or in onCreate. Registering later (e.g. inside a click listener) throws IllegalStateException, because the callback must exist to receive results after recreation.' }
   ],
 
   quizQuestions: [
@@ -948,6 +1048,76 @@ val startForResult = registerForActivityResult(
       options: ['Explicit intent', 'Implicit intent', 'Pending intent', 'Broadcast intent'],
       correctAnswer: 1,
       explanation: 'Implicit intents specify an action (like ACTION_VIEW) and let the system find matching handlers.'
+    },
+    {
+      id: 'afq11',
+      question: 'A translucent dialog activity from another app partially covers your activity. Which callback runs?',
+      options: ['onStop', 'onPause', 'onDestroy', 'onSaveInstanceState only'],
+      correctAnswer: 1,
+      explanation: 'The activity loses focus but stays partially visible, so only onPause runs. onStop is called only when the activity is fully hidden.'
+    },
+    {
+      id: 'afq12',
+      question: 'What is the callback order when the device rotates?',
+      options: ['onPause, onDestroy, onCreate, onResume', 'onStop, onSaveInstanceState, onDestroy, onCreate, onStart', 'onPause, onStop, onSaveInstanceState, onDestroy, onCreate, onStart, onRestoreInstanceState, onResume', 'onSaveInstanceState, onPause, onStop, onCreate, onResume'],
+      correctAnswer: 2,
+      explanation: 'The activity is torn down (onPause, onStop, onSaveInstanceState, onDestroy) and rebuilt (onCreate, onStart, onRestoreInstanceState, onResume). Since API 28 onSaveInstanceState runs after onStop.'
+    },
+    {
+      id: 'afq13',
+      question: 'Which of these survives rotation but is lost after process death?',
+      options: ['The onSaveInstanceState Bundle', 'Values stored in SavedStateHandle', 'Plain fields inside a ViewModel', 'Intent extras'],
+      correctAnswer: 2,
+      explanation: 'ViewModels are retained across configuration changes but live in memory, so process death destroys them. Bundle, SavedStateHandle and Intent extras are restored by the system.'
+    },
+    {
+      id: 'afq14',
+      question: 'An activity with launchMode="singleTop" is on top of the stack and is started again. What happens?',
+      options: ['A second instance is pushed on top', 'onNewIntent is delivered to the existing instance', 'The task is cleared and it restarts', 'onCreate runs again on the same instance'],
+      correctAnswer: 1,
+      explanation: 'singleTop reuses the instance only when it is already at the top; it receives the Intent via onNewIntent. If it were lower in the stack a new instance would be created.'
+    },
+    {
+      id: 'afq15',
+      question: 'What must you specify when creating a PendingIntent on Android 12 (API 31) and above?',
+      options: ['FLAG_ONE_SHOT', 'FLAG_UPDATE_CURRENT', 'Either FLAG_IMMUTABLE or FLAG_MUTABLE', 'FLAG_CANCEL_CURRENT'],
+      correctAnswer: 2,
+      explanation: 'Targeting API 31+ requires an explicit mutability flag or creation throws IllegalArgumentException. Prefer FLAG_IMMUTABLE unless another app must fill in the Intent (e.g. direct reply).'
+    },
+    {
+      id: 'afq16',
+      question: 'Why does Android require fragments to have a public no-arg constructor?',
+      options: ['FragmentManager re-creates them reflectively during restore', 'Hilt needs it for injection', 'ViewBinding requires it', 'Kotlin data classes require it'],
+      correctAnswer: 0,
+      explanation: 'On configuration change or process death the system instantiates the fragment class by reflection and restores its arguments Bundle. Constructor parameters would not be restored.'
+    },
+    {
+      id: 'afq17',
+      question: 'Which FragmentTransaction commit method cannot be combined with addToBackStack?',
+      options: ['commit()', 'commitAllowingStateLoss()', 'All of them can', 'commitNow()'],
+      correctAnswer: 3,
+      explanation: 'commitNow() executes synchronously and throws if the transaction was added to the back stack, because back stack ordering relies on asynchronous execution.'
+    },
+    {
+      id: 'afq18',
+      question: 'In onDestroy, how do you know the activity is being recreated for a configuration change rather than finishing?',
+      options: ['isChangingConfigurations() returns true', 'isFinishing() returns true', 'savedInstanceState is null', 'onStop was skipped'],
+      correctAnswer: 0,
+      explanation: 'isChangingConfigurations() is true during rotation and similar changes. isFinishing() is true when the activity is really ending, which is when you should release shared resources.'
+    },
+    {
+      id: 'afq19',
+      question: 'Two sibling fragments need to share a selected item. What is the recommended approach?',
+      options: ['Cast requireActivity() to a listener interface', 'A static singleton holding the item', 'A shared ViewModel via activityViewModels() or the Fragment Result API', 'findFragmentByTag and call a method on the sibling'],
+      correctAnswer: 2,
+      explanation: 'A ViewModel scoped to the activity or nav graph keeps fragments decoupled and survives rotation. The Fragment Result API handles one-off results. Direct references couple fragments and break on recreation.'
+    },
+    {
+      id: 'afq20',
+      question: 'You start activity B with FLAG_ACTIVITY_CLEAR_TOP and B already exists in the stack under C and D. What happens?',
+      options: ['A new task is created for B', 'The entire back stack is cleared', 'Nothing unless B is singleInstance', 'C and D are finished and the Intent is delivered to B'],
+      correctAnswer: 3,
+      explanation: 'CLEAR_TOP finishes everything above the existing B. B itself is recreated unless it is singleTop or the intent also has FLAG_ACTIVITY_SINGLE_TOP, in which case it gets onNewIntent.'
     }
   ]
 };
@@ -1403,7 +1573,22 @@ fun FlowCollector(viewModel: MyViewModel) {
     { id: 'jc12', front: 'What makes a composable skippable?', back: 'Stable parameters that haven\'t changed. Compose skips recomposition of composables whose inputs are unchanged.' },
     { id: 'jc13', front: 'What is collectAsStateWithLifecycle?', back: 'Collects Flow as State, respecting lifecycle. Stops collection when lifecycle is below STARTED, preventing wasted resources.' },
     { id: 'jc14', front: 'What annotation marks a composable function?', back: '@Composable. It tells the compiler this function can emit UI and participate in recomposition.' },
-    { id: 'jc15', front: 'What is SideEffect used for?', back: 'Running code after every successful recomposition. Used to sync Compose state with non-Compose code (analytics, logging).' }
+    { id: 'jc15', front: 'What is SideEffect used for?', back: 'Running code after every successful recomposition. Used to sync Compose state with non-Compose code (analytics, logging).' },
+    { id: 'jc16', front: 'What are the three phases of a Compose frame?', back: 'Composition (what UI to show), Layout (measure and place), Drawing (render). Compose tracks which phase reads a state; reading it inside a lambda such as Modifier.offset { } or drawBehind { } only re-runs that phase and skips recomposition.' },
+    { id: 'jc17', front: 'What makes a type stable for the Compose compiler?', back: 'All public properties are val of stable types, or the class is annotated @Stable/@Immutable. Primitives, String and function types are stable; List and Map interfaces are unstable by default because their implementation may be mutable. Types from other modules without a stability config are treated as unstable.' },
+    { id: 'jc18', front: 'What problem does rememberUpdatedState solve?', back: 'A long-running effect like LaunchedEffect(Unit) captures its lambdas at launch. rememberUpdatedState keeps a reference that always reflects the latest value without restarting the effect, so the effect calls the newest callback.' },
+    { id: 'jc19', front: 'What is produceState?', back: 'A composable that launches a coroutine scoped to the composition and exposes its results as State. Useful for turning suspend calls or callback APIs into State that restarts when its keys change.' },
+    { id: 'jc20', front: 'What does snapshotFlow do?', back: 'Converts reads of Compose State into a cold Flow that emits when the read values change (distinct only). Typical use: snapshotFlow { listState.firstVisibleItemIndex } inside LaunchedEffect to react to scrolling.' },
+    { id: 'jc21', front: 'When should you use derivedStateOf instead of remember(key)?', back: 'When the derived result changes far less often than its inputs. remember(key) recomputes and recomposes on every key change; derivedStateOf only notifies readers when the computed value actually changes, e.g. showButton = firstVisibleItemIndex > 0.' },
+    { id: 'jc22', front: 'What is a slot API?', back: 'A composable that takes @Composable lambda parameters (slots) so callers supply arbitrary content, e.g. Scaffold(topBar = { }, content = { }). It keeps components flexible without exploding the number of parameters.' },
+    { id: 'jc23', front: 'What is a backwards write and why is it bad?', back: 'Writing to a state that was already read earlier in the same composition. It invalidates the current composition immediately, causing repeated recompositions or an infinite loop. Mutate state from event handlers or effects instead.' },
+    { id: 'jc24', front: 'Why can a lambda parameter make a composable non-skippable?', back: 'A lambda that captures unstable values (like a ViewModel) is a new instance each recomposition, so the parameter is seen as changed. Fix by capturing only stable values, using method references, or enabling strong skipping mode, which memoizes lambdas automatically.' },
+    { id: 'jc25', front: 'Why does adding to a MutableList inside mutableStateOf not trigger recomposition?', back: 'MutableState only notifies when its value reference changes; mutating the list in place does not. Use mutableStateListOf for observable mutation, or store an immutable List and assign a new copy.' },
+    { id: 'jc26', front: 'How does Compose interoperate with the View system?', back: 'AndroidView embeds a View (MapView, WebView) inside Compose; ComposeView hosts composables inside XML or fragments via setContent. In fragments set ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed to avoid leaks.' },
+    { id: 'jc27', front: 'What is the key() composable for?', back: 'It gives identity to composables emitted in a loop outside lazy layouts, e.g. Column with a for loop. Without key(item.id), reordering items causes remembered state to attach to the wrong item.' },
+    { id: 'jc28', front: 'What is the semantics tree?', back: 'A parallel description of the UI used by accessibility services and tests. Modifiers like contentDescription, semantics { }, testTag and mergeDescendants shape it; onNode matchers query it.' },
+    { id: 'jc29', front: 'What is the difference between compositionLocalOf and staticCompositionLocalOf?', back: 'compositionLocalOf tracks readers so only composables that read the value recompose when it changes. staticCompositionLocalOf does not track reads, so a change recomposes the entire content lambda; it is cheaper for values that rarely change (themes).' },
+    { id: 'jc30', front: 'How should one-off events like navigation or snackbars flow from ViewModel to Compose UI?', back: 'Prefer modelling them as UI state that the UI consumes and then reports back as handled (e.g. errorMessage then onErrorShown()). Channels/SharedFlow collected in a LaunchedEffect can drop events during configuration changes or when the app is backgrounded.' }
   ],
 
   quizQuestions: [
@@ -1476,6 +1661,76 @@ fun FlowCollector(viewModel: MyViewModel) {
       options: ['@Component', '@Composable', '@UI', '@View'],
       correctAnswer: 1,
       explanation: '@Composable marks functions that can emit UI and participate in the composition.'
+    },
+    {
+      id: 'jcq11',
+      question: 'val items = remember { mutableListOf<String>() }; a button calls items.add("x") but the list on screen never updates. Why?',
+      options: ['remember blocks updates', 'You must use rememberSaveable', 'MutableList is not observable state; use mutableStateListOf', 'add() must run on Dispatchers.Main'],
+      correctAnswer: 2,
+      explanation: 'Compose only observes snapshot state. A plain MutableList changes silently. mutableStateListOf() notifies on element changes, or replace an immutable List held in mutableStateOf.'
+    },
+    {
+      id: 'jcq12',
+      question: 'LaunchedEffect(Unit) starts a 5s timer and then calls onTimeout, but onTimeout may change during those 5s. How do you call the latest one without restarting the timer?',
+      options: ['LaunchedEffect(onTimeout)', 'rememberUpdatedState(onTimeout)', 'derivedStateOf { onTimeout }', 'SideEffect { onTimeout() }'],
+      correctAnswer: 1,
+      explanation: 'rememberUpdatedState keeps a State that always holds the newest lambda. Keying the effect on onTimeout would restart the timer on every change.'
+    },
+    {
+      id: 'jcq13',
+      question: 'A state is read only inside Modifier.offset { IntOffset(x, 0) }. Which phase re-runs when x changes?',
+      options: ['All three phases', 'Composition only', 'Layout only, skipping recomposition', 'Drawing only'],
+      correctAnswer: 2,
+      explanation: 'The lambda version of offset defers the read to the layout phase, so Compose re-measures and places without recomposing. The non-lambda offset(x) would read x during composition.'
+    },
+    {
+      id: 'jcq14',
+      question: 'Which parameter type is treated as unstable by the Compose compiler by default?',
+      options: ['String', 'Int', 'List<String>', 'A same-module data class with only val String fields'],
+      correctAnswer: 2,
+      explanation: 'List is an interface whose implementation may be mutable, so the compiler cannot prove stability. Use ImmutableList, wrap it in an @Immutable class, or a stability configuration file.'
+    },
+    {
+      id: 'jcq15',
+      question: 'What happens if a composable writes to a state it already read during the same composition?',
+      options: ['Compile error', 'The write is ignored', 'The composition is invalidated again, leading to repeated recompositions', 'The state resets to its initial value'],
+      correctAnswer: 2,
+      explanation: 'This is a backwards write. Compose schedules another recomposition immediately, and if the write happens every time you get an infinite loop. Move writes into event handlers or effects.'
+    },
+    {
+      id: 'jcq16',
+      question: 'When is derivedStateOf the right tool rather than remember(key) { }?',
+      options: ['When the derived value changes much less often than the state it reads', 'When the value must survive rotation', 'When the computation is a suspend function', 'When the input is a lambda'],
+      correctAnswer: 0,
+      explanation: 'derivedStateOf only notifies readers when the result changes, so a fast-changing input like scroll offset does not recompose consumers of a Boolean derived from it.'
+    },
+    {
+      id: 'jcq17',
+      question: 'What happens when the value provided to a staticCompositionLocalOf changes?',
+      options: ['Nothing recomposes', 'Only composables that read it recompose', 'A compile error', 'The whole content lambda under the provider recomposes'],
+      correctAnswer: 3,
+      explanation: 'Static locals do not track individual reads, so Compose recomposes everything inside the CompositionLocalProvider. That is fine for rarely changing values like a theme.'
+    },
+    {
+      id: 'jcq18',
+      question: 'A Column renders items with a for loop; each child holds remember state. After reordering, state appears on the wrong rows. Fix?',
+      options: ['Use remember(item) instead', 'Wrap each child in key(item.id) { }', 'Use rememberSaveable', 'Add a LaunchedEffect per item'],
+      correctAnswer: 1,
+      explanation: 'Without keys, Compose identifies children by call position, so state stays with the slot rather than the item. key() ties remembered state to the item identity.'
+    },
+    {
+      id: 'jcq19',
+      question: 'Which ViewCompositionStrategy should a ComposeView inside a Fragment use?',
+      options: ['DisposeOnViewTreeLifecycleDestroyed', 'DisposeOnDetachedFromWindow', 'DisposeOnLifecycleDestroyed of the Activity', 'The default is always correct'],
+      correctAnswer: 0,
+      explanation: 'The fragment view lifecycle ends in onDestroyView, and this strategy disposes the composition with it. Disposing on detach can drop the composition too early during transitions.'
+    },
+    {
+      id: 'jcq20',
+      question: 'What does snapshotFlow { } do?',
+      options: ['Converts Compose State reads into a cold Flow that emits when they change', 'Converts a Flow into Compose State', 'Captures a bitmap of the composable', 'Runs a block after every recomposition'],
+      correctAnswer: 0,
+      explanation: 'snapshotFlow observes the state read inside its block and emits distinct new values, bridging State to coroutine-based code. collectAsState goes the other direction.'
     }
   ]
 };
@@ -1915,7 +2170,22 @@ job.invokeOnCompletion { cause ->
     { id: 'cf12', front: 'What is the catch operator in Flow?', back: 'Catches exceptions from upstream operators and can emit replacement values. Doesn\'t catch collection exceptions.' },
     { id: 'cf13', front: 'What is viewModelScope?', back: 'Pre-defined CoroutineScope in ViewModel. Automatically cancelled when ViewModel is cleared. Uses Main dispatcher.' },
     { id: 'cf14', front: 'What is collectAsStateWithLifecycle?', back: 'Compose function that collects Flow as State while respecting lifecycle. Stops collection when below STARTED.' },
-    { id: 'cf15', front: 'What does withTimeoutOrNull return on timeout?', back: 'Returns null instead of throwing TimeoutCancellationException. Useful when timeout is recoverable.' }
+    { id: 'cf15', front: 'What does withTimeoutOrNull return on timeout?', back: 'Returns null instead of throwing TimeoutCancellationException. Useful when timeout is recoverable.' },
+    { id: 'cf16', front: 'What does the suspend modifier do under the hood?', back: 'The compiler rewrites the function into a state machine that takes an extra Continuation parameter. At each suspension point it saves local state and returns; when resumed it jumps to the next state. No thread is blocked while suspended.' },
+    { id: 'cf17', front: 'What is the difference between Dispatchers.Default and Dispatchers.IO?', back: 'Default is sized to the CPU core count and meant for CPU-bound work. IO is an elastic pool (up to 64 threads by default) for blocking I/O. They share threads, so switching from Default to IO often reuses the same thread.' },
+    { id: 'cf18', front: 'What is Dispatchers.Unconfined?', back: 'Starts the coroutine in the caller thread and after each suspension resumes on whatever thread the suspending function used. It has no thread confinement, so it is rarely appropriate outside tests and library internals.' },
+    { id: 'cf19', front: 'Why is coroutine cancellation cooperative?', back: 'cancel() only sets the Job state; the coroutine notices it at the next suspension point or explicit check. A CPU loop that never suspends keeps running, so call yield(), ensureActive() or check isActive inside long loops.' },
+    { id: 'cf20', front: 'Why must you not swallow CancellationException?', back: 'Cancellation is delivered as a CancellationException at the suspension point. catch (e: Exception) that does not rethrow it makes the coroutine continue running after cancellation, leaking work. Rethrow it or catch more specific exceptions.' },
+    { id: 'cf21', front: 'What is the difference between coroutineScope { } and supervisorScope { }?', back: 'Both create a child scope and wait for all children. In coroutineScope one failing child cancels the siblings and rethrows. In supervisorScope children fail independently, so you handle each failure locally.' },
+    { id: 'cf22', front: 'Where does a CoroutineExceptionHandler take effect?', back: 'Only on root coroutines started with launch (or installed in the scope). Handlers on child coroutines are ignored because exceptions propagate to the parent first, and async exposes exceptions through await() instead.' },
+    { id: 'cf23', front: 'Why is GlobalScope discouraged?', back: 'Its coroutines are not tied to any lifecycle or parent, so they cannot be cancelled together, leak on screen exit, and break structured concurrency. Use viewModelScope, lifecycleScope, or an injected application-level scope with a SupervisorJob.' },
+    { id: 'cf24', front: 'What is withContext(NonCancellable) for?', back: 'Running cleanup that must complete even after cancellation, e.g. closing a database transaction in a finally block. Once cancelled, any other suspend call throws immediately, so the cleanup would otherwise be skipped.' },
+    { id: 'cf25', front: 'What is the difference between SharingStarted.WhileSubscribed(5000), Eagerly and Lazily?', back: 'WhileSubscribed starts the upstream on the first subscriber and stops 5s after the last one leaves, which survives rotation but stops in the background. Eagerly starts immediately and never stops. Lazily starts on the first subscriber and never stops.' },
+    { id: 'cf26', front: 'What is the difference between buffer, conflate and collectLatest?', back: 'buffer lets the producer run ahead without waiting for the collector. conflate keeps only the newest value when the collector is slow. collectLatest cancels the in-progress collector block whenever a new value arrives.' },
+    { id: 'cf27', front: 'What is the difference between combine, zip and flatMapLatest?', back: 'combine emits whenever either flow emits, using the latest value of each. zip pairs emissions one-to-one and waits for both. flatMapLatest maps each value to a new inner flow and cancels the previous inner flow.' },
+    { id: 'cf28', front: 'How does a Channel differ from a Flow?', back: 'A Channel is a hot, coroutine-safe queue for sending values between coroutines; each value is delivered to exactly one receiver. A Flow is a cold, declarative stream that runs per collector. Channels suit one-shot events and producer/consumer pipelines.' },
+    { id: 'cf29', front: 'What is callbackFlow?', back: 'A builder that wraps callback-based APIs into a Flow. Register the callback, push values with trySend, and use awaitClose { unregister() } so the listener is removed when the collector cancels.' },
+    { id: 'cf30', front: 'Why use Mutex instead of synchronized in coroutines?', back: 'Mutex.withLock suspends while waiting instead of blocking the thread, and you cannot call suspend functions inside a synchronized block. Mutex is not reentrant, so do not lock it twice from the same coroutine.' }
   ],
 
   quizQuestions: [
@@ -1988,6 +2258,76 @@ job.invokeOnCompletion { cause ->
       options: ['UI state', 'One-time events', 'Configuration', 'Database queries'],
       correctAnswer: 1,
       explanation: 'SharedFlow is ideal for one-time events like navigation or snackbar that shouldn\'t replay to new subscribers.'
+    },
+    {
+      id: 'cfq11',
+      question: 'viewModelScope.launch { try { repo.load() } catch (e: Exception) { showError() } }. The user leaves the screen mid-load. What is the bug?',
+      options: ['Nothing is wrong', 'CancellationException is caught, so cancellation is swallowed and showError runs', 'try/catch is not allowed inside coroutines', 'load() must be wrapped in async'],
+      correctAnswer: 1,
+      explanation: 'Clearing the ViewModel cancels the scope and repo.load() throws CancellationException, which this catch swallows. Rethrow it (if (e is CancellationException) throw e) or catch specific exceptions.'
+    },
+    {
+      id: 'cfq12',
+      question: 'launch(Dispatchers.Default) { while (true) { compute() } } and later job.cancel(). What happens?',
+      options: ['It keeps running because cancellation is cooperative and the loop never suspends', 'It stops immediately', 'CancellationException is thrown on the next iteration', 'The thread is interrupted'],
+      correctAnswer: 0,
+      explanation: 'The loop never reaches a suspension point, so it never observes the cancelled state. Use while (isActive), ensureActive() or yield() inside the loop.'
+    },
+    {
+      id: 'cfq13',
+      question: 'You need two independent network calls to run in parallel and combine their results. Which is idiomatic?',
+      options: ['Two sequential withContext(Dispatchers.IO) calls', 'launch for each and write into a shared variable', 'runBlocking around both calls', 'async for each inside coroutineScope, then await both'],
+      correctAnswer: 3,
+      explanation: 'async starts both concurrently and await returns typed results; coroutineScope ensures a failure cancels the other and propagates. Sequential withContext calls run one after the other.'
+    },
+    {
+      id: 'cfq14',
+      question: 'You pass a CoroutineExceptionHandler to a child launch inside viewModelScope. Will it handle the child\'s exception?',
+      options: ['Yes, always', 'No, handlers on child coroutines are ignored; install it on the scope or root coroutine', 'Only for async children', 'Only if the child uses Dispatchers.Main'],
+      correctAnswer: 1,
+      explanation: 'A child failure propagates to its parent, and only the root coroutine consults the handler. Put the handler in the scope context or on a launch that is a direct child of a SupervisorJob.'
+    },
+    {
+      id: 'cfq15',
+      question: 'Why is SharingStarted.WhileSubscribed(5000) the common choice for stateIn in a ViewModel?',
+      options: ['It is a network timeout', 'It delays the first emission by 5s', 'It survives brief unsubscription like rotation without restarting the upstream, but stops in the background', 'It is the minimum allowed value'],
+      correctAnswer: 2,
+      explanation: 'During a configuration change the UI unsubscribes for a moment; the 5s grace period keeps the upstream alive so it does not refetch. After the app is backgrounded longer than that, collection stops to save resources.'
+    },
+    {
+      id: 'cfq16',
+      question: 'Search queries arrive quickly and each triggers a slow suspend fetch. You want to cancel the in-progress fetch when a new query arrives. Which operator?',
+      options: ['buffer()', 'conflate()', 'collectLatest { }', 'distinctUntilChanged()'],
+      correctAnswer: 2,
+      explanation: 'collectLatest cancels the previous block when a new value is emitted. conflate only drops intermediate values; it does not cancel work already running. (flatMapLatest is the equivalent for transforming flows.)'
+    },
+    {
+      id: 'cfq17',
+      question: 'What does flatMapLatest do when the upstream emits a new value while an inner flow is still active?',
+      options: ['Cancels the current inner flow and switches to the new one', 'Waits for the inner flow to complete first', 'Runs both inner flows concurrently and merges', 'Drops the new upstream value'],
+      correctAnswer: 0,
+      explanation: 'flatMapLatest is a switch operator: only the most recent inner flow is collected. flatMapMerge would run them concurrently and flatMapConcat sequentially.'
+    },
+    {
+      id: 'cfq18',
+      question: 'Inside coroutineScope { launch { A() }; launch { B() } }, A throws. What happens to B?',
+      options: ['B continues normally', 'B finishes, then the exception is thrown', 'B is silently ignored', 'B is cancelled and the exception propagates to the caller of coroutineScope'],
+      correctAnswer: 3,
+      explanation: 'coroutineScope uses a regular Job, so a failing child cancels its siblings and the scope rethrows. Use supervisorScope if B should be independent of A.'
+    },
+    {
+      id: 'cfq19',
+      question: 'Why is runBlocking discouraged in Android app code?',
+      options: ['It blocks the calling thread, which on the main thread causes jank or ANRs', 'It cannot call suspend functions', 'It runs on Dispatchers.IO', 'It is deprecated'],
+      correctAnswer: 0,
+      explanation: 'runBlocking bridges blocking code to coroutines by blocking the thread until the block finishes. It belongs in tests and main() functions, not in lifecycle callbacks or ViewModels.'
+    },
+    {
+      id: 'cfq20',
+      question: 'Which statement about StateFlow compared with LiveData is correct?',
+      options: ['StateFlow collection is lifecycle-aware by default', 'StateFlow can only be observed on the main thread', 'StateFlow requires an initial value, only emits distinct values, and needs repeatOnLifecycle for lifecycle-aware collection', 'StateFlow is nullable by design'],
+      correctAnswer: 2,
+      explanation: 'LiveData stops delivering when the observer is inactive. StateFlow is a plain coroutine primitive, so the UI must collect it inside repeatOnLifecycle or collectAsStateWithLifecycle to avoid work in the background.'
     }
   ]
 };
@@ -2478,7 +2818,22 @@ WorkManager.getInstance(context)
     { id: 'ac12', front: 'What is a TypeConverter in Room?', back: 'Converts complex types to/from primitives that SQLite can store. E.g., Date to Long, List to String (JSON).' },
     { id: 'ac13', front: 'What is activityViewModels()?', back: 'Gets ViewModel scoped to the parent Activity. Used for sharing ViewModel between Fragments.' },
     { id: 'ac14', front: 'What does OnConflictStrategy.REPLACE do?', back: 'If primary key exists, replace the row instead of failing. Other options: ABORT, IGNORE, ROLLBACK.' },
-    { id: 'ac15', front: 'What is a PeriodicWorkRequest?', back: 'WorkManager request that repeats at intervals (minimum 15 minutes). Survives app restarts.' }
+    { id: 'ac15', front: 'What is a PeriodicWorkRequest?', back: 'WorkManager request that repeats at intervals (minimum 15 minutes). Survives app restarts.' },
+    { id: 'ac16', front: 'What is Unidirectional Data Flow (UDF)?', back: 'State flows down from the ViewModel to the UI, and events flow up from the UI to the ViewModel. The ViewModel is the single source of truth; the UI only renders state and reports user actions, which makes state changes predictable and testable.' },
+    { id: 'ac17', front: 'How does MVI differ from MVVM?', back: 'MVI models the screen as one immutable state object updated by a pure reducer from intents/actions, with explicit side-effect handling. MVVM typically exposes several observable fields. MVI is easier to reason about and test but adds boilerplate.' },
+    { id: 'ac18', front: 'Why should a ViewModel never hold an Activity, Fragment or View reference?', back: 'The ViewModel outlives them across configuration changes, so the reference keeps a destroyed Activity (and its whole view tree) alive: a memory leak. Use the Application context if needed (AndroidViewModel or @ApplicationContext) and expose state instead of touching views.' },
+    { id: 'ac19', front: 'How should a ViewModel expose UI state?', back: 'As a single immutable UiState data class in a private MutableStateFlow with a public read-only StateFlow (asStateFlow()). The UI cannot mutate it, and all updates go through the ViewModel using update { it.copy(...) }.' },
+    { id: 'ac20', front: 'What are the main Hilt components and scopes?', back: 'SingletonComponent/@Singleton (app lifetime), ActivityRetainedComponent/@ActivityRetainedScoped (survives rotation), ViewModelComponent/@ViewModelScoped, ActivityComponent/@ActivityScoped, FragmentComponent/@FragmentScoped. Bindings without a scope annotation are created on every injection.' },
+    { id: 'ac21', front: 'What does @AndroidEntryPoint do?', back: 'Generates a Hilt base class for an Activity, Fragment, View, Service or BroadcastReceiver so its @Inject fields are populated. A fragment annotated with it must be hosted in an annotated activity, and a ViewModel is obtained with hiltViewModel() or by viewModels().' },
+    { id: 'ac22', front: 'What is a Hilt qualifier and when do you need one?', back: 'An annotation (custom @Qualifier or @Named) that distinguishes multiple bindings of the same type, e.g. @IoDispatcher vs @MainDispatcher for CoroutineDispatcher, or an authenticated vs plain OkHttpClient.' },
+    { id: 'ac23', front: 'What is the job of a Repository?', back: 'To be the single source of truth for a type of data: it coordinates network, database and cache, decides caching and offline-first policy, maps DTOs to domain models, and hides where data came from so the rest of the app depends only on its interface.' },
+    { id: 'ac24', front: 'What are the layers in the recommended Android app architecture?', back: 'UI layer (screens plus state holders such as ViewModels), an optional domain layer (use cases that combine repositories and hold reusable business logic), and the data layer (repositories backed by data sources). Dependencies point from UI toward data.' },
+    { id: 'ac25', front: 'How do you evolve a Room schema without losing user data?', back: 'Increase the database version and register a Migration(from, to) with the SQL that transforms the old schema, or use @AutoMigration with exportSchema for simple changes. fallbackToDestructiveMigration() wipes the database and should only be a last resort.' },
+    { id: 'ac26', front: 'Why does Room refuse queries on the main thread?', back: 'Disk I/O would block the UI and cause jank or ANRs, so Room throws IllegalStateException. Declare DAO methods as suspend or return Flow/LiveData; allowMainThreadQueries() exists only for tests.' },
+    { id: 'ac27', front: 'What happens when a DAO query returns Flow<List<T>>?', back: 'Room observes the tables the query touches and re-runs it, emitting a new list whenever any of those tables changes, even if the result is identical. Apply distinctUntilChanged() if identical emissions are costly.' },
+    { id: 'ac28', front: 'What are @Transaction and @Relation in Room?', back: '@Relation lets Room load one-to-many or many-to-many data into a class with an @Embedded parent and a related list. Such queries run multiple SQL statements, so they need @Transaction to keep the result consistent; @Transaction also wraps custom multi-step DAO methods.' },
+    { id: 'ac29', front: 'What constraints can WorkManager enforce?', back: 'Network type (CONNECTED, UNMETERED), requires charging, device idle, battery not low, and storage not low. Work runs only while all constraints hold; if one stops holding mid-run the worker is stopped and retried later.' },
+    { id: 'ac30', front: 'What is unique work in WorkManager?', back: 'enqueueUniqueWork / enqueueUniquePeriodicWork name a request so duplicates are not scheduled. ExistingWorkPolicy decides the conflict: KEEP ignores the new request, REPLACE cancels the old one, APPEND chains it after the existing work.' }
   ],
 
   quizQuestions: [
@@ -2551,6 +2906,76 @@ WorkManager.getInstance(context)
       options: ['Immediate execution', 'Execution even if app killed', 'UI updates', 'Main thread execution'],
       correctAnswer: 1,
       explanation: 'WorkManager guarantees work will execute even if app is killed. Uses JobScheduler, AlarmManager as appropriate.'
+    },
+    {
+      id: 'acq11',
+      question: 'A ViewModel needs to build a localized message from string resources. What is the recommended approach?',
+      options: ['Pass the Activity into the ViewModel constructor', 'Keep a reference to the TextView and set its text', 'Use the Application context (@ApplicationContext / AndroidViewModel) or expose a resource ID for the UI to resolve', 'Store the Activity in a static field'],
+      correctAnswer: 2,
+      explanation: 'The Application context lives as long as the process, so it cannot leak. An Activity or View reference would outlive rotation inside the ViewModel and leak the destroyed screen.'
+    },
+    {
+      id: 'acq12',
+      question: 'Which Hilt scope survives configuration changes but is destroyed when the Activity finishes?',
+      options: ['@ActivityScoped', '@ActivityRetainedScoped', '@FragmentScoped', '@Singleton'],
+      correctAnswer: 1,
+      explanation: 'ActivityRetainedComponent is retained across rotation like a ViewModel. @ActivityScoped instances are recreated with the Activity.'
+    },
+    {
+      id: 'acq13',
+      question: 'You bump a Room database from version 1 to 2, add a column, but provide no Migration and no fallback. What happens on open?',
+      options: ['IllegalStateException: a migration from 1 to 2 is required', 'Room adds the column automatically', 'The database is silently recreated', 'Room keeps using the old schema'],
+      correctAnswer: 0,
+      explanation: 'Room validates the schema on open and crashes when it cannot find a migration path. Provide a Migration, an @AutoMigration, or (data loss) fallbackToDestructiveMigration().'
+    },
+    {
+      id: 'acq14',
+      question: 'A DAO returns Flow<List<User>>. Why can it emit a new list even though no user changed?',
+      options: ['Flow emits on every collection', 'Room emits on a timer', 'The Flow is hot and replays', 'Room re-runs the query whenever any observed table is written, regardless of the result'],
+      correctAnswer: 3,
+      explanation: 'The invalidation tracker triggers on table-level writes, not row diffs. Apply distinctUntilChanged() downstream if identical emissions matter.'
+    },
+    {
+      id: 'acq15',
+      question: 'In MVI, what produces the next UI state?',
+      options: ['The View mutating state directly', 'A pure reducer that takes the current state and an action/result', 'The Repository', 'The Activity lifecycle callback'],
+      correctAnswer: 1,
+      explanation: 'The reducer is a pure function (state, action) -> newState, which makes state transitions deterministic and unit-testable without Android dependencies.'
+    },
+    {
+      id: 'acq16',
+      question: 'Why expose val uiState: StateFlow<UiState> = _uiState.asStateFlow() instead of the MutableStateFlow itself?',
+      options: ['asStateFlow makes it lifecycle-aware', 'It improves performance', 'It prevents the UI from mutating state, preserving unidirectional data flow', 'MutableStateFlow cannot be collected in Compose'],
+      correctAnswer: 2,
+      explanation: 'The read-only view guarantees that only the ViewModel changes state. asStateFlow also hides the mutable type from a cast, unlike a plain upcast.'
+    },
+    {
+      id: 'acq17',
+      question: 'A Hilt binding has no scope annotation. How many instances are created?',
+      options: ['A new instance every time it is injected', 'One per application', 'One per Activity', 'One per ViewModel'],
+      correctAnswer: 0,
+      explanation: 'Unscoped bindings are transient. Add @Singleton, @ActivityRetainedScoped, etc. only when you need a shared instance, since scoping keeps objects alive for the component lifetime.'
+    },
+    {
+      id: 'acq18',
+      question: 'A worker requires an unmetered network. The user switches to mobile data while the worker is running. What happens?',
+      options: ['The worker continues to completion', 'The worker fails permanently', 'The worker is moved to the main thread', 'The worker is stopped (onStopped / cancelled) and retried when constraints are met again'],
+      correctAnswer: 3,
+      explanation: 'WorkManager cancels the running worker when a constraint stops holding and reschedules it. Workers should be idempotent and check isStopped for long operations.'
+    },
+    {
+      id: 'acq19',
+      question: 'Which best describes a well-designed use case class in the domain layer?',
+      options: ['One public operation, often operator fun invoke, with no Android framework dependencies', 'A class holding many related database queries', 'A subclass of ViewModel', 'A Hilt module providing repositories'],
+      correctAnswer: 0,
+      explanation: 'Use cases encapsulate a single piece of business logic that combines repositories, stay pure Kotlin for testability, and are reused by multiple ViewModels.'
+    },
+    {
+      id: 'acq20',
+      question: 'enqueueUniqueWork("sync", ExistingWorkPolicy.KEEP, request) is called while a "sync" request is already pending. What happens?',
+      options: ['The old request is replaced', 'The new request is appended after the old one', 'The new request is ignored and the existing one is kept', 'Both run in parallel'],
+      correctAnswer: 2,
+      explanation: 'KEEP is a no-op when uncompleted work with that name exists. REPLACE cancels the existing work and APPEND chains the new request after it.'
     }
   ]
 };
@@ -2979,7 +3404,22 @@ class PreferencesManager(context: Context) {
     { id: 'ns12', front: 'What caching does OkHttp provide?', back: 'Memory and disk caching. Configure with Cache class. Respects HTTP cache headers.' },
     { id: 'ns13', front: 'What is @Body in Retrofit?', back: 'Annotation for request body. Object is serialized to JSON (or other format) and sent as request body.' },
     { id: 'ns14', front: 'Why is DataStore better than SharedPreferences?', back: 'Async API (no ANRs), type safety, no runtime exceptions, atomic transactions, Flow support.' },
-    { id: 'ns15', front: 'What is AsyncImage in Coil?', back: 'Composable for loading images asynchronously. Supports placeholder, error, transformations, and caching.' }
+    { id: 'ns15', front: 'What is AsyncImage in Coil?', back: 'Composable for loading images asynchronously. Supports placeholder, error, transformations, and caching.' },
+    { id: 'ns16', front: 'What is the difference between an application interceptor and a network interceptor in OkHttp?', back: 'Application interceptors run once per call, see the original request and the final response, and are not invoked for cached responses or intermediate redirects. Network interceptors run for every network round trip, see redirects and retries, can access the Connection, and are skipped when a cached response is served.' },
+    { id: 'ns17', front: 'What is an OkHttp Authenticator?', back: 'A hook called when the server responds 401. It can refresh the token and return a new Request with an updated Authorization header, which OkHttp retries; returning null gives up. Count prior responses to avoid infinite retry loops.' },
+    { id: 'ns18', front: 'How do you avoid multiple concurrent token refreshes?', back: 'Serialize the refresh in the Authenticator with a lock (synchronized or a Mutex with runBlocking). After acquiring it, compare the current token with the one that failed; if another request already refreshed it, reuse the new token instead of refreshing again.' },
+    { id: 'ns19', front: 'When should a Retrofit method return Response<T> instead of T?', back: 'Returning T throws HttpException for non-2xx codes. Response<T> lets you inspect code(), headers() and errorBody() without exceptions, useful for mapping 4xx bodies into domain errors. Network failures throw IOException in both cases.' },
+    { id: 'ns20', front: 'How does Retrofit support suspend functions?', back: 'Since 2.6 Retrofit has built-in support: a suspend fun is executed with enqueue on OkHttp\'s dispatcher and resumes the coroutine with the result, so no Call<T> wrapper or Dispatchers.IO switch is needed. Cancellation of the coroutine cancels the call.' },
+    { id: 'ns21', front: 'What is certificate pinning and what is its main risk?', back: 'Pinning (CertificatePinner) accepts only servers whose certificate or public key hash matches, defeating man-in-the-middle attacks even with a compromised CA. The risk: when the certificate rotates without a pinned backup key the app cannot connect until updated.' },
+    { id: 'ns22', front: 'How should a repository distinguish network failures from HTTP errors?', back: 'IOException (UnknownHostException, SocketTimeoutException) means the request never got a response: retryable, show offline UI. HttpException or a non-successful Response means the server answered with 4xx/5xx: map the code and body to a domain error. Model both in a sealed Result.' },
+    { id: 'ns23', front: 'What OkHttp timeouts exist?', back: 'connectTimeout (TCP/TLS handshake), readTimeout (gap between bytes read), writeTimeout (gap between bytes written), each 10s by default, and callTimeout which bounds the entire call including redirects and retries (disabled by default).' },
+    { id: 'ns24', front: 'How are DataStore writes performed?', back: 'dataStore.edit { prefs -> prefs[KEY] = value } is a suspend call that applies the change transactionally on Dispatchers.IO; edits are serialized so concurrent writers cannot corrupt the file. Readers observing dataStore.data get the new value.' },
+    { id: 'ns25', front: 'Why must there be only one DataStore instance per file?', back: 'Creating two instances for the same file throws IllegalStateException (multiple DataStores active for the same file) because they would race on the file. Expose it as a top-level preferencesDataStore delegate or a Hilt @Singleton.' },
+    { id: 'ns26', front: 'How should secrets like tokens be stored on device?', back: 'Encrypt them with a key held in the Android Keystore, whose keys are non-exportable and can require user authentication, then store the ciphertext in DataStore or files. Never hardcode secrets in the APK; anything shipped can be decompiled.' },
+    { id: 'ns27', front: 'What is scoped storage?', back: 'Since Android 10/11 apps get unrestricted access only to their own app-specific directories. Shared media is accessed through MediaStore, and arbitrary documents through the Storage Access Framework, so broad READ/WRITE_EXTERNAL_STORAGE access is gone.' },
+    { id: 'ns28', front: 'When should you use filesDir vs cacheDir?', back: 'filesDir holds private persistent data that is only removed on uninstall. cacheDir is for reproducible temporary data; the system may delete it under storage pressure and the user can clear it. Neither needs permissions.' },
+    { id: 'ns29', front: 'How does an image loader like Coil cache images?', back: 'A memory cache of decoded bitmaps (LRU, keyed by URL plus size and transformations) for instant reuse, plus a disk cache of downloaded bytes (respecting HTTP cache headers). Memory entries are dropped under pressure; disk survives restarts.' },
+    { id: 'ns30', front: 'Why is Gson risky with Kotlin data classes?', back: 'Gson bypasses constructors via reflection/Unsafe, so it ignores default values and can leave a non-null property as null when the JSON field is missing, crashing later. Moshi with codegen or kotlinx.serialization respect Kotlin nullability and defaults at parse time.' }
   ],
 
   quizQuestions: [
@@ -3052,6 +3492,76 @@ class PreferencesManager(context: Context) {
       options: ['Data loss', 'ANRs (blocking)', 'Memory leaks', 'Security issues'],
       correctAnswer: 1,
       explanation: 'SharedPreferences I/O can block the main thread, potentially causing ANRs. DataStore is async.'
+    },
+    {
+      id: 'nsq11',
+      question: 'Which OkHttp interceptor type observes redirects and retries?',
+      options: ['Application interceptor', 'Network interceptor', 'Both', 'Neither, redirects are invisible to interceptors'],
+      correctAnswer: 1,
+      explanation: 'Network interceptors sit below the retry-and-follow-up logic, so they run for every network request. Application interceptors see one request and the final response.'
+    },
+    {
+      id: 'nsq12',
+      question: 'A Retrofit suspend fun getUser(): User is called with airplane mode on. What happens?',
+      options: ['An IOException (e.g. UnknownHostException) is thrown', 'HttpException with code 0', 'It returns null', 'It returns an empty User'],
+      correctAnswer: 0,
+      explanation: 'No HTTP response is received, so there is no HttpException. Transport failures surface as IOException subclasses, which is how you detect offline or timeout conditions.'
+    },
+    {
+      id: 'nsq13',
+      question: 'When does OkHttp invoke an Authenticator?',
+      options: ['Before every request', 'On 403 Forbidden responses', 'On connection timeouts', 'When a response returns 401 Unauthorized'],
+      correctAnswer: 3,
+      explanation: 'Authenticators react to 401 (and 407 for proxies). Adding headers proactively is the job of an interceptor; 403 means authenticated but not allowed and is not retried.'
+    },
+    {
+      id: 'nsq14',
+      question: 'data class User(val name: String) is parsed by Gson from {}. What is the result?',
+      options: ['JsonSyntaxException is thrown', 'name is null at runtime despite the non-null type', 'name is an empty string', 'A compile error'],
+      correctAnswer: 1,
+      explanation: 'Gson instantiates the class without calling the constructor and never sets name, leaving a null in a non-null field. The crash happens later when name is used.'
+    },
+    {
+      id: 'nsq15',
+      question: 'Two parts of the app each create preferencesDataStore for the same file name. What happens?',
+      options: ['They share data transparently', 'The second instance overwrites the first', 'IllegalStateException: multiple DataStores active for the same file', 'Both work but writes are slower'],
+      correctAnswer: 2,
+      explanation: 'DataStore enforces a single active instance per file to prevent corruption. Create it once with a top-level delegate or a singleton.'
+    },
+    {
+      id: 'nsq16',
+      question: 'Which OkHttp timeout limits the total duration of a call including redirects and retries?',
+      options: ['callTimeout', 'readTimeout', 'connectTimeout', 'writeTimeout'],
+      correctAnswer: 0,
+      explanation: 'callTimeout spans the whole call. The others each bound one phase, so a slow server that trickles bytes can exceed them combined without any single one firing.'
+    },
+    {
+      id: 'nsq17',
+      question: 'Where should a downloaded preview image that can be re-fetched anytime be stored?',
+      options: ['filesDir', 'Public Downloads directory', 'cacheDir', 'SharedPreferences as Base64'],
+      correctAnswer: 2,
+      explanation: 'cacheDir is intended for reproducible data the system may reclaim when storage is low. filesDir persists until uninstall and would bloat the app.'
+    },
+    {
+      id: 'nsq18',
+      question: 'On Android 11+, how do you let the user pick a PDF from any provider without broad storage permission?',
+      options: ['Request READ_EXTERNAL_STORAGE', 'List File("/sdcard") directly', 'Request MANAGE_EXTERNAL_STORAGE', 'Storage Access Framework via ActivityResultContracts.OpenDocument'],
+      correctAnswer: 3,
+      explanation: 'The system picker returns a content URI with temporary access, no permission required. MANAGE_EXTERNAL_STORAGE is restricted to file managers and similar apps.'
+    },
+    {
+      id: 'nsq19',
+      question: 'What is the main operational risk of certificate pinning?',
+      options: ['The app stops connecting when the server certificate rotates without a pinned backup', 'It disables TLS', 'It makes requests slower', 'It only works on rooted devices'],
+      correctAnswer: 0,
+      explanation: 'Pins are shipped in the app, so a certificate change on the server breaks every installed version until an update. Pin backup keys and set expiration.'
+    },
+    {
+      id: 'nsq20',
+      question: 'Reading dataStore.data can fail with IOException. What is the idiomatic handling?',
+      options: ['Wrap collect in try/catch and ignore', 'Use commit() instead', 'Use the Flow catch operator and emit(emptyPreferences()) for IOException', 'Switch to SharedPreferences'],
+      correctAnswer: 2,
+      explanation: 'catch keeps the Flow alive with default preferences when the file cannot be read. Non-IO exceptions should still be rethrown so real bugs surface.'
     }
   ]
 };
@@ -3515,7 +4025,22 @@ class BaselineProfileGenerator {
     { id: 'tp12', front: 'What causes overdraw?', back: 'Pixels drawn multiple times per frame. Reduce with flat hierarchies, removing unnecessary backgrounds.' },
     { id: 'tp13', front: 'What is runTest in coroutine testing?', back: 'Test builder that runs test body in TestScope. Automatically advances virtual time for delays.' },
     { id: 'tp14', front: 'What is InstantTaskExecutorRule?', back: 'JUnit rule that makes Architecture Components execute synchronously. Required for LiveData testing.' },
-    { id: 'tp15', front: 'What is ViewStub?', back: 'Lightweight placeholder that inflates layout only when needed. Improves initial layout performance.' }
+    { id: 'tp15', front: 'What is ViewStub?', back: 'Lightweight placeholder that inflates layout only when needed. Improves initial layout performance.' },
+    { id: 'tp16', front: 'What is the difference between local unit tests and instrumented tests?', back: 'Local tests (src/test) run on the JVM: fast, but android.jar is a stub whose methods throw "not mocked". Instrumented tests (src/androidTest) run on a device or emulator with the real framework: slower but faithful.' },
+    { id: 'tp17', front: 'What is Robolectric?', back: 'A framework that runs Android code on the JVM by providing shadow implementations of framework classes. Much faster than an emulator and works for Compose and View tests, at the cost of some fidelity.' },
+    { id: 'tp18', front: 'Why do ViewModel unit tests need a Main dispatcher rule?', back: 'viewModelScope uses Dispatchers.Main, which is backed by the Android Looper and is unavailable on the JVM. A JUnit rule calls Dispatchers.setMain(testDispatcher) before each test and resetMain() after.' },
+    { id: 'tp19', front: 'What is the difference between StandardTestDispatcher and UnconfinedTestDispatcher?', back: 'StandardTestDispatcher queues coroutines until you call advanceUntilIdle(), runCurrent() or advanceTimeBy(), giving precise control. UnconfinedTestDispatcher runs them eagerly up to the first suspension, which is simpler but hides ordering issues.' },
+    { id: 'tp20', front: 'How do you test a StateFlow exposed by a ViewModel?', back: 'Collect it in runTest, e.g. with Turbine (flow.test { awaitItem() }) or backgroundScope.launch { collect }. A stateIn(WhileSubscribed) flow only runs its upstream while something collects, so an active collector is required.' },
+    { id: 'tp21', front: 'What is an ANR and what triggers it?', back: 'Application Not Responding: the system shows the dialog when the main thread is blocked for about 5s while an input event is pending, or a BroadcastReceiver (10s foreground) or Service (20s) does not finish. Causes: I/O or heavy work on the main thread, deadlocks, synchronous IPC.' },
+    { id: 'tp22', front: 'What is StrictMode?', back: 'A debug tool with a ThreadPolicy that flags disk and network access on the main thread and a VmPolicy that flags leaked Activities, unclosed Closeables and SQLite cursors. Penalties range from logging to crashing the app.' },
+    { id: 'tp23', front: 'What are the most common causes of Activity memory leaks?', back: 'Static fields or singletons holding a Context or View, non-static inner classes and anonymous listeners (Handler, callbacks) referencing the Activity, unregistered receivers and listeners, fragment view references kept after onDestroyView, and coroutines or subscriptions not tied to a lifecycle.' },
+    { id: 'tp24', front: 'What does R8 do?', back: 'Shrinks unused classes and methods, obfuscates names, and optimizes bytecode (inlining, class merging) for release builds; with shrinkResources it also drops unused resources. Code reached via reflection (Gson models, JNI) needs @Keep or keep rules.' },
+    { id: 'tp25', front: 'What causes jank and how do you diagnose it?', back: 'Any frame over the deadline: heavy work or allocations on the main thread, deep View hierarchies, over-recomposition, work inside onDraw. Diagnose with System Trace / Perfetto, the Layout Inspector recomposition counts, JankStats, and Macrobenchmark frame timing.' },
+    { id: 'tp26', front: 'What is the difference between Macrobenchmark and Microbenchmark?', back: 'Macrobenchmark measures whole-app interactions (startup, scrolling) on a device and can generate Baseline Profiles. Microbenchmark times small pieces of Kotlin code in a loop with JIT warm-up.' },
+    { id: 'tp27', front: 'How do you measure and improve app startup?', back: 'Measure cold, warm and hot starts via TTID (first frame) and TTFD (reportFullyDrawn). Improve by keeping Application.onCreate light, lazy-initializing libraries (App Startup), avoiding synchronous disk/network, and shipping Baseline Profiles.' },
+    { id: 'tp28', front: 'How do Compose tests synchronize with the UI?', back: 'createComposeRule waits for the composition and layout to become idle before actions and assertions. Use mainClock (autoAdvance = false) to step animations deterministically and waitUntil { } for states driven by external coroutines.' },
+    { id: 'tp29', front: 'What is the difference between a stub, a spy and a mock?', back: 'Stub: returns canned answers, no verification. Mock: records interactions so the test can verify calls (behavior verification). Spy: wraps a real object, calling through by default while allowing selective overrides and verification.' },
+    { id: 'tp30', front: 'How do you test a Room DAO?', back: 'Build the database with Room.inMemoryDatabaseBuilder in an instrumented or Robolectric test, run suspend DAO calls inside runTest, and close the database in @After. In-memory databases are fast and isolated per test.' }
   ],
 
   quizQuestions: [
@@ -3588,6 +4113,76 @@ class BaselineProfileGenerator {
       options: ['Testing', 'Lazy layout inflation', 'Animations', 'Data binding'],
       correctAnswer: 1,
       explanation: 'ViewStub is a zero-size placeholder that inflates its layout only when needed, improving performance.'
+    },
+    {
+      id: 'tpq11',
+      question: 'A local JVM unit test crashes with "Method d in android.util.Log not mocked". Why?',
+      options: ['Log needs a Context', 'Log requires the INTERNET permission', 'Local tests compile against a stub android.jar whose methods throw; avoid framework calls, set unitTests.isReturnDefaultValues, or use Robolectric', 'Log is deprecated'],
+      correctAnswer: 2,
+      explanation: 'The JVM has no Android runtime. Keep framework classes out of pure logic, wrap them behind interfaces, or run under Robolectric.'
+    },
+    {
+      id: 'tpq12',
+      question: 'A ViewModel test fails with "Module with the Main dispatcher had failed to initialize". What is the fix?',
+      options: ['Call Dispatchers.setMain(testDispatcher) in a JUnit rule and resetMain afterwards', 'Use runBlocking instead of runTest', 'Add InstantTaskExecutorRule', 'Move the test to androidTest'],
+      correctAnswer: 0,
+      explanation: 'viewModelScope uses Dispatchers.Main, which needs the Android Looper. Replacing it with a test dispatcher makes the ViewModel runnable on the JVM and controllable.'
+    },
+    {
+      id: 'tpq13',
+      question: 'With StandardTestDispatcher as Main, viewModel.load() is called but the assertion right after sees the old state. Why?',
+      options: ['The ViewModel is broken', 'runTest does not support StateFlow', 'load() must be a suspend function', 'Coroutines are queued until advanceUntilIdle() or runCurrent() is called'],
+      correctAnswer: 3,
+      explanation: 'StandardTestDispatcher never runs work eagerly. Advance the scheduler, or use UnconfinedTestDispatcher if eager execution is acceptable.'
+    },
+    {
+      id: 'tpq14',
+      question: 'How long may the main thread block on a pending input event before an ANR is triggered?',
+      options: ['1 second', '5 seconds', '10 seconds', '20 seconds'],
+      correctAnswer: 1,
+      explanation: 'Input dispatch times out at 5s. Broadcast receivers get 10s in the foreground and services 20s to finish their lifecycle callbacks.'
+    },
+    {
+      id: 'tpq15',
+      question: 'After enabling R8 the release build crashes because Gson returns objects with null fields. What is the fix?',
+      options: ['Disable minification', 'Use commit() instead of apply()', 'Add @Keep or -keep rules for the model classes (or use a codegen serializer)', 'Increase the heap size'],
+      correctAnswer: 2,
+      explanation: 'R8 renamed the fields, so reflection-based JSON mapping no longer matches. Keep rules preserve names; Moshi codegen or kotlinx.serialization avoid reflection entirely.'
+    },
+    {
+      id: 'tpq16',
+      question: 'An Activity posts an anonymous Runnable with handler.postDelayed(runnable, 60_000) and is then rotated. Does it leak?',
+      options: ['Yes, the Runnable implicitly references the Activity until it runs', 'No, Handler clears it on rotation', 'Only if the Runnable is a lambda', 'Only on API < 21'],
+      correctAnswer: 0,
+      explanation: 'Anonymous inner classes and lambdas capturing this keep the destroyed Activity reachable from the main Looper queue. Remove callbacks in onDestroy or use lifecycle-aware coroutines.'
+    },
+    {
+      id: 'tpq17',
+      question: 'Which tool generates a Baseline Profile from real user journeys?',
+      options: ['Microbenchmark', 'Layout Inspector', 'LeakCanary', 'Macrobenchmark with BaselineProfileRule'],
+      correctAnswer: 3,
+      explanation: 'A Macrobenchmark test drives the app on a device and records the classes and methods used, producing the profile that ART compiles ahead of time at install.'
+    },
+    {
+      id: 'tpq18',
+      question: 'Which StrictMode policy detects leaked Activity instances?',
+      options: ['ThreadPolicy', 'VmPolicy', 'NetworkPolicy', 'LeakPolicy'],
+      correctAnswer: 1,
+      explanation: 'VmPolicy.Builder().detectActivityLeaks() (plus detectLeakedClosableObjects) watches object lifetimes. ThreadPolicy covers disk and network on the main thread.'
+    },
+    {
+      id: 'tpq19',
+      question: 'Which startup metric does calling reportFullyDrawn() affect?',
+      options: ['Time to initial display (TTID)', 'Frame render time', 'Time to full display (TTFD)', 'ANR rate'],
+      correctAnswer: 2,
+      explanation: 'TTID is measured automatically at the first frame. TTFD is only accurate when the app reports that its content is actually ready, e.g. after data loads.'
+    },
+    {
+      id: 'tpq20',
+      question: 'A test asserts that analytics.track("login") was called exactly once. Which test double role is that?',
+      options: ['Stub', 'Fake', 'Mock', 'Dummy'],
+      correctAnswer: 2,
+      explanation: 'Verifying interactions is behavior verification, the defining job of a mock. Stubs and fakes supply data or working logic but do not record calls.'
     }
   ]
 };

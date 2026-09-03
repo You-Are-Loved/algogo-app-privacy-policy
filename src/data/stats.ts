@@ -27,8 +27,9 @@ export const contentStats = {
   behavioralPrompts: behavioralQuestions.length,
   bugFixProblems: bugFixProblems.length,
   // Content groups surfaced as top-level tabs (Algorithms, System Design,
-  // iOS, Android, Web, Backend, SQL, C++). Hardcoded because they're hand-curated.
-  tracks: 8,
+  // iOS, Android, Web, Backend, SQL, C++, CS Fundamentals). Hardcoded because
+  // they're hand-curated.
+  tracks: 9,
 };
 
 export interface PaywallFeature {

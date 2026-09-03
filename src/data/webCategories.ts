@@ -495,6 +495,41 @@ Mobile keyboard hints:
         options: ['Apply tabindex="-1" to every focusable element', 'Set inert on the background container', 'Display: none', 'Add CSS pointer-events: none'],
         correctAnswer: 1,
         explanation: 'inert removes the element and all descendants from interaction and screen-reader announcement in one attribute. pointer-events:none doesn\'t handle keyboard or screen readers; display:none hides visually, defeating the modal stacking.'
+      },
+      {
+        id: 'html-q-16',
+        question: 'You see <div role="button" onClick={open}>Open</div>. What is still missing for keyboard and screen-reader users?',
+        options: ['Nothing — role="button" makes it fully accessible', 'tabindex="0" so it is focusable, plus Enter/Space key handling', 'An aria-label attribute', 'aria-pressed="false"'],
+        correctAnswer: 1,
+        explanation: 'role only changes what assistive tech announces. A <div> is not focusable and does not fire click on Enter/Space, so you must add tabindex="0" and a keydown handler — or just use a native <button>, which gives all of this for free.'
+      },
+      {
+        id: 'html-q-17',
+        question: 'A page has two <nav> elements: the site menu and article pagination. How do screen-reader users tell the landmarks apart?',
+        options: ['Give each a unique id', 'Use <menu> for one of them', 'Wrap the second one in <section>', 'Add a distinct aria-label to each <nav>'],
+        correctAnswer: 3,
+        explanation: 'Landmark navigation lists every <nav> as "navigation". aria-label="Main" and aria-label="Pagination" make the list meaningful. ids are not announced, <menu> is a list element, and <section> without a heading is not even a landmark.'
+      },
+      {
+        id: 'html-q-18',
+        question: 'Inside a search form: <button>Search</button><button onclick="reset()">Clear</button>. Clicking Clear submits the form. Why?',
+        options: ['onclick handlers always bubble to the form', 'The two buttons share the same name', 'A <button> inside a form defaults to type="submit"', 'The Clear button is missing a value attribute'],
+        correctAnswer: 2,
+        explanation: 'The default type of <button> is "submit", so any button in a form submits it unless you set type="button". Always be explicit: type="submit" for the real action, type="button" for everything else.'
+      },
+      {
+        id: 'html-q-19',
+        question: 'A control opens a dropdown menu and never navigates. Which markup is correct?',
+        options: ['<button type="button">', '<a href="#" onclick="...">', '<a> with no href', '<span tabindex="0">'],
+        correctAnswer: 0,
+        explanation: 'Links are for navigation; buttons are for actions. <a href="#"> announces as a link, scrolls to the top when the handler fails, and confuses "open in new tab". An <a> without href is not even focusable.'
+      },
+      {
+        id: 'html-q-20',
+        question: 'Which element semantically conveys that a phrase is important (e.g. "Do not unplug the device"), rather than just looking bold?',
+        options: ['<b>', '<strong>', '<span style="font-weight: bold">', '<mark>'],
+        correctAnswer: 1,
+        explanation: '<strong> means importance, seriousness, or urgency. <b> is "stylistically offset" text with no extra importance (keywords, product names). <em> is stress emphasis and <i> is an alternate voice or technical term; <mark> is highlighting for relevance.'
       }
     ],
     visualizations: [
@@ -1083,6 +1118,41 @@ function navigate(url) {
         options: ['Remove :focus styles entirely', 'Use :focus-visible instead — only matches keyboard navigation', 'Use outline: none', 'Add JavaScript to clear focus on click'],
         correctAnswer: 1,
         explanation: ':focus-visible only matches when keyboard nav is detected. Keyboard users still get clear focus rings (essential); mouse users don\'t see them on every click. Best of both worlds.'
+      },
+      {
+        id: 'css-q-16',
+        question: 'Three rules target the same link: #nav a {}, .nav .link.active {}, and a.link:hover {} (listed last). Which wins?',
+        options: ['a.link:hover — it appears last in the stylesheet', '.nav .link.active — three selectors beat two', '#nav a — one ID outranks any number of classes', 'They tie, so the browser uses the default color'],
+        correctAnswer: 2,
+        explanation: 'Specificity compares (ids, classes/attributes/pseudo-classes, elements) column by column. #nav a is (1,0,1); the other two are (0,3,0) and (0,2,1). A higher id count wins outright — source order only breaks exact ties.'
+      },
+      {
+        id: 'css-q-17',
+        question: 'A modal has position: fixed; z-index: 9999, but renders beneath a sibling with z-index: 1. The modal\'s parent has transform: translateZ(0). Why?',
+        options: ['z-index has no effect on position: fixed elements', 'transform creates a stacking context, so the modal\'s z-index only competes inside its parent', 'Fixed elements need z-index above 10000', 'The sibling is painted later in DOM order'],
+        correctAnswer: 1,
+        explanation: 'transform, opacity < 1, filter, will-change, and isolation: isolate all create stacking contexts. Inside one, z-index is local; the whole subtree is layered by the parent\'s own z-index. Fix: remove the transform or render the modal in a portal at the body level.'
+      },
+      {
+        id: 'css-q-18',
+        question: 'A badge inside a .card uses position: absolute; top: 0; right: 0, but appears at the top-right of the entire page. Why?',
+        options: ['Absolute elements always position against the viewport', 'The card has overflow: visible', 'The badge needs position: relative instead', 'The card is not positioned, so the containing block is the initial containing block'],
+        correctAnswer: 3,
+        explanation: 'An absolutely positioned element is placed relative to its nearest positioned ancestor (position other than static). With none, it falls back to the initial containing block at the document top. Adding position: relative to .card fixes it.'
+      },
+      {
+        id: 'css-q-19',
+        question: 'A flex item with flex: 1 contains a long unbreakable URL and overflows its container instead of shrinking. Why?',
+        options: ['Flex items default to min-width: auto, so they cannot shrink below their content size', 'flex-shrink defaults to 0', 'flex: 1 sets flex-basis to 100%', 'Text is never allowed to shrink inside flex'],
+        correctAnswer: 0,
+        explanation: 'The implied min-width: auto on flex (and grid) items is a classic gotcha. Set min-width: 0 (or overflow: hidden) on the item so it can shrink; in grid, use minmax(0, 1fr) instead of 1fr for the same reason.'
+      },
+      {
+        id: 'css-q-20',
+        question: 'A settings form needs labels and inputs to line up in columns across every row, and one row must span two lines. Which layout tool?',
+        options: ['Flexbox with flex-wrap', 'CSS Grid', 'display: inline-block with fixed widths', 'CSS multi-column (column-count)'],
+        correctAnswer: 1,
+        explanation: 'Flexbox is one-dimensional: each wrapped line lays out independently, so columns never align across rows. Grid is two-dimensional — items snap to shared tracks and can span rows/columns. Use flex for one-axis distribution (nav bars, button groups).'
       }
     ],
     visualizations: [
@@ -1705,6 +1775,41 @@ setTimeout(() => ctrl.abort(), 5000); // 5-second timeout`
         options: ['for loop with manual pagination', 'Async generator yielding items, consumed with for await...of', 'Promise.all on all pages', 'Recursion'],
         correctAnswer: 1,
         explanation: 'Async generators let you yield items as you fetch each page; the consumer uses for await...of without knowing about pagination. Stops cleanly when the consumer breaks.'
+      },
+      {
+        id: 'js-q-16',
+        question: 'What does this print? for (var i = 0; i < 3; i++) { setTimeout(() => console.log(i)); }',
+        options: ['0 1 2', '3 3 3', '0 0 0', 'undefined undefined undefined'],
+        correctAnswer: 1,
+        explanation: 'var is function-scoped, so all three callbacks close over the same i, which is 3 by the time the timers run. let creates a fresh binding per iteration, printing 0 1 2 — or capture the value with an IIFE / extra parameter.'
+      },
+      {
+        id: 'js-q-17',
+        question: 'In an ES module: const user = { name: "Ada", greet() { return this.name; } }; const g = user.greet; g(); What happens?',
+        options: ['Returns "Ada"', 'Returns the global object\'s name', 'this is undefined, so this.name throws a TypeError', 'Returns undefined silently'],
+        correctAnswer: 2,
+        explanation: 'this is set by the call site, not where the function was defined. Calling g() with no receiver gives undefined in strict mode (modules are always strict), so this.name throws. Fix with user.greet.bind(user) or call it as user.greet().'
+      },
+      {
+        id: 'js-q-18',
+        question: 'Which loose-equality comparison evaluates to false?',
+        options: ['[] == false', 'null == undefined', '"0" == false', 'null == 0'],
+        correctAnswer: 3,
+        explanation: 'null is loosely equal only to null and undefined — it is never coerced to a number, so null == 0 is false. [] becomes "" then 0, and "0" becomes 0; false also becomes 0, so those two are true. This is why === is the default.'
+      },
+      {
+        id: 'js-q-19',
+        question: 'You fire three independent requests and need every result — including which ones failed — without short-circuiting on the first rejection. Which combinator?',
+        options: ['Promise.all', 'Promise.race', 'Promise.allSettled', 'Promise.any'],
+        correctAnswer: 2,
+        explanation: 'allSettled waits for all and returns { status, value | reason } per promise. all rejects on the first failure, race settles with the first to settle, and any resolves with the first fulfillment (rejecting with AggregateError only if all fail).'
+      },
+      {
+        id: 'js-q-20',
+        question: 'What is logged, in order? console.log(1); setTimeout(() => console.log(2)); (async () => { console.log(3); await null; console.log(4); })(); Promise.resolve().then(() => console.log(5)); console.log(6);',
+        options: ['1 3 6 4 5 2', '1 6 3 4 5 2', '1 3 6 5 4 2', '1 3 4 6 5 2'],
+        correctAnswer: 0,
+        explanation: 'An async function runs synchronously until its first await (logs 3), then queues its continuation as a microtask. The .then callback is queued next, then 6 logs. Microtasks drain in FIFO order (4, 5) before the setTimeout macrotask (2).'
       }
     ],
     visualizations: [
@@ -2393,6 +2498,41 @@ function UserName({ userPromise }) {
         options: ['Bigger setState', 'Track an ignore flag in cleanup, or AbortController', 'Sleep before setState', 'Use useLayoutEffect'],
         correctAnswer: 1,
         explanation: 'Either flip an ignore flag in the cleanup (and check before setState) or pass an AbortController.signal into fetch. Either way, the old request stops mattering when the deps change.'
+      },
+      {
+        id: 'react-q-16',
+        question: 'A list of rows with uncontrolled <input>s uses key={index}. Deleting the first row makes every remaining input show the wrong value. Why?',
+        options: ['Uncontrolled inputs cannot be used in lists', 'React re-renders the list twice', 'Index keys make React reuse each row\'s component instance for a different item, so DOM state stays with the position', 'The delete handler mutated state'],
+        correctAnswer: 2,
+        explanation: 'Keys tell reconciliation which element is which across renders. With index keys, row 1 becomes "the row that used to be row 0" and keeps its input value and local state. Use a stable unique id per item as the key.'
+      },
+      {
+        id: 'react-q-17',
+        question: 'You wrap every handler in useCallback, but the child receiving them is a plain function component. What do you gain?',
+        options: ['The child skips re-rendering when the handler is unchanged', 'Nothing — the child re-renders whenever the parent does; useCallback only pays off when something compares the reference', 'Handlers run faster', 'The parent re-renders less often'],
+        correctAnswer: 1,
+        explanation: 'A stable reference matters only to a consumer that compares props — React.memo, a useEffect dependency array, or another memo hook. Without those, useCallback adds allocation and a dependency array with no rendering benefit.'
+      },
+      {
+        id: 'react-q-18',
+        question: 'A single <Suspense> wraps a dashboard of six widgets. One widget\'s data is slow. What does the user see?',
+        options: ['The whole dashboard shows the fallback until the slow widget resolves', 'Five widgets render and the sixth shows the fallback', 'An error boundary is triggered', 'The slow widget renders with undefined data'],
+        correctAnswer: 0,
+        explanation: 'A suspending component bubbles up to the nearest Suspense boundary, which replaces all of its children with the fallback. Boundary placement defines loading granularity — wrap each widget in its own Suspense to let the fast ones show.'
+      },
+      {
+        id: 'react-q-19',
+        question: 'A provider renders <ThemeContext.Provider value={{ theme, setTheme }}>. Consumers re-render on every provider render even when theme is unchanged. Why?',
+        options: ['Context always re-renders all consumers', 'setTheme changes identity every render', 'Consumers are missing React.memo', 'The inline object literal is a new reference each render, so Object.is says the value changed'],
+        correctAnswer: 3,
+        explanation: 'Context compares value with Object.is. An inline object is new every render, so every consumer updates. Wrap the value in useMemo(() => ({ theme, setTheme }), [theme]) — or split into separate state and dispatch contexts.'
+      },
+      {
+        id: 'react-q-20',
+        question: 'const options = { page }; useEffect(() => { fetchList(options); }, [options]); This refetches on every render. Why?',
+        options: ['useEffect ignores object dependencies', 'options is a new object each render, so the dependency never matches', 'fetchList mutates options', 'page is not in the dependency array'],
+        correctAnswer: 1,
+        explanation: 'Dependencies are compared with Object.is, and a fresh object literal never equals the previous one. Depend on primitives ({ page } → [page]), build the object inside the effect, or memoize it with useMemo.'
       }
     ],
     visualizations: [
@@ -3029,6 +3169,41 @@ ytext.observe(event => render(ytext.toString()));
         options: ['pushState — every keystroke is a new history entry', 'replaceState — typing updates the current entry; only meaningful submits push history', 'No history change', 'Clear history'],
         correctAnswer: 1,
         explanation: 'replaceState avoids polluting history with every keystroke. pushState would mean the back button steps through every character the user typed — terrible UX.'
+      },
+      {
+        id: 'state-q-16',
+        question: 'useSelector(state => state.todos.filter(t => t.done)) makes the component re-render on every store update, even unrelated ones. Why?',
+        options: ['useSelector always re-renders on every dispatch', 'filter returns a new array each call, so the reference-equality check always sees a change', 'Arrays cannot be selected from Redux', 'The selector is missing a dependency array'],
+        correctAnswer: 1,
+        explanation: 'useSelector re-renders when the selected value fails a strict-equality check. A selector that derives a new array/object each run always fails it. Memoize with createSelector (Reselect), or select primitives / the raw todos and derive in useMemo.'
+      },
+      {
+        id: 'state-q-17',
+        question: 'The same user object is duplicated inside posts, comments, and likes in your store. Renaming a user means patching three places. What is the structural fix?',
+        options: ['Store everything in Context instead', 'Refetch the entire store after each update', 'Normalize: keep entities in { byId, allIds } and store references by id elsewhere', 'Use deep-clone on every update'],
+        correctAnswer: 2,
+        explanation: 'Normalization keeps a single source of truth per entity (like a database table). Redux Toolkit\'s createEntityAdapter does this for you; TanStack Query users get similar benefits by keying queries per entity.'
+      },
+      {
+        id: 'state-q-18',
+        question: 'A custom store hook subscribes in useEffect and copies the value into useState. Under concurrent rendering, sibling components briefly show different values of the same store. What is this and what fixes it?',
+        options: ['Tearing — subscribe with useSyncExternalStore instead', 'A race condition — add an AbortController', 'Prop drilling — lift state up', 'Stale closure — add the store to the dependency array'],
+        correctAnswer: 0,
+        explanation: 'Tearing happens when a render is interrupted and the external store changes mid-tree. useSyncExternalStore lets React read a consistent snapshot and re-render synchronously on change; Zustand, Redux, and Jotai all use it internally.'
+      },
+      {
+        id: 'state-q-19',
+        question: 'A Redux reducer (no Immer) does state.items.push(action.payload); return state;. What breaks?',
+        options: ['Nothing — Redux deep-compares state', 'The reducer throws because state is frozen', 'The action is silently dropped', 'Subscribers see the same reference, so components don\'t re-render, and DevTools time-travel is corrupted'],
+        correctAnswer: 3,
+        explanation: 'React-Redux and selectors rely on reference equality to detect change. Mutating in place returns the old reference, so nothing updates, and previous states in DevTools are mutated too. Reducers must be pure and return new objects (or use Immer via createSlice).'
+      },
+      {
+        id: 'state-q-20',
+        question: 'A dropdown\'s open/closed flag lives in the global store and is read by exactly one component. What is the guideline?',
+        options: ['Keep it global so it can be debugged in DevTools', 'Colocate it as local state in the component; promote to shared/global state only when multiple distant components need it', 'Move it to the URL', 'Store it in a TanStack Query cache'],
+        correctAnswer: 1,
+        explanation: 'Colocation keeps state next to the code that uses it: fewer re-renders across the app, less boilerplate, and easier deletion. Lift state only as far as the nearest common ancestor that needs it.'
       }
     ],
     visualizations: [
@@ -3646,6 +3821,41 @@ const Dashboard = lazy(() => import('./Dashboard'));
         options: ['HTTP/3', 'Server Push', 'Early Hints (HTTP 103) — server sends preload Link headers before the final response', 'Larger TCP windows'],
         correctAnswer: 2,
         explanation: '103 Early Hints sends Link: rel=preload headers ahead of the final 200, letting the browser fetch critical CSS/JS in parallel with the server\'s computation. Big LCP wins on slow-to-render pages.'
+      },
+      {
+        id: 'perf-q-16',
+        question: 'Your build emits app.3f9a2c.js (content-hashed) and index.html. Which Cache-Control strategy is right?',
+        options: ['Both: max-age=31536000', 'Both: no-store', 'JS: max-age=31536000, immutable; HTML: no-cache (revalidate with ETag)', 'JS: no-cache; HTML: max-age=31536000'],
+        correctAnswer: 2,
+        explanation: 'A hashed filename changes whenever the content does, so it can be cached forever and immutable skips revalidation. HTML keeps a stable URL, so it must be revalidated on each load (no-cache still allows a 304). Caching HTML for a year strands users on old bundles.'
+      },
+      {
+        id: 'perf-q-17',
+        question: 'When a user hovers the Pricing link, you want that route\'s JS chunk downloaded at low priority so navigation feels instant. Which hint?',
+        options: ['<link rel="prefetch">', '<link rel="preload">', '<link rel="preconnect">', '<script async>'],
+        correctAnswer: 0,
+        explanation: 'prefetch fetches a resource for a likely future navigation at idle priority and stores it in the HTTP cache. preload is high priority for the current page and the browser warns if it goes unused; preconnect only opens a connection.'
+      },
+      {
+        id: 'perf-q-18',
+        question: 'A button click runs a 300ms synchronous computation and then updates the UI. INP is poor. What gives the best INP without changing the computation?',
+        options: ['Move the computation into a Promise.then', 'Wrap it in requestAnimationFrame', 'Use a click listener with { passive: true }', 'Update the UI first (e.g. show a pressed/loading state), yield to the browser, then run the heavy work'],
+        correctAnswer: 3,
+        explanation: 'INP measures from input to the next paint. Paint cheap feedback first, then yield (setTimeout 0 or scheduler.yield()) so the frame renders before the heavy work. Promise.then is a microtask and still blocks the paint; passive only affects scroll/touch preventDefault.'
+      },
+      {
+        id: 'perf-q-19',
+        question: 'The hero <img> is in the initial HTML but downloads at the same priority as 20 below-the-fold thumbnails, delaying LCP. Which attribute fixes it?',
+        options: ['loading="eager"', 'fetchpriority="high"', 'decoding="sync"', 'importance="critical"'],
+        correctAnswer: 1,
+        explanation: 'fetchpriority="high" raises the request priority so the LCP image is fetched ahead of other images. loading="eager" is already the default and changes nothing; decoding affects only decode scheduling; importance is not a real attribute.'
+      },
+      {
+        id: 'perf-q-20',
+        question: 'Users press Back and your page fully reloads instead of restoring instantly. What commonly makes a page ineligible for the back/forward cache?',
+        options: ['Using <script defer>', 'A large DOM', 'An unload event listener or Cache-Control: no-store on the document', 'Having a service worker'],
+        correctAnswer: 2,
+        explanation: 'bfcache snapshots the whole page in memory. unload handlers and no-store on the main document disqualify it in most browsers, as do open IndexedDB transactions or WebSockets. Use pagehide instead of unload and check the Lighthouse bfcache audit.'
       }
     ],
     visualizations: [
@@ -4322,6 +4532,41 @@ async function safeFetch(rawUrl: string) {
         options: ['MD5 with salt', 'SHA-256', 'Argon2id', 'Plain bcrypt cost 4'],
         correctAnswer: 2,
         explanation: 'Argon2id (winner of the 2015 Password Hashing Competition) is memory-hard and time-hard, resisting GPU/ASIC attacks better than bcrypt. bcrypt at cost 12+ is still acceptable; SHA-256 alone and MD5 are unsafe for passwords.'
+      },
+      {
+        id: 'sec-q-16',
+        question: 'Users click a login-required link in an email. With SameSite=Strict they land logged out; with SameSite=Lax they are logged in. Why?',
+        options: ['Strict blocks cookies over HTTP links', 'Lax cookies are stored in a different jar', 'Lax sends the cookie on cross-site top-level GET navigations; Strict never sends it on any cross-site request', 'Email clients strip Strict cookies'],
+        correctAnswer: 2,
+        explanation: 'Lax is the modern default: cookies ride along with safe top-level navigations (links) but not with cross-site POSTs, fetches, iframes, or images — which blocks most CSRF while keeping links working. Strict is best for a separate high-security session cookie.'
+      },
+      {
+        id: 'sec-q-17',
+        question: 'Your session cookie is HttpOnly, Secure, and Path=/. Which attack does this NOT mitigate?',
+        options: ['Cookie theft via document.cookie in an XSS payload', 'CSRF — the browser attaches the cookie automatically regardless of JavaScript access', 'Sniffing the cookie on plain HTTP', 'Reading the cookie from a browser extension'],
+        correctAnswer: 1,
+        explanation: 'HttpOnly hides the cookie from scripts and Secure keeps it off HTTP. Neither stops a forged cross-site request, because the browser adds cookies itself. CSRF needs SameSite, a synchronizer token, or an Origin/Sec-Fetch-Site check.'
+      },
+      {
+        id: 'sec-q-18',
+        question: 'Which header stops other origins from embedding your page in an <iframe> (clickjacking)?',
+        options: ['X-Content-Type-Options: nosniff', 'Referrer-Policy: no-referrer', 'Content-Security-Policy: frame-src \'none\'', 'Content-Security-Policy: frame-ancestors \'none\''],
+        correctAnswer: 3,
+        explanation: 'frame-ancestors controls who may frame you and supersedes X-Frame-Options. frame-src is the opposite direction — what your page may embed. nosniff and Referrer-Policy are unrelated to framing.'
+      },
+      {
+        id: 'sec-q-19',
+        question: 'Client-side code reads location.hash and writes it into innerHTML. The value never reaches the server. Which XSS class is this, and why does server-side encoding not help?',
+        options: ['DOM-based XSS — the injection happens entirely in the browser at a DOM sink', 'Stored XSS — the hash is persisted by the browser', 'Reflected XSS — the URL reflects the payload', 'It is not XSS because the server is not involved'],
+        correctAnswer: 0,
+        explanation: 'DOM XSS is source-to-sink inside JavaScript (location, postMessage, storage → innerHTML, eval, href). Server templates never see it. Fix at the sink: textContent, a sanitizer, or Trusted Types enforced by CSP.'
+      },
+      {
+        id: 'sec-q-20',
+        question: 'An SPA stores its JWT in localStorage. An XSS bug is exploited. Compared with an HttpOnly cookie, what is the difference in impact?',
+        options: ['No difference — XSS is fatal either way', 'localStorage is safer because it is origin-scoped', 'Cookies are worse because they are sent to every site', 'With localStorage the token itself is exfiltrated and reused offline; with an HttpOnly cookie the attacker can only ride the session while the script runs'],
+        correctAnswer: 3,
+        explanation: 'Any storage JavaScript can read is readable by injected JavaScript. HttpOnly cookies limit the blast radius to the live session and are revocable with logout; pairing them with SameSite and short lifetimes is the usual recommendation for browser clients.'
       }
     ],
     visualizations: [

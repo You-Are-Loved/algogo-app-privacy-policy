@@ -31,12 +31,13 @@ import { BlurView } from 'expo-blur';
 import Svg, { Circle } from 'react-native-svg';
 
 import { colors, spacing, borderRadius, typography, categoryColors, shadows } from '../theme';
-import { getCategoriesByType, contentTypeInfo, ContentType } from '../data/allCategories';
+import { getCategoriesByType, ContentType } from '../data/allCategories';
 import { useStore } from '../store/useStore';
 import { TabStackParamList } from '../navigation';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
 import UpgradeModal from '../components/UpgradeModal';
 import RatingPromptModal from '../components/RatingPromptModal';
+import TrackDropdown from '../components/TrackDropdown';
 import { TAB_BAR_CLEARANCE } from '../components/AnimatedTabBar';
 import { Category } from '../types';
 
@@ -231,6 +232,8 @@ const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   // C++ icons
   'cube-outline': 'cube-outline',
   'terminal-outline': 'terminal-outline',
+  // CS Fundamentals icons
+  'school-outline': 'school-outline',
   // iOS icons
   'phone-portrait-outline': 'phone-portrait-outline',
   'git-network-outline': 'git-network-outline',
@@ -239,19 +242,6 @@ const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   'key-outline': 'key-outline',
   'apps-outline': 'apps-outline',
   'mail-outline': 'mail-outline',
-};
-
-const TRACKS: ContentType[] = ['algorithms', 'system-design', 'ios', 'android', 'web', 'backend', 'sql', 'cpp'];
-
-const TRACK_PILL_LABEL: Record<ContentType, string> = {
-  'algorithms': 'Algorithms',
-  'system-design': 'System',
-  'ios': 'iOS',
-  'android': 'Android',
-  'web': 'Web',
-  'backend': 'Backend',
-  'sql': 'SQL',
-  'cpp': 'C++',
 };
 
 export default function HomeScreen() {
@@ -346,7 +336,6 @@ export default function HomeScreen() {
 
   // Get categories for the actively selected track
   const categories = getCategoriesByType(activeTrack);
-  const typeInfo = contentTypeInfo[activeTrack];
 
   useEffect(() => {
     if (!user) {
@@ -491,43 +480,9 @@ export default function HomeScreen() {
           </View>
         </Animated.View>
 
-        {/* Track switcher pill */}
+        {/* Track switcher dropdown */}
         <Animated.View entering={hasAnimated.current ? undefined : FadeInDown.delay(200)}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.trackPillRow}
-          >
-            {TRACKS.map((track) => {
-              const info = contentTypeInfo[track];
-              const active = track === activeTrack;
-              return (
-                <TouchableOpacity
-                  key={track}
-                  onPress={() => setActiveTrack(track)}
-                  activeOpacity={0.8}
-                  style={[
-                    styles.trackPill,
-                    active && { backgroundColor: info.color, borderColor: info.color },
-                  ]}
-                >
-                  <Ionicons
-                    name={info.icon as any}
-                    size={16}
-                    color={active ? colors.white : info.color}
-                  />
-                  <Text
-                    style={[
-                      styles.trackPillText,
-                      active && { color: colors.white },
-                    ]}
-                  >
-                    {TRACK_PILL_LABEL[track]}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          <TrackDropdown value={activeTrack} onChange={setActiveTrack} />
         </Animated.View>
 
         {/* Categories Section */}
@@ -536,15 +491,6 @@ export default function HomeScreen() {
           entering={FadeInDown.duration(280)}
           style={styles.section}
         >
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconContainer, { backgroundColor: typeInfo.color }]}>
-              <Ionicons name={typeInfo.icon as any} size={20} color={colors.white} />
-            </View>
-            <View>
-              <Text style={styles.sectionTitle}>{typeInfo.title}</Text>
-              <Text style={styles.sectionSubtitle}>{typeInfo.subtitle}</Text>
-            </View>
-          </View>
           <View style={styles.categoryGrid}>
             {categories.map((cat, index) => renderCategoryCard(cat, index))}
           </View>
@@ -664,51 +610,9 @@ const styles = StyleSheet.create({
     ...typography.labelSmall,
     color: colors.inkLight,
   },
-  trackPillRow: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    gap: spacing.sm,
-  },
-  trackPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.card,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  trackPillText: {
-    ...typography.labelMedium,
-    color: colors.ink,
-  },
   section: {
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.xl,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  sectionIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.purple,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sectionTitle: {
-    ...typography.headlineMedium,
-    color: colors.ink,
-  },
-  sectionSubtitle: {
-    ...typography.bodySmall,
-    color: colors.inkLight,
   },
   categoryGrid: {
     flexDirection: 'row',

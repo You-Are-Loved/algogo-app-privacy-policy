@@ -41,7 +41,10 @@ export type ComponentType =
   | 'collab_engine'
   | 'bloom_filter'
   | 'game_server'
-  | 'recommendation_engine';
+  | 'recommendation_engine'
+  | 'sandbox'
+  | 'media_server'
+  | 'edge_server';
 
 export interface ComponentSpec {
   label: string;
@@ -84,6 +87,9 @@ export const componentCatalog: Record<ComponentType, ComponentSpec> = {
   bloom_filter: { label: 'Bloom Filter', icon: 'filter-outline', color: '#EF4444' },
   game_server: { label: 'Game Server', icon: 'game-controller-outline', color: '#F43F5E' },
   recommendation_engine: { label: 'Recommender', icon: 'star-outline', color: '#FBBF24' },
+  sandbox: { label: 'Sandbox', icon: 'terminal-outline', color: '#0F766E' },
+  media_server: { label: 'Media Server', icon: 'videocam-outline', color: '#DB2777' },
+  edge_server: { label: 'Edge Server', icon: 'hardware-chip-outline', color: '#0891B2' },
 };
 
 export interface SystemDesignProblem {
@@ -1474,6 +1480,258 @@ export const systemDesignProblems: SystemDesignProblem[] = [
     ],
     solution:
       "Each device runs a lightweight agent that batches and pushes readings to an ingestion tier behind a load balancer, which forwards them onto a partitioned message queue (partitioned by device ID) to absorb sustained write throughput. Consumer workers pull from the queue and do two writes per reading: they append the time-stamped point to a time-series DB for historical charts (with downsampling and retention to control cost), and they upsert the newest value into a cache keyed by device ID. Operators use a web dashboard: latest-state queries hit the cache for instant point lookups, while historical range queries read the time-series DB. Decoupling ingestion (queue + workers) from storage, and separating the hot latest-state cache from the cold historical store, lets the platform scale writes and reads independently.",
+  },
+  {
+    id: 'distributed-key-value-store',
+    number: 51,
+    title: "Distributed Key-Value Store",
+    topic: "Infrastructure",
+    prompt:
+      "Design a horizontally scalable key-value store in the style of Dynamo or Cassandra that supports get(key) and put(key, value) across hundreds of nodes. Keys must be spread evenly, every write must survive the loss of a node, and the cluster should keep serving reads and writes while a network partition is under way. Adding or removing a node must not force every key to move.",
+    palette: ['client', 'load_balancer', 'web_server', 'database', 'replica', 'message_queue', 'cache'],
+    requiredComponents: ['client', 'web_server', 'database', 'replica'],
+    requiredConnections: [
+      ['client', 'load_balancer'],
+      ['load_balancer', 'web_server'],
+      ['web_server', 'database'],
+      ['web_server', 'replica'],
+      ['database', 'replica'],
+    ],
+    hints: [
+      "Consistent hashing on a ring places each key on N successive nodes; adding a node only moves the keys in one arc of the ring.",
+      "Durability comes from replication, not from a single primary. Decide how many replicas must acknowledge a write (W) and how many must answer a read (R) before you respond.",
+      "With W + R > N you read at least one up-to-date copy. During a partition, accept writes on whichever replicas are reachable and reconcile later with versioning plus read-repair.",
+    ],
+    solution:
+      "Clients reach any storage node through a load balancer; the node that receives the request acts as coordinator. It hashes the key onto a consistent-hashing ring to find the N nodes that own it — the primary partition on the database node and its replicas on the next nodes clockwise. On a put, the coordinator forwards the value to all N owners and returns once W of them have acknowledged; a write also goes to a commit log first so a crash mid-write is recoverable. On a get, the coordinator asks the owners and responds after R replies, using a vector clock or last-write-wins timestamp to pick the newest version and issuing a read-repair to any stale copy. If an owner is unreachable, a sloppy-quorum writes a hinted copy to the next node on the ring, which hands it back when the owner returns. Tuning W and R is the tradeoff: W + R > N gives strong consistency at the cost of latency, while W = 1 keeps the store available and fast during partitions but serves briefly stale reads.",
+  },
+  {
+    id: 'trending-hashtags',
+    number: 52,
+    title: "Trending Hashtags (Top-K)",
+    topic: "Pipeline",
+    prompt:
+      "Design a system that shows the top 10 trending hashtags over the last hour across a firehose of billions of posts per day. The list must refresh every few seconds and must never miss a genuinely popular tag, but keeping an exact counter for every hashtag ever seen is out of the question. Serving the leaderboard itself must be instant.",
+    palette: ['client', 'web_server', 'message_queue', 'worker', 'ranking_service', 'cache', 'database', 'object_storage'],
+    requiredComponents: ['client', 'web_server', 'message_queue', 'worker', 'ranking_service', 'cache'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'message_queue'],
+      ['message_queue', 'worker'],
+      ['worker', 'ranking_service'],
+      ['ranking_service', 'cache'],
+      ['web_server', 'cache'],
+    ],
+    hints: [
+      "Separate the firehose from the answer: posts land on a queue, and a streaming stage counts hashtags in memory rather than writing every increment to a store.",
+      "You do not need exact counts for the long tail. A count-min sketch plus a min-heap of K candidates bounds memory while keeping the heavy hitters accurate.",
+      "Time-bucket the counts (e.g. one-minute windows) so 'the last hour' is a sum of 60 small buckets and old ones simply expire.",
+    ],
+    solution:
+      "Every new post is published by the API server onto a partitioned message queue keyed by hashtag, so all occurrences of a tag reach the same stream worker. Each worker keeps a count-min sketch per one-minute window and a local heap of its top candidates, and every few seconds pushes its local top-K to a ranking service. The ranker merges the partial heaps across workers, sums the last 60 minute-buckets, and writes the resulting top-10 list into a cache under a single key. The read path is trivial: the API server returns the cached list, so serving cost is independent of ingest volume. Approximate counting is the deliberate tradeoff — a sketch can overestimate a rare tag slightly, but it can never undercount a popular one, which is exactly the guarantee a trending list needs. A batch job can later recompute exact counts from the archived posts in object storage for analytics that must be precise.",
+  },
+  {
+    id: 'calendar-scheduler',
+    number: 53,
+    title: "Calendar & Meeting Scheduler",
+    topic: "Web service",
+    prompt:
+      "Design a calendar service like Google Calendar where users create events, invite attendees, find a free slot across several people's calendars, and receive a reminder before an event starts. Recurring events (\"every Monday at 10:00\") must not be materialized as millions of rows, and a reminder must fire exactly once even if the scheduler fleet restarts in the meantime.",
+    palette: ['client', 'web_server', 'database', 'cache', 'message_queue', 'worker', 'notification_service', 'search_index'],
+    requiredComponents: ['client', 'web_server', 'database', 'message_queue', 'worker', 'notification_service'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'database'],
+      ['web_server', 'message_queue'],
+      ['message_queue', 'worker'],
+      ['worker', 'database'],
+      ['worker', 'notification_service'],
+      ['notification_service', 'client'],
+    ],
+    hints: [
+      "Store a recurring event as one row with an RRULE and expand occurrences on the fly for the requested date range; only exceptions ('skip next Monday') get their own row.",
+      "Free-slot search is an interval-merge over each attendee's busy blocks; precomputed free/busy summaries per user keep it from scanning every event.",
+      "Reminders are delayed jobs. Put them on a queue with a fire-at time and have the worker re-check the event before sending so a cancelled or moved event never pings anyone.",
+    ],
+    solution:
+      "Clients create and edit events through the API server, which writes the event, its attendees, and any recurrence rule to the database; recurring events are stored once and expanded in code when a calendar view or free/busy query asks for a date range, so the row count stays proportional to events rather than occurrences. To find a meeting slot, the API loads each attendee's busy intervals for the window (optionally from a cache of free/busy summaries), merges them, and returns the gaps. When an event is saved the API also enqueues a reminder job on a delayed message queue keyed by event ID and fire time. A worker consumes jobs when they come due, re-reads the event from the database to confirm it still exists at that time, and hands the alert to the notification service, which pushes to the attendee's devices. Idempotency keys on the reminder job (event ID plus version) mean a redelivered job after a worker crash is recognised and dropped, so users are reminded exactly once. The tradeoff is compute versus storage: expanding recurrences on read costs CPU on every calendar view but avoids an unbounded write amplification when someone edits a weekly series.",
+  },
+  {
+    id: 'content-delivery-network',
+    number: 54,
+    title: "Content Delivery Network",
+    topic: "Infrastructure",
+    prompt:
+      "Design a CDN that serves static assets — images, scripts, video segments — to users worldwide with single-digit-millisecond latency. Each request must be routed to the nearest healthy edge, a cache miss must not let a thundering herd of edges stampede the origin, and a publisher must be able to purge a changed asset from every edge within seconds.",
+    palette: ['client', 'load_balancer', 'edge_server', 'cache', 'object_storage', 'web_server', 'message_queue', 'worker'],
+    requiredComponents: ['client', 'load_balancer', 'edge_server', 'object_storage', 'web_server', 'message_queue'],
+    requiredConnections: [
+      ['client', 'load_balancer'],
+      ['load_balancer', 'edge_server'],
+      ['edge_server', 'object_storage'],
+      ['client', 'web_server'],
+      ['web_server', 'message_queue'],
+      ['message_queue', 'edge_server'],
+    ],
+    hints: [
+      "Routing to the nearest edge happens before the request even arrives: GeoDNS or anycast maps the user to the closest point of presence.",
+      "Collapse concurrent misses for the same key at an edge into a single origin fetch (request coalescing), and consider a regional shield tier between edges and origin.",
+      "Purges are a broadcast problem: publish the invalidation once and let every edge subscribe, rather than having the control plane call each edge in turn.",
+    ],
+    solution:
+      "A user's request is steered by a GeoDNS/anycast routing layer to the closest healthy point of presence, where an edge server checks its local cache. On a hit it serves bytes immediately with a long TTL and an ETag; on a miss it coalesces any concurrent requests for the same key into one upstream fetch, optionally through a regional shield cache so that many edges in one region produce a single origin read, and pulls the asset from the origin object store before caching it. Publishers upload assets to the object store and manage them through a control-plane API server; a purge request is written to a message queue that every edge subscribes to, so the invalidation fans out in seconds without the control plane tracking each node. Versioned asset URLs (hash in the filename) make purges rare for most deploys. The key tradeoff is cache hit ratio versus freshness — longer TTLs and a shield tier protect the origin and cut latency, while purge fan-out and short TTLs on frequently changing files keep users from seeing stale content.",
+  },
+  {
+    id: 'webhook-delivery',
+    number: 55,
+    title: "Webhook Delivery System",
+    topic: "Infrastructure",
+    prompt:
+      "Design a system that delivers event webhooks (order.created, payment.succeeded) to thousands of customer endpoints over HTTPS. Customer servers can be slow, flaky, or down for hours, so delivery must retry with backoff without blocking other customers. Every event must arrive at least once with a signature the customer can verify, and customers need a dashboard of delivery attempts.",
+    palette: ['client', 'web_server', 'message_queue', 'worker', 'database', 'rate_limiter', 'cache', 'load_balancer'],
+    requiredComponents: ['client', 'web_server', 'message_queue', 'worker', 'database'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'message_queue'],
+      ['message_queue', 'worker'],
+      ['worker', 'client'],
+      ['worker', 'database'],
+      ['web_server', 'database'],
+    ],
+    hints: [
+      "Never call the customer's server from the request path. Persist the event, enqueue a delivery job, and return immediately.",
+      "One slow endpoint must not starve the rest — partition the queue or cap in-flight deliveries per endpoint, and retry with exponential backoff and jitter.",
+      "Sign each payload with an HMAC of a per-customer secret and include an event ID so the receiver can verify authenticity and drop duplicates.",
+    ],
+    solution:
+      "Customers register endpoints and view attempts through the API server, which stores endpoint URLs and secrets in the database. When an internal event fires, the API records the event row and publishes a delivery job onto a message queue partitioned by endpoint, so a backlog for one customer stays in its own partition. Delivery workers pull jobs, sign the JSON body with an HMAC of the customer's secret, POST it to the customer's server with a short timeout, and write the attempt (status code, latency, response snippet) to the database. A 2xx marks the event delivered; anything else re-enqueues it with exponential backoff and jitter up to a retry ceiling, after which it lands in a dead-letter list the dashboard surfaces for manual replay. Per-endpoint concurrency caps (a rate limiter or semaphore in the worker) keep a flaky server from tying up the fleet, and an idempotent event ID in the headers lets the receiver deduplicate at-least-once redeliveries. The tradeoff is delivery guarantee versus ordering: at-least-once with retries is simple and robust, but events to the same endpoint can arrive out of order, so consumers must rely on event timestamps rather than arrival order.",
+  },
+  {
+    id: 'ab-experimentation-platform',
+    number: 56,
+    title: "A/B Experimentation Platform",
+    topic: "ML",
+    prompt:
+      "Design a platform where product teams define experiments (variants, traffic split, targeting rules), every app request is assigned to a variant in under a millisecond, and exposure and conversion events are joined to report which variant won with statistical confidence. Assignment must be sticky — a user sees the same variant across sessions and devices — and the app must keep working if the experiment service is down.",
+    palette: ['client', 'web_server', 'cache', 'database', 'message_queue', 'worker', 'time_series_db', 'object_storage', 'load_balancer'],
+    requiredComponents: ['client', 'web_server', 'database', 'cache', 'message_queue', 'worker'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'database'],
+      ['web_server', 'cache'],
+      ['web_server', 'message_queue'],
+      ['message_queue', 'worker'],
+      ['worker', 'database'],
+    ],
+    hints: [
+      "Don't look up assignments — compute them. Hashing (user_id, experiment_id) into a bucket is deterministic, so it is sticky for free and needs no per-user storage.",
+      "Push experiment configs to the app as a small snapshot the SDK caches locally; assignment then happens on-device with no network call, and a stale snapshot still works if the service is down.",
+      "Analysis is a join of exposure events with outcome events. Stream them into a pipeline that aggregates per variant and computes the confidence interval offline.",
+    ],
+    solution:
+      "Product teams define experiments through a control-plane API server that stores variants, traffic allocations, and targeting rules in the database and publishes a compact config snapshot into a cache. Client SDKs fetch that snapshot on startup and periodically thereafter, then assign users locally: hash the user ID with the experiment salt into one of 10,000 buckets, and map bucket ranges to variants according to the config. Because the hash is deterministic the assignment is sticky across devices and sessions with no lookup, and a cached snapshot keeps assignments working even when the platform is unreachable. When a user is exposed to a variant, and when they convert, the SDK emits events to the API, which publishes them to a message queue; stream workers join exposures to outcomes by user and experiment, aggregate per-variant counts and metrics, and write the results back to the database for the results dashboard, with raw events archived in object storage for re-analysis. The tradeoff is bucket hashing's rigidity: it is fast and stateless, but re-ramping traffic or reusing a salt can leak users between variants, so allocations must only grow and salts must be unique per experiment.",
+  },
+  {
+    id: 'online-code-judge',
+    number: 57,
+    title: "Online Code Judge",
+    topic: "Web service",
+    prompt:
+      "Design a LeetCode-style judge that accepts a code submission, compiles and runs it against hidden test cases in several languages, and reports pass/fail with runtime and memory. Untrusted code must never escape its sandbox or starve other submissions, a contest can produce 100k submissions in a minute, and users should see their verdict without hammering the API.",
+    palette: ['client', 'web_server', 'message_queue', 'worker', 'sandbox', 'database', 'object_storage', 'cache', 'ws_gateway'],
+    requiredComponents: ['client', 'web_server', 'message_queue', 'worker', 'sandbox', 'database'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'database'],
+      ['web_server', 'message_queue'],
+      ['message_queue', 'worker'],
+      ['worker', 'sandbox'],
+      ['worker', 'database'],
+    ],
+    hints: [
+      "Compiling and running code takes seconds and can hang; the API must accept the submission, persist it as 'queued', and return an ID immediately.",
+      "Each run needs an isolated environment with CPU, memory, wall-clock, and network limits — a container or seccomp-restricted process that is thrown away after every test.",
+      "Test cases are shared by thousands of submissions; store them once in object storage and let workers cache them locally rather than sending them with every job.",
+    ],
+    solution:
+      "A submission arrives at the API server, which stores the source and a 'queued' status in the database and publishes a job onto a message queue, returning a submission ID at once. A pool of judge workers consumes the queue; each worker fetches the problem's hidden test cases (kept in object storage and cached on the worker) and spins up a fresh sandbox — a container with no network, a read-only filesystem, a CPU-time and memory cgroup, and a wall-clock kill switch — to compile and run the code against each case, capturing output, runtime, and peak memory. The worker compares output to the expected result, writes the verdict back to the database, and the client either polls the status endpoint (with a cache absorbing repeated reads) or receives a push over a WebSocket gateway. Because the sandbox is disposable and resource-capped, a malicious or infinite-looping submission can only burn its own quota. The tradeoff is throughput versus isolation: heavier sandboxes (microVMs) are safer but slower to start, so judges typically keep warm pools per language and scale the worker fleet horizontally during contests.",
+  },
+  {
+    id: 'email-inbox-service',
+    number: 58,
+    title: "Email Inbox Service",
+    topic: "Web service",
+    prompt:
+      "Design a webmail service like Gmail that receives mail from the internet over SMTP, stores it durably with attachments, and lets users browse threads and search their entire mailbox instantly. Inbound mail is bursty and every message must be scanned for spam and malware before it reaches an inbox. Mailboxes grow to tens of gigabytes, so listing an inbox cannot scan raw messages.",
+    palette: ['client', 'web_server', 'message_queue', 'worker', 'database', 'object_storage', 'search_index', 'cache', 'notification_service'],
+    requiredComponents: ['client', 'web_server', 'message_queue', 'worker', 'database', 'object_storage', 'search_index'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'message_queue'],
+      ['message_queue', 'worker'],
+      ['worker', 'database'],
+      ['worker', 'object_storage'],
+      ['worker', 'search_index'],
+      ['web_server', 'database'],
+      ['web_server', 'search_index'],
+    ],
+    hints: [
+      "Treat the SMTP front door like any ingestion API: accept the message, queue it, and acknowledge — filtering and indexing happen asynchronously.",
+      "Split the message into metadata (sender, subject, thread ID, labels — small, queried constantly) and the raw MIME body plus attachments (large, immutable). They belong in different stores.",
+      "Full-text search across gigabytes needs an inverted index per user; update it as messages are processed, not when the user first searches.",
+    ],
+    solution:
+      "Inbound SMTP connections and client API calls both terminate at the front-door servers. An incoming message is written to a message queue and acknowledged to the sending server, which absorbs bursts. Processing workers consume the queue: they run spam and malware classifiers, parse the MIME structure, store the raw body and each attachment in object storage under content-addressed keys (deduplicating identical attachments), write the small metadata row — headers, thread ID, labels, pointers to the blobs — into a database partitioned by user, and add the tokenized body to the user's inverted search index. Reading is a metadata affair: listing the inbox is a range query on the user's partition ordered by time, opening a message fetches the body from object storage, and a search hits the index and then hydrates results from the database. A cache holds the most recent inbox page and a notification service pushes new-mail alerts. The tradeoff is write amplification for read speed — each message is written three times (blob, row, index) so that the two operations users do constantly, listing and searching, never touch the raw mail.",
+  },
+  {
+    id: 'video-conferencing',
+    number: 59,
+    title: "Video Conferencing",
+    topic: "Realtime",
+    prompt:
+      "Design a Zoom-style service where up to 100 participants join a meeting and exchange live audio and video with under 300ms of latency. A participant should upload their stream once rather than once per peer, clients behind NATs and firewalls must still connect, and a meeting can optionally be recorded to a file that is available afterwards.",
+    palette: ['client', 'web_server', 'ws_gateway', 'media_server', 'database', 'object_storage', 'transcoder', 'load_balancer', 'cache'],
+    requiredComponents: ['client', 'web_server', 'ws_gateway', 'media_server', 'database', 'object_storage'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'database'],
+      ['client', 'ws_gateway'],
+      ['ws_gateway', 'media_server'],
+      ['client', 'media_server'],
+      ['media_server', 'object_storage'],
+    ],
+    hints: [
+      "Peer-to-peer mesh needs N-1 uploads per participant and collapses past a handful of people; a central media server that forwards streams scales to a large room.",
+      "Signaling (who is in the room, codec negotiation, ICE candidates) is a separate low-bandwidth channel from the media itself — a WebSocket is a natural fit.",
+      "Recording is a side output of the media server: mix or dump the streams to disk as they pass through, then upload the file to object storage when the meeting ends.",
+    ],
+    solution:
+      "A participant first calls the API server to authenticate and join, which reads the meeting record from the database and returns the address of the media server assigned to that room. The client then opens a WebSocket to the signaling gateway to exchange session descriptions and ICE candidates, and the gateway tells the media server to expect the new participant. Media flows over WebRTC (UDP with STUN, falling back to a TURN relay for restrictive NATs) directly between each client and a selective forwarding unit: every client uploads one stream in a few quality layers, and the SFU forwards the appropriate layer of each other participant's stream back down, so upload bandwidth stays constant no matter the room size and no server-side decoding is needed. Rooms are pinned to one SFU, and large rooms cascade several SFUs. If recording is enabled, the media server writes the composited streams to a local file and pushes it to object storage at the end (a transcoder can then produce a playback-friendly MP4). The tradeoff is SFU versus MCU: an SFU is cheap on server CPU and keeps latency low but pushes decoding and layout work onto clients, while an MCU mixes everything server-side at high compute cost.",
+  },
+  {
+    id: 'dating-app-swipe-match',
+    number: 60,
+    title: "Dating App Swipe & Match",
+    topic: "Social",
+    prompt:
+      "Design a Tinder-style app that shows each user a deck of nearby profiles, records left and right swipes, and creates a match the instant two users have both swiped right on each other. Users must only be shown people within a radius whom they have never swiped on, swipes arrive at tens of thousands per second, and the mutual-match check must be correct even when both swipes land at the same moment.",
+    palette: ['client', 'web_server', 'location_service', 'database', 'cache', 'notification_service', 'recommendation_engine', 'message_queue', 'cdn'],
+    requiredComponents: ['client', 'web_server', 'location_service', 'database', 'cache', 'notification_service'],
+    requiredConnections: [
+      ['client', 'web_server'],
+      ['web_server', 'location_service'],
+      ['web_server', 'database'],
+      ['web_server', 'cache'],
+      ['web_server', 'notification_service'],
+      ['notification_service', 'client'],
+    ],
+    hints: [
+      "The deck is a geo query: index users by geohash or H3 cell so 'people within 10 km' is a lookup on a handful of cells, not a scan.",
+      "'Never show someone twice' is a per-user set of swiped IDs; keep it in a fast store (or a Bloom filter for very active users) so the deck builder can filter candidates cheaply.",
+      "A match is a mutual right swipe. Record swipes in a store that lets you atomically write your swipe and check whether the other direction already exists in one step.",
+    ],
+    solution:
+      "When a user opens the app, the API server asks the location service for candidate profiles in the nearby geo cells, filters out anyone already in the user's swiped set held in the cache, optionally re-ranks the remainder with a recommendation engine, and returns a deck; profile photos come from a CDN. A swipe is a small write: the API appends the (swiper, target, direction) row to the database — partitioned by swiper for the high write rate — and adds the target to the swiper's swiped set in the cache. For a right swipe it then checks whether the reverse (target → swiper, right) exists; to be correct under simultaneous swipes this check is done atomically, for example a Lua script on the cache that sets the pair key and reads the opposite key in one step, or a conditional insert into a matches table keyed by the sorted user-ID pair so only one of two concurrent writers can create the match. When a match is created the API hands it to the notification service, which pushes an 'It's a match' alert to both users. The tradeoff is where to keep swipe history: the cache makes the deck filter and the mutual check fast, but the database remains the source of truth so the cache can be rebuilt if it is lost.",
   },
 ];
 

@@ -280,7 +280,7 @@ export const categories: Category[] = [
       { id: 'tp-14', front: 'Reverse String\n\nGiven a character array, reverse it in-place.', back: 'Opposite pointers, swap until they meet.\n\nIn-place O(1) space. Works for arrays and strings (as char arrays).' },
       { id: 'tp-15', front: 'Partition Labels\n\nGiven a string, partition it into as many parts as possible where each letter appears in at most one part. Return the sizes.', back: 'Greedy + two pointers mindset. Track last occurrence of each char. Extend partition end to include all chars.\n\nStart new partition when i reaches current end.' },
       { id: 'tp-16', front: 'Remove Element\n\nGiven an array and value val, remove all occurrences of val in-place and return the new length.', back: 'Read/write pointers. Write pointer tracks valid position. Skip elements equal to val.\n\nReturn write pointer as new length.\n\nTime: O(n), Space: O(1)' },
-      { id: 'tp-17', front: 'Move Zeroes\n\nGiven an array, move all zeros to the end while maintaining the relative order of non-zero elements.', back: 'Read/write pattern. Write non-zeros to front, fill rest with zeros.\n\nOr: swap non-zero with write position, advance write.\n\nMaintains relative order!' },
+      { id: 'tp-17', front: '3Sum Smaller\n\nCount the triplets (i < j < k) whose sum is strictly less than a target.', back: 'Sort. Fix i, then l = i+1, r = n-1.\n\nIf nums[i] + nums[l] + nums[r] < target: ALL pairs (l, l+1..r) work, so count += r - l and l++.\nElse r--.\n\nO(n²), no hash set needed.' },
       { id: 'tp-18', front: 'Longest Mountain in Array\n\nGiven an array, find the length of the longest mountain subarray (strictly increasing then strictly decreasing).', back: 'Find peaks (arr[i] > arr[i-1] and arr[i] > arr[i+1]). Expand left/right from peak.\n\nTwo pointers from peak center outward.' },
       { id: 'tp-19', front: 'Boats to Save People\n\nGiven an array of weights and weight limit per boat, return the minimum number of boats needed to carry everyone (2 people max per boat).', back: 'Sort by weight. Pair heaviest with lightest if sum <= limit.\n\nGreedy: heaviest always needs a boat, try to pair with lightest.' },
       { id: 'tp-20', front: 'Next Permutation\n\nGiven an array of integers, rearrange it to the next lexicographically greater permutation. If impossible, rearrange to lowest permutation.', back: '1. Find first decreasing element from right\n2. Find smallest larger element to its right\n3. Swap them\n4. Reverse suffix\n\nTwo pointer reverse at end.' },
@@ -361,10 +361,10 @@ export const categories: Category[] = [
       },
       {
         id: 'tp-q10',
-        question: 'For "Container With Most Water", why move the pointer at the shorter line?',
-        options: ['It\'s arbitrary', 'Moving the taller line can only decrease area', 'Moving the shorter line might find a taller line', 'Both pointers should move'],
-        correctAnswer: 2,
-        explanation: 'Area = min(height) × width. Moving the shorter line might find a taller one, potentially increasing area. Moving the taller line can only keep or decrease the minimum, while also decreasing width.'
+        question: 'In "Next Permutation", after finding the pivot i (first index from the right with nums[i] < nums[i+1]) and swapping it with the smallest element greater than it to its right, what is the final step?',
+        options: ['Sort the whole array', 'Swap nums[i] with nums[i+1]', 'Nothing; the array is already the next permutation', 'Reverse the suffix after i with two pointers, since it is in descending order'],
+        correctAnswer: 3,
+        explanation: 'Everything right of the pivot was non-increasing (that is how the pivot was found), and the swap preserves that. The smallest arrangement of that suffix is ascending, so reversing it in place with two pointers finishes in O(n) time and O(1) space. Sorting also works but costs O(n log n) for no benefit.'
       },
       {
         id: 'tp-q11',
@@ -492,7 +492,7 @@ export const categories: Category[] = [
       { id: 'fs-7', front: 'Palindrome Linked List\n\nGiven a linked list, determine if it is a palindrome.', back: '1. Find middle (fast-slow)\n2. Reverse second half\n3. Compare first and second half\n4. (Optional) Restore list\n\nO(n) time, O(1) space' },
       { id: 'fs-8', front: 'Reorder List (L0→Ln→L1→Ln-1...)\n\nGiven a linked list, reorder it to alternate between first and last nodes.', back: '1. Find middle\n2. Reverse second half\n3. Merge alternating from start and end\n\nAll using fast-slow + reversal.' },
       { id: 'fs-9', front: 'Why relative speed of 1 guarantees meeting?', back: 'In cycle, gap decreases by 1 each step. If gap is G, they meet in G steps.\n\nMax gap is cycle length, so O(cycle length) iterations.' },
-      { id: 'fs-10', front: 'Linked List Cycle II (return start node)\n\nGiven a linked list with a cycle, return the node where the cycle begins.', back: 'Phase 1: Detect with fast-slow.\nPhase 2: Reset slow to head, advance both by 1 until meet.\n\nMeeting point = cycle start.' },
+      { id: 'fs-10', front: 'Convert Sorted List to BST\n\nGiven a sorted singly linked list, convert it into a height-balanced binary search tree.', back: 'Fast-slow to find the middle node; it becomes the root. Track prev of slow to cut off the left half.\n\nRecurse on the left half and the right half.\n\nO(n log n) time. O(n) alternative: count the length, build inorder while advancing a head pointer.' },
       { id: 'fs-11', front: 'Remove Nth Node From End\n\nGiven a linked list, remove the nth node from the end of the list and return its head.', back: 'Fast pointer n steps ahead. When fast reaches end, slow is at n-th from end.\n\nUse dummy node for edge cases!' },
       { id: 'fs-12', front: 'Intersection of Two Linked Lists\n\nGiven two linked lists, find the node at which they intersect. Return null if they don\'t intersect.', back: 'Not exactly fast-slow, but pointer trick: when one reaches end, redirect to other list\'s head.\n\nThey meet at intersection or null together.' },
       { id: 'fs-13', front: 'Sort Linked List (Merge Sort)\n\nGiven a linked list, sort it in O(n log n) time and O(1) space.', back: 'Find middle with fast-slow, recursively sort halves, merge.\n\nO(n log n) time, O(log n) space (recursion stack).' },
@@ -717,7 +717,7 @@ export const categories: Category[] = [
       { id: 'mi-13', front: 'Minimum Number of Arrows to Burst Balloons\n\nGiven an array of balloons with start and end coordinates (representing diameter), find the minimum number of arrows needed to burst all balloons (one arrow can burst all balloons its x-coordinate touches).', back: 'Same as "max non-overlapping intervals"!\n\nSort by end. One arrow per group of overlapping balloons.' },
       { id: 'mi-14', front: 'Find Right Interval\n\nGiven an array of intervals, for each interval find the smallest interval that starts after or at the end of the current interval.', back: 'Sort by start. For each interval, binary search for smallest start >= current end.\n\nO(n log n) with preprocessing.' },
       { id: 'mi-15', front: 'Event Sweep Technique', back: 'Create events: (time, +1 or -1).\nSort by time. Walk through, track running count.\n\nUseful for: room count, coverage, overlaps.' },
-      { id: 'mi-16', front: 'Employee Free Time\n\nGiven a list of employee schedules, return the common free time intervals for all employees.', back: 'Merge all schedules into one sorted list. Find gaps between consecutive intervals.\n\nGap = free time for everyone.\n\nTime: O(n log n)' },
+      { id: 'mi-16', front: 'Minimum Interval to Include Each Query\n\nGiven a list of intervals and a list of query points, for each query return the size of the smallest interval containing it (or -1 if none).', back: 'Sort intervals by start and sort queries. For each query, push every interval with start <= q into a min heap keyed by size.\n\nPop while the heap top ends before q. Heap top = answer.\n\nTime: O((n + q) log n)' },
       { id: 'mi-17', front: 'Data Stream as Disjoint Intervals\n\nGiven a stream of integers, maintain disjoint intervals that cover all numbers seen so far. Support addNum() and getIntervals().', back: 'TreeMap/BST of intervals. On add: find neighbors, merge if adjacent/overlapping.\n\ngetIntervals() returns all values in order.' },
       { id: 'mi-18', front: 'Remove Covered Intervals\n\nGiven an array of intervals, remove all intervals that are covered by another interval in the list. Return the count of remaining intervals.', back: 'Sort by start ASC, then end DESC. Track max end seen.\n\nInterval covered if end <= maxEnd. Count uncovered.' },
       { id: 'mi-19', front: 'Car Pooling\n\nGiven trips array where trips[i] = [numPassengers, from, to], and car capacity, return true if it\'s possible to pick up and drop off all passengers.', back: 'Sweep line: +passengers at pickup, -passengers at dropoff.\n\nAt any point, if total > capacity, return false.' },
@@ -827,10 +827,10 @@ export const categories: Category[] = [
       },
       {
         id: 'mi-q14',
-        question: 'For "Employee Free Time", what\'s the approach when employees have multiple intervals each?',
-        options: ['Process each employee separately', 'Flatten all intervals, merge, find gaps', 'Use multiple heaps', 'Dynamic programming'],
-        correctAnswer: 1,
-        explanation: 'Combine all intervals from all employees into one list, sort by start time, merge overlapping intervals, then find gaps between merged intervals. Gaps = common free time.'
+        question: 'In "Meeting Rooms II", how does the two-array alternative to the heap work (sort all starts and all ends separately)?',
+        options: ['Walk the sorted starts; if starts[i] < ends[j] open a new room, otherwise advance j to reuse a freed room', 'Pair starts[i] with ends[i] and count how many of those pairs overlap', 'Binary search each start in the sorted ends array', 'Count the starts that exactly equal some end; that is the number of rooms'],
+        correctAnswer: 0,
+        explanation: 'Sorting starts and ends independently loses which end belongs to which meeting, but that does not matter: a meeting that starts before the earliest unmatched end needs a new room; otherwise some meeting has finished (advance j) and its room is reused. The number of rooms opened is the answer. O(n log n) time with O(1) extra space, versus O(n) for the heap.'
       },
       {
         id: 'mi-q15',
@@ -936,15 +936,15 @@ export const categories: Category[] = [
       { id: 'cs-13', front: 'Why is time O(n) with nested loop?', back: 'Each swap places one element permanently.\nMax n swaps total, not per iteration.\n\nAmortized: total work / n iterations = O(1) per.' },
       { id: 'cs-14', front: 'Set Mismatch\n\nGiven an array representing a set which should contain numbers 1 to n, but one number appears twice and one is missing, find both numbers.', back: 'One duplicate, one missing.\n\nCyclic sort → find wrong position.\nDuplicate = value there, Missing = expected value.' },
       { id: 'cs-15', front: 'Cyclic Sort Key Recognition', back: 'Keywords: "range 1 to n", "find missing", "find duplicate", "continuous integers"\n\nO(1) space requirement is a hint!' },
-      { id: 'cs-16', front: 'First Missing Positive O(1) Space', back: 'Use array as hash map. Place each positive in its correct index.\n\nFirst index where value != index+1 is answer.\n\nRange: only care about [1, n]' },
+      { id: 'cs-16', front: 'Rearrange Array So arr[i] = i\n\nGiven an array of size n containing values in [0, n-1] and -1 placeholders, rearrange it so that arr[i] = i wherever possible; positions with no matching value hold -1.', back: 'Cyclic sort with -1 as the "skip" value: while arr[i] != -1 and arr[i] != i, swap arr[i] to index arr[i].\n\nSlots that never receive their value stay -1.\n\nO(n) time, O(1) space.' },
       { id: 'cs-17', front: 'Couples Holding Hands\n\nGiven n couples sitting in 2n seats where each couple should sit together, find the minimum number of swaps to arrange all couples next to each other.', back: 'Cyclic sort variant. Couple i should be at positions 2i, 2i+1.\n\nSwap misplaced people to their partner\'s position.\n\nMinimum swaps = cycles.' },
-      { id: 'cs-18', front: 'Find All Numbers Disappeared in Array\n\nGiven an array of n integers in the range [1, n] with some numbers appearing multiple times, find all numbers in [1, n] that don\'t appear in the array.', back: 'Cyclic sort to place nums. Then scan: if nums[i] != i+1, then i+1 is missing.\n\nCollect all missing in one pass.' },
+      { id: 'cs-18', front: 'Find Two Missing Numbers\n\nGiven an array of n distinct integers taken from the range [1, n+2], find the two numbers from that range that are missing.', back: 'Cyclic sort into an array of size n+2 (treat the last two slots as empty). Place each value at index value-1.\n\nAfter the pass, the two indices i where nums[i] != i+1 give the missing values i+1.\n\nTime: O(n), Space: O(1) extra beyond the two spare slots.' },
       { id: 'cs-19', front: 'Duplicate Number Without Modifying Array\n\nGiven an array of n+1 integers in range [1, n], find the duplicate number without modifying the array and using only constant extra space.', back: 'Can\'t use cyclic sort directly. Use Floyd\'s cycle detection!\n\nTreat values as next pointers. Duplicate creates cycle.' },
       { id: 'cs-20', front: 'Index as Hash Key Trick', back: 'Mark visited by negating: nums[abs(num)-1] *= -1.\n\nSecond visit to same index = duplicate.\n\nPositive indices = missing numbers.' },
       { id: 'cs-21', front: 'Array Nesting (Longest Set Size)\n\nGiven an array where nums[i] represents the next index to visit, find the longest set you can form by following the indices until you return to the starting index.', back: 'Related to cyclic structure. Each start forms a cycle.\n\nCycle length = set size. Mark visited to avoid recount.' },
       { id: 'cs-22', front: 'Minimum Swaps to Sort\n\nGiven an unsorted array of distinct elements, find the minimum number of swaps required to sort the array in ascending order.', back: 'Build position map. Cyclic sort logic: count swaps needed.\n\nEach cycle of length k needs k-1 swaps.' },
-      { id: 'cs-23', front: 'Smallest Missing Positive Integer\n\nGiven an unsorted array of integers, find the smallest positive integer (starting from 1) that does not appear in the array.', back: 'Ignore negatives, zeros, and > n. Place valid nums in correct spots.\n\nFirst empty/wrong slot = answer.' },
-      { id: 'cs-24', front: 'Cyclic Sort vs Counting Sort', back: 'Cyclic: O(1) space, in-place rearrangement.\nCounting: O(k) space, separate count array.\n\nCyclic when you need the rearranged array.' },
+      { id: 'cs-23', front: 'Missing Number: XOR vs Cyclic Sort', back: 'Both find one missing number in [0, n] in O(n).\n\nXOR / sum formula: O(1) space, does NOT modify the input, but only works for exactly one missing value.\n\nCyclic sort: modifies the array in place, but generalizes to all-missing, duplicates, and corrupt-pair variants.' },
+      { id: 'cs-24', front: 'Max Chunks To Make Sorted\n\nGiven a permutation of [0, n-1], split it into the maximum number of chunks such that sorting each chunk individually yields a fully sorted array.', back: 'Scan left to right tracking maxSoFar.\n\nWhen maxSoFar === i, every value 0..i already sits in the prefix, so cut a chunk here.\n\nCount the cuts. O(n) time, O(1) space.' },
       { id: 'cs-25', front: 'Find Corrupt Pair\n\nGiven an array that should contain numbers 1 to n but has one duplicate and one missing number, identify both the duplicate and missing values.', back: 'After cyclic sort: position with wrong value reveals both.\n\nDuplicate = actual value there.\nMissing = expected value (i+1).' },
       { id: 'cs-26', front: 'Handling Duplicates in Cyclic Sort', back: 'When nums[i] == nums[correctIdx], skip (already have one there).\n\nAvoids infinite loop on duplicates.' },
       { id: 'cs-27', front: 'Cycle Detection via Cyclic Sort', back: 'Values form implicit graph: i → nums[i].\n\nCyclic sort reveals cycle structure.\n\nUseful for permutation cycle problems.' },
@@ -1156,7 +1156,7 @@ export const categories: Category[] = [
       { id: 'llr-14', front: 'Reverse using stack', back: 'O(n) space alternative: push all nodes to stack, pop to rebuild.\n\nEasier to implement but wastes space.\n\nGood for understanding, not for interviews.' },
       { id: 'llr-15', front: 'Sublist reversal pointer dance', back: 'For left to right reversal:\n• before.next changes each iteration\n• prev (original left) slowly moves right\n• curr gets inserted after before repeatedly' },
       { id: 'llr-16', front: 'Reverse Linked List II (positions m to n)\n\nGiven a linked list and two 1-indexed positions m and n, reverse the nodes from position m to position n.', back: 'Find node before m. Reverse m to n using iterative method.\n\nReconnect: before → reversed_head, reversed_tail → after.' },
-      { id: 'llr-17', front: 'Reverse Alternating K Nodes\n\nGiven a linked list and an integer k, reverse every other group of k nodes (reverse first k, skip next k, reverse next k, and so on).', back: 'Reverse K, skip K, repeat. Track previous tail to connect segments.\n\nUse counter to switch between modes.' },
+      { id: 'llr-17', front: 'Remove Nodes From Linked List\n\nGiven a linked list, remove every node that has a node with a strictly greater value anywhere to its right.', back: 'Reverse the list. Walk it keeping a running max; drop any node smaller than the max (the greater value is now on the LEFT, so one pass works).\n\nReverse the result back.\n\nO(n) time, O(1) space.' },
       { id: 'llr-18', front: 'Add Two Numbers (Reversed)\n\nGiven two non-empty linked lists representing two non-negative integers stored in reverse order (least significant digit first), add the two numbers and return the sum as a linked list.', back: 'Numbers stored in reverse (LSD first). Add digit by digit with carry.\n\nCreate new nodes for result. Handle final carry!' },
       { id: 'llr-19', front: 'Plus One Linked List\n\nGiven a non-negative integer represented as a linked list of digits (most significant digit first), add one to the number.', back: 'Find rightmost non-9. Increment it, set all following to 0.\n\nOr: reverse, add, reverse back. Handle carry overflow.' },
       { id: 'llr-20', front: 'Reverse Every Other Group', back: 'Odd groups: reverse. Even groups: keep order.\n\nTrack group number, apply reversal conditionally.' },
@@ -1279,10 +1279,10 @@ export const categories: Category[] = [
       },
       {
         id: 'llr-q16',
-        question: 'In recursive reversal, what does head.next.next = head accomplish?',
-        options: ['Deletes a node', 'Makes the next node point back to current node', 'Skips a node', 'Finds the tail'],
-        correctAnswer: 1,
-        explanation: 'If we have A->B, then A.next is B, so A.next.next is B.next. Setting A.next.next = A means B.next = A, reversing the link. This is the core of recursive reversal.'
+        question: 'Code reading: `while (curr) { next = curr.next; curr.next = prev; prev = curr; curr = next; } return curr;` What does this reversal return?',
+        options: ['The new head', 'The old head', 'null, because the loop exits when curr is null; it should return prev', 'The middle node'],
+        correctAnswer: 2,
+        explanation: 'The loop runs until curr becomes null, so returning curr always yields null. The last node moved into prev is the old tail, which is the new head, so the function must return prev. This is one of the most common reversal bugs in interviews.'
       },
       {
         id: 'llr-q17',
@@ -1370,7 +1370,7 @@ export const categories: Category[] = [
       { id: 'tbfs-9', front: 'Binary Tree Right Side View\n\nGiven a binary tree, return the values of the nodes you can see when looking at the tree from the right side (top to bottom).', back: 'BFS, take LAST node of each level.\n\nOr process right-to-left, take first.\n\nAlternative: DFS with level tracking.' },
       { id: 'tbfs-10', front: 'Binary Tree Left Side View\n\nGiven a binary tree, return the values of the nodes visible when looking at the tree from the left side.', back: 'BFS, take FIRST node of each level.\n\nOr: DFS, only record first node seen at each depth.' },
       { id: 'tbfs-11', front: 'BFS Space Complexity', back: 'O(w) where w is max width of tree.\n\nComplete tree: w ≈ n/2\nSkewed tree: w = 1\n\nWorst case: O(n)' },
-      { id: 'tbfs-12', front: 'Binary Tree Right Side View', back: 'Level order, take last element.\n\nOr DFS preorder right-first, track depth.\n\nResult size = tree height.' },
+      { id: 'tbfs-12', front: 'Maximum Level Sum of a Binary Tree\n\nGiven a binary tree, return the smallest level number (1-indexed) whose node values have the maximum sum.', back: 'BFS level by level, summing values per level.\n\nTrack best sum and its level; update only on a strictly greater sum so ties keep the smaller level.\n\nO(n) time, O(w) space.' },
       { id: 'tbfs-13', front: 'Find Largest Value in Each Tree Row\n\nGiven a binary tree, return the largest value in each level of the tree.', back: 'BFS, track max per level.\n\nOr DFS with depth tracking, update max array.' },
       { id: 'tbfs-14', front: 'Check Completeness of Binary Tree\n\nGiven a binary tree, determine if it is a complete binary tree (all levels fully filled except possibly the last, which is filled left to right).', back: 'BFS. Once null seen, all remaining must be null.\n\nFlag approach: once gap found, no more nodes allowed.' },
       { id: 'tbfs-15', front: 'Cousins in Binary Tree\n\nGiven a binary tree and two node values, determine if the nodes are cousins (same depth but different parents).', back: 'BFS tracking parent and depth.\n\nTwo nodes are cousins if: same depth AND different parents.' },
@@ -1491,10 +1491,10 @@ export const categories: Category[] = [
       },
       {
         id: 'tbfs-q15',
-        question: 'What\'s the space complexity of BFS on a binary tree?',
-        options: ['O(1)', 'O(h) where h is height', 'O(w) where w is max width', 'O(n)'],
-        correctAnswer: 2,
-        explanation: 'BFS queue holds at most one level at a time. Max width of a binary tree is at most n/2 (bottom level of complete tree), so O(n). For perfectly balanced tree, it\'s O(n/2) = O(n).'
+        question: 'In "Maximum Width of Binary Tree", nulls between the leftmost and rightmost nodes on a level count toward the width. How do you measure it with BFS?',
+        options: ['Push null children into the queue and use the queue length per level', 'Store each node with a heap-style index (left = 2i, right = 2i+1); width = last index - first index + 1 on that level', 'Use the level number: width = 2^level', 'Count the leaves under the leftmost and rightmost nodes'],
+        correctAnswer: 1,
+        explanation: 'Heap-style indices preserve the positions of missing nodes without enqueuing them, so the width is simply the difference between the indices of the first and last nodes dequeued on a level. Enqueuing nulls blows up to 2^h entries on sparse trees, and 2^level ignores missing subtrees. Subtract the level\'s first index when assigning child indices to avoid overflow on deep trees.'
       },
       {
         id: 'tbfs-q16',
@@ -1598,7 +1598,7 @@ export const categories: Category[] = [
       { id: 'tdfs-17', front: 'Kth Smallest Element in BST\n\nGiven a BST and an integer k, find the kth smallest element.', back: 'In-order traversal with counter. Stop at kth node.\n\nOr: augment nodes with left subtree size.\n\nTime: O(h + k) average.' },
       { id: 'tdfs-18', front: 'Binary Search Tree Iterator\n\nImplement an iterator over a BST that supports next() and hasNext() operations in O(h) space.', back: 'Controlled in-order using stack. Push all left nodes.\n\nnext(): pop, push all left of right child.\nhasNext(): stack not empty.' },
       { id: 'tdfs-19', front: 'Serialize and Deserialize Binary Tree\n\nDesign an algorithm to serialize and deserialize a binary tree using DFS.', back: 'Pre-order with null markers. Serialize: root, left, right.\n\nDeserialize: read value, recurse for children.\n\nQueue for order tracking.' },
-      { id: 'tdfs-20', front: 'Binary Tree Maximum Path Sum\n\nGiven a binary tree, find the maximum path sum where a path can start and end at any node.', back: 'Post-order. At each node: max through node = left + right + val.\n\nReturn max one-arm to parent. Global tracks best.' },
+      { id: 'tdfs-20', front: 'Balanced Binary Tree\n\nDetermine if a binary tree is height-balanced: every node\'s left and right subtree heights differ by at most 1.', back: 'Post-order returning height, with -1 as an "unbalanced" sentinel.\n\nIf either child returns -1 or |left - right| > 1, return -1. Else return 1 + max(left, right).\n\nOne pass O(n), not O(n²) like naive top-down.' },
       { id: 'tdfs-21', front: 'Subtree of Another Tree\n\nGiven two binary trees, check if one tree is a subtree of the other.', back: 'For each node, check if identical to subtree.\n\nOr: serialize both, check substring.\n\nTime: O(m*n) naive, O(m+n) with KMP.' },
       { id: 'tdfs-22', front: 'House Robber III\n\nGiven a binary tree where each node has a value, find the maximum sum you can rob without robbing two directly-linked nodes.', back: 'DP on tree. Each node returns [robbed, not_robbed].\n\nrobbed = val + left[not] + right[not]\nnot_robbed = max(left) + max(right)' },
       { id: 'tdfs-23', front: 'Delete Node in BST\n\nGiven a BST and a key, delete the node with the given key and return the new root.', back: 'Find node. No children: delete. One child: replace with child.\n\nTwo children: replace with successor (min of right subtree).' },
@@ -1812,7 +1812,7 @@ export const categories: Category[] = [
       { id: 'th-13', front: 'Rebalance After Deletion', back: 'After removing, sizes might be wrong.\nMove elements between heaps to restore invariant.\n\nAlways clean tops first!' },
       { id: 'th-14', front: 'Space Complexity', back: 'O(n) for n elements.\n\nWith lazy deletion: can temporarily exceed n (removed elements still in heap).' },
       { id: 'th-15', front: 'Alternative Insert Strategy', back: 'Compare with maxHeap.top first:\n• If smaller: add to maxHeap\n• If larger: add to minHeap\n• Then rebalance\n\nAlso works!' },
-      { id: 'th-16', front: 'IPO Problem (Maximize Capital)\n\nGiven projects with capital requirements and profits, and a limit k on number of projects, maximize your final capital starting from initial capital w.', back: 'Max heap for profits, min heap for capital requirements.\n\nRepeatedly pick best affordable project. Increase capital, unlock more projects.' },
+      { id: 'th-16', front: 'Number of Orders in the Backlog\n\nGiven a stream of buy and sell orders (price, amount), match each new order against the best opposite order while prices allow. Return the total unmatched amount left.', back: 'Max heap for buy orders (highest price first), min heap for sell orders (lowest price first).\n\nNew buy: match against sells while sell.price <= buy.price. New sell: match against buys while buy.price >= sell.price. Push any leftover.\n\nSum the remaining amounts at the end.' },
       { id: 'th-17', front: 'Find Right Interval\n\nGiven an array of intervals, for each interval find the interval with the smallest start time that is >= current interval\'s end time.', back: 'Min heap by start time. For each interval, find smallest start >= end.\n\nOr: sort + binary search.' },
       { id: 'th-18', front: 'Meeting Rooms II\n\nGiven an array of meeting time intervals, find the minimum number of conference rooms required.', back: 'Min heap by end time. For each meeting: if start >= heap.top, pop.\n\nPush current end. Heap size = rooms needed.' },
       { id: 'th-19', front: 'Task Scheduler\n\nGiven tasks and a cooldown period n, find the minimum time needed to complete all tasks.', back: 'Max heap by remaining count. Cycle through n+1 tasks.\n\nPop task, decrement, re-add if remaining. Idle when heap empty but cycle incomplete.' },
@@ -2032,7 +2032,7 @@ export const categories: Category[] = [
       { id: 'sub-13', front: 'Subsets Count', back: '2^n for n elements.\nEach element: 2 choices (in/out).\n\nIncludes empty set.' },
       { id: 'sub-14', front: 'Permutations Count', back: 'n! for n distinct elements.\nn choices × (n-1) × ... × 1.' },
       { id: 'sub-15', front: 'Backtracking Template', back: '1. Choose (push/mark)\n2. Explore (recurse)\n3. Unchoose (pop/unmark)\n\nBase case collects or validates.' },
-      { id: 'sub-16', front: 'Combination Sum II (no reuse)\n\nFind all unique combinations that sum to a target, where each number can be used only once.', back: 'Sort + skip duplicates at same level.\nRecurse from i+1 (no reuse).\n\nif (i > idx && nums[i] === nums[i-1]) skip' },
+      { id: 'sub-16', front: 'Permutation Sequence\n\nGiven n and k, return the kth permutation of 1..n in lexicographic order without generating them all.', back: 'Each choice of first digit fixes (n-1)! permutations.\n\nk -= 1 (0-index). For each position: idx = k / (n-1)!, take nums[idx], remove it, k %= (n-1)!, shrink factorial.\n\nO(n²) with list removal; no backtracking.' },
       { id: 'sub-17', front: 'Combination Sum III\n\nFind all valid combinations of k numbers that sum to n, using only numbers 1-9.', back: 'K numbers that sum to n, using 1-9.\nBacktrack with count and sum constraints.\n\nPrune when sum exceeds n.' },
       { id: 'sub-18', front: 'Sudoku Solver\n\nFill empty cells in a 9x9 Sudoku puzzle with digits 1-9 such that all constraints are satisfied.', back: 'Backtrack cell by cell. Try 1-9, validate row/col/box.\n\nReturn true on success, backtrack on failure.\n\nPrune: precompute valid digits.' },
       { id: 'sub-19', front: 'Restore IP Addresses\n\nGiven a string containing only digits, return all possible valid IP addresses that can be formed.', back: 'Backtrack with 4 segments. Each segment: 1-3 digits, value 0-255.\n\nNo leading zeros (except "0").' },
@@ -2253,7 +2253,7 @@ export const categories: Category[] = [
       { id: 'bs-15', front: 'Why start + (end-start)/2?', back: 'Avoids integer overflow!\n(start+end) can overflow.\nstart + (end-start)/2 cannot.' },
       { id: 'bs-16', front: 'Split Array Largest Sum\n\nSplit an array into m subarrays such that the largest sum among the subarrays is minimized.', back: 'Binary search on answer: min possible largest sum.\n\nCheck: can we split into ≤m subarrays with max sum ≤ mid?\n\nGreedy counting.' },
       { id: 'bs-17', front: 'Capacity To Ship Packages\n\nFind the minimum ship capacity to ship all packages within D days.', back: 'Binary search on capacity. For each capacity, simulate loading.\n\nFind minimum capacity to ship in D days.' },
-      { id: 'bs-18', front: 'Find Peak Element\n\nFind any peak element in an array where a peak is greater than its neighbors.', back: 'If mid > mid+1, peak is left (including mid).\nElse peak is right.\n\nWorks because edges are -∞.' },
+      { id: 'bs-18', front: 'Time Based Key-Value Store\n\nDesign set(key, value, timestamp) and get(key, timestamp) that returns the value with the largest timestamp <= the query.', back: 'Per key, keep an array of [timestamp, value]. Timestamps arrive increasing, so append keeps it sorted.\n\nget: binary search for the rightmost timestamp <= query (upper bound - 1). Return "" if none.\n\nset O(1), get O(log n).' },
       { id: 'bs-19', front: 'Search in Rotated Array II (with dups)\n\nSearch for a target in a rotated sorted array that may contain duplicates.', back: 'When nums[start] == nums[mid] == nums[end], can\'t determine side.\n\nShrink both ends: start++, end--.\n\nWorst case O(n).' },
       { id: 'bs-20', front: 'Find Minimum in Rotated Array\n\nFind the minimum element in a sorted array that has been rotated.', back: 'Compare mid with end. If mid > end, min is right. Else min is left.\n\nWith dups: shrink when equal.' },
       { id: 'bs-21', front: 'Binary Search Template 1 vs 2', back: 'Template 1: start <= end, check mid directly.\nTemplate 2: start < end, end = mid (not mid-1).\n\nChoose based on what you\'re finding.' },
@@ -2361,10 +2361,10 @@ export const categories: Category[] = [
       },
       {
         id: 'bs-q14',
-        question: 'For "Find Minimum in Rotated Sorted Array", what do you compare mid to?',
-        options: ['Target value', 'Left element', 'Right element to determine which half contains minimum', 'Both left and right'],
+        question: 'In "Search in Rotated Sorted Array II" (duplicates allowed), nums[mid] is not the target and nums[left] == nums[mid] == nums[right]. What should you do?',
+        options: ['Return -1; the target cannot be present', 'Search the left half, since the pivot must be there', 'Shrink both ends (left++, right--) because you cannot tell which half is sorted', 'Switch to a linear scan of the whole array'],
         correctAnswer: 2,
-        explanation: 'If arr[mid] > arr[right], minimum is in right half. If arr[mid] < arr[right], minimum is in left half (including mid). Minimum is where sorted order breaks.'
+        explanation: 'With duplicates, equal values at both ends and mid give no information about which half is sorted (compare [1,1,1,2,1] with [1,2,1,1,1]). Discarding one element from each end is safe because both equal nums[mid], which was already checked. This degrades the worst case to O(n) (all equal), but stays O(log n) on typical input.'
       },
       {
         id: 'bs-q15',
@@ -2471,10 +2471,10 @@ export const categories: Category[] = [
       { id: 'topk-15', front: 'Why O(n log k) beats O(n log n)?', back: 'When k << n, log k << log n.\nHeap of size K saves time!\n\nFor k near n, similar performance.' },
       { id: 'topk-16', front: 'Find K Pairs with Smallest Sums\n\nFind k pairs with the smallest sums from two sorted arrays.', back: 'Min heap: (sum, i, j). Start with (nums1[0]+nums2[0], 0, 0).\n\nPop min, push (i+1,j) and (i,j+1). Use set to avoid dups.' },
       { id: 'topk-17', front: 'Sort Characters By Frequency\n\nSort characters in a string by decreasing frequency.', back: 'Count frequencies. Max heap by freq. Pop and build result.\n\nOr bucket sort: bucket[freq] = chars.' },
-      { id: 'topk-18', front: 'Kth Largest Element (QuickSelect)\n\nFind the kth largest element using QuickSelect algorithm.', back: 'Partition around pivot. If pivot at k-1, done.\nElse recurse on correct side.\n\nAvg O(n), worst O(n²).' },
+      { id: 'topk-18', front: 'Last Stone Weight\n\nGiven stone weights, repeatedly smash the two heaviest stones (x <= y): if equal both vanish, else a stone of weight y - x remains. Return the last stone weight (or 0).', back: 'Max heap of all weights. Pop two, push the difference if non-zero.\n\nRepeat until at most 1 stone remains. The heap yields the two largest in O(log n) each.\n\nO(n log n) time.' },
       { id: 'topk-19', front: 'Top K Frequent Words\n\nFind the k most frequent words, sorted by frequency (desc) then lexicographically (asc).', back: 'Count + heap. Sort by freq desc, then lexicographically asc.\n\nCustom comparator needed!' },
       { id: 'topk-20', front: 'Least Number of Unique Integers\n\nFind the minimum number of unique integers after removing exactly k elements.', back: 'Count frequencies. Min heap by freq.\n\nRemove lowest freq elements until k exhausted.' },
-      { id: 'topk-21', front: 'K Closest Points to Origin\n\nFind the k closest points to the origin (0, 0) in a 2D plane.', back: 'Max heap of size k by distance. If new point closer than top, replace.\n\nOr: QuickSelect for O(n) avg.' },
+      { id: 'topk-21', front: 'Minimum Cost to Hire K Workers\n\nEach worker has a quality and a minimum wage. Pay proportional to quality, at least their minimum. Find the cheapest group of k.', back: 'Sort by ratio wage/quality. Once the highest ratio in the group is fixed, cost = ratio × sum of qualities.\n\nSweep ratios ascending; max heap of qualities, size k. Pop the largest quality when over k.\n\nO(n log n).' },
       { id: 'topk-22', front: 'Reduce Array Size to Half\n\nFind the minimum set size to remove so that at least half the array is removed.', back: 'Count frequencies. Max heap by freq.\n\nGreedily remove most frequent until removed >= n/2.' },
       { id: 'topk-23', front: 'Distant Barcodes\n\nRearrange barcodes so no two adjacent barcodes are equal.', back: 'Max heap by frequency. Place most frequent, skip one position.\n\nSimilar to Reorganize String.' },
       { id: 'topk-24', front: 'Minimum Cost to Connect Sticks\n\nConnect sticks with minimum cost where the cost is the sum of stick lengths.', back: 'Min heap. Always combine two smallest.\n\nTotal cost = sum of all combinations.\n\nGreedy: smaller sticks combined first.' },
@@ -3046,10 +3046,10 @@ export const categories: Category[] = [
       },
       {
         id: 'topo-q18',
-        question: 'How does DFS-based topological sort differ from BFS (Kahn\'s)?',
-        options: ['Different results', 'DFS uses recursion and adds nodes after visiting all descendants', 'DFS is slower', 'Same implementation'],
-        correctAnswer: 1,
-        explanation: 'DFS: recursively visit all descendants, then add current node to result. Reverse at end. Node added only after all its dependencies (descendants) are added. Both give valid orderings.'
+        question: 'In "Alien Dictionary", the input contains ["abc", "ab"] in that order. What should you conclude?',
+        options: ['c is the first letter of the alphabet', 'c comes after b', 'No edge; skip the pair and continue', 'The order is invalid; return "" because a word cannot precede its own prefix'],
+        correctAnswer: 3,
+        explanation: 'Comparing adjacent words yields an edge only at the first differing character. Here there is none: "ab" is a prefix of "abc", yet the longer word comes first, which is impossible in any dictionary order. Detect this (no difference found and word1 is longer than word2) and return "" before building the graph; silently skipping the pair produces a wrong answer.'
       },
       {
         id: 'topo-q19',

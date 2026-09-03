@@ -67,7 +67,7 @@ export interface BugFixProblem {
 }
 
 // =============================================================================
-// PYTHON (34)
+// PYTHON (85)
 // =============================================================================
 const pythonProblems: BugFixProblem[] = [
   {
@@ -1812,10 +1812,446 @@ const pythonProblems: BugFixProblem[] = [
       { input: [2100], expected: false },
     ],
   },
+  {
+    id: 'py-join-needs-strings',
+    number: 69,
+    language: 'python',
+    title: 'Join Needs Strings',
+    difficulty: 'Easy',
+    topic: 'Strings',
+    statement:
+      "Return the numbers joined into one string separated by ', ' (for example [1, 2, 3] becomes '1, 2, 3'). An empty list should return ''. The code crashes with a TypeError on every non-empty input.",
+    functionName: 'join_numbers',
+    functionSignature: 'def join_numbers(nums: list[int]) -> str:',
+    buggyCode:
+      "def join_numbers(nums: list[int]) -> str:\n    return ', '.join(nums)\n",
+    hint: 'str.join only accepts an iterable of strings — what type are the items here?',
+    explanation:
+      "str.join raises TypeError when any element is not a str; it never converts for you. Convert each number first: ', '.join(str(n) for n in nums).",
+    examples: [
+      { input: [[1, 2, 3]], expected: '1, 2, 3' },
+      { input: [[42]], expected: '42' },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: '' },
+      { input: [[-1, 0, 7]], expected: '-1, 0, 7' },
+    ],
+  },
+  {
+    id: 'py-sort-numeric-strings',
+    number: 70,
+    language: 'python',
+    title: 'Sorting Numbers as Strings',
+    difficulty: 'Easy',
+    topic: 'Sorting',
+    statement:
+      "Given a list of integers stored as strings (e.g. from a CSV), return them sorted in ascending numeric order, still as strings. Right now '100' sorts before '9'.",
+    functionName: 'sort_numeric_strings',
+    functionSignature: 'def sort_numeric_strings(values: list[str]) -> list[str]:',
+    buggyCode:
+      'def sort_numeric_strings(values: list[str]) -> list[str]:\n    return sorted(values)\n',
+    hint: "Strings compare character by character: '1' < '9', so '100' < '9'. Sort by the numeric value instead.",
+    explanation:
+      "sorted() on strings orders them lexicographically, so '10' lands before '9'. Pass a key that converts each item to a number: sorted(values, key=int). The items themselves stay strings.",
+    examples: [
+      { input: [['10', '9', '100']], expected: ['9', '10', '100'] },
+      { input: [['3', '1', '2']], expected: ['1', '2', '3'] },
+    ],
+    hiddenTests: [
+      { input: [['-5', '20', '7']], expected: ['-5', '7', '20'] },
+      { input: [[]], expected: [] },
+      { input: [['25', '3', '250', '4']], expected: ['3', '4', '25', '250'] },
+    ],
+  },
+  {
+    id: 'py-attribute-never-stored',
+    number: 71,
+    language: 'python',
+    title: 'Attribute Never Stored',
+    difficulty: 'Easy',
+    topic: 'Classes',
+    statement:
+      "Create an Account with a starting balance, apply every deposit, and return the final balance. Calling deposit raises AttributeError: 'Account' object has no attribute 'balance'.",
+    functionName: 'final_balance',
+    functionSignature: 'def final_balance(start: int, deposits: list[int]) -> int:',
+    buggyCode:
+      "class Account:\n    def __init__(self, balance):\n        balance = balance\n\n    def deposit(self, amount):\n        self.balance += amount\n\n\ndef final_balance(start: int, deposits: list[int]) -> int:\n    acct = Account(start)\n    for d in deposits:\n        acct.deposit(d)\n    return acct.balance\n",
+    hint: 'Look at __init__. Where does the starting balance actually go?',
+    explanation:
+      "Inside __init__, `balance = balance` just rebinds a local name to itself; nothing is attached to the instance. Attributes must be set through self: `self.balance = balance`. Without it, deposit's `self.balance += amount` has nothing to read.",
+    examples: [
+      { input: [100, [50, 25]], expected: 175 },
+      { input: [0, [10]], expected: 10 },
+    ],
+    hiddenTests: [
+      { input: [5, []], expected: 5 },
+      { input: [20, [-5, -15]], expected: 0 },
+    ],
+  },
+  {
+    id: 'py-shadowed-builtin-sum',
+    number: 72,
+    language: 'python',
+    title: 'Shadowed Built-in',
+    difficulty: 'Easy',
+    topic: 'Scope',
+    statement:
+      "Return a dict with the sum of the numbers and the sum of their squares, e.g. [1, 2] -> {'sum': 3, 'sum_squares': 5}. The code crashes with TypeError: 'int' object is not callable.",
+    functionName: 'summarize',
+    functionSignature: 'def summarize(nums: list[int]) -> dict:',
+    buggyCode:
+      "def summarize(nums: list[int]) -> dict:\n    sum = 0\n    for n in nums:\n        sum += n\n    squares = [n * n for n in nums]\n    return {'sum': sum, 'sum_squares': sum(squares)}\n",
+    hint: 'By the time sum(squares) runs, what does the name `sum` refer to in this function?',
+    explanation:
+      "Assigning `sum = 0` shadows the built-in sum() for the whole function, so the later call sum(squares) tries to call an int. Rename the local (e.g. `total`) so the built-in stays available — or just use the built-in for both: sum(nums) and sum(squares).",
+    examples: [
+      { input: [[1, 2]], expected: { sum: 3, sum_squares: 5 } },
+      { input: [[3, 4]], expected: { sum: 7, sum_squares: 25 } },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: { sum: 0, sum_squares: 0 } },
+      { input: [[-2, 2]], expected: { sum: 0, sum_squares: 8 } },
+    ],
+  },
+  {
+    id: 'py-empty-split-count',
+    number: 73,
+    language: 'python',
+    title: 'Empty String Splits Into One',
+    difficulty: 'Easy',
+    topic: 'Strings',
+    statement:
+      "Given a comma-separated tag string like 'a,b,c', return how many tags it holds. An empty or whitespace-only string has zero tags, but the code reports 1.",
+    functionName: 'count_tags',
+    functionSignature: 'def count_tags(csv: str) -> int:',
+    buggyCode:
+      "def count_tags(csv: str) -> int:\n    return len(csv.split(','))\n",
+    hint: "Try ''.split(',') in a REPL. How many items come back?",
+    explanation:
+      "Splitting on an explicit separator never returns an empty list: ''.split(',') is [''], so the count is 1. Guard the empty case first: `if not csv.strip(): return 0`, then count the split.",
+    examples: [
+      { input: ['a,b,c'], expected: 3 },
+      { input: [''], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: ['solo'], expected: 1 },
+      { input: ['   '], expected: 0 },
+      { input: ['x,y'], expected: 2 },
+    ],
+  },
+  {
+    id: 'py-all-on-empty',
+    number: 74,
+    language: 'python',
+    title: 'Vacuous Truth',
+    difficulty: 'Medium',
+    topic: 'Built-ins',
+    statement:
+      "A team is ready when every member has confirmed. A team with no members is NOT ready. Each member is a dict like {'name': 'ana', 'confirmed': True}. The code returns True for an empty team.",
+    functionName: 'team_ready',
+    functionSignature: 'def team_ready(members: list[dict]) -> bool:',
+    buggyCode:
+      "def team_ready(members: list[dict]) -> bool:\n    return all(m['confirmed'] for m in members)\n",
+    hint: 'What does all() return when the iterable produces nothing at all?',
+    explanation:
+      "all() over an empty iterable is True (vacuous truth): there is no counterexample, so it reports success. The spec needs at least one member, so check that first: `return bool(members) and all(m['confirmed'] for m in members)`.",
+    examples: [
+      { input: [[{ name: 'ana', confirmed: true }, { name: 'bo', confirmed: true }]], expected: true },
+      { input: [[]], expected: false },
+    ],
+    hiddenTests: [
+      { input: [[{ name: 'ana', confirmed: true }, { name: 'bo', confirmed: false }]], expected: false },
+      { input: [[{ name: 'solo', confirmed: true }]], expected: true },
+    ],
+  },
+  {
+    id: 'py-nonlocal-counter',
+    number: 75,
+    language: 'python',
+    title: "Inner Function Can't Rebind",
+    difficulty: 'Medium',
+    topic: 'Scope',
+    statement:
+      'Count how many words start with the given prefix, using a small helper that visits each word. The code raises UnboundLocalError: local variable \'count\' referenced before assignment.',
+    functionName: 'count_with_prefix',
+    functionSignature: 'def count_with_prefix(words: list[str], prefix: str) -> int:',
+    buggyCode:
+      'def count_with_prefix(words: list[str], prefix: str) -> int:\n    count = 0\n\n    def visit(word):\n        if word.startswith(prefix):\n            count += 1\n\n    for w in words:\n        visit(w)\n    return count\n',
+    hint: 'Assigning to a name inside a nested function makes it local to that function. How do you tell Python you mean the enclosing one?',
+    explanation:
+      "`count += 1` is an assignment, so Python treats `count` as a local of visit — and it has no value yet when read. Declare `nonlocal count` at the top of visit so the increment targets the enclosing function's variable. (Reading an outer variable is fine; only rebinding needs nonlocal.)",
+    examples: [
+      { input: [['apple', 'apricot', 'banana'], 'ap'], expected: 2 },
+      { input: [['dog', 'door', 'cat'], 'do'], expected: 2 },
+    ],
+    hiddenTests: [
+      { input: [['aa', 'ab', 'ba'], 'a'], expected: 2 },
+      { input: [[], 'x'], expected: 0 },
+      { input: [['hello'], 'hello'], expected: 1 },
+    ],
+  },
+  {
+    id: 'py-last-n-negative-zero',
+    number: 76,
+    language: 'python',
+    title: 'Last N Items',
+    difficulty: 'Medium',
+    topic: 'Slicing',
+    statement:
+      'Return the last n items of a list (all of them if n exceeds the length). For n = 0 the result must be an empty list, but the code returns the whole list instead.',
+    functionName: 'last_n',
+    functionSignature: 'def last_n(nums: list[int], n: int) -> list[int]:',
+    buggyCode:
+      'def last_n(nums: list[int], n: int) -> list[int]:\n    return nums[-n:]\n',
+    hint: 'What is -0? What does nums[0:] give you?',
+    explanation:
+      "-0 is just 0, so nums[-0:] is nums[0:] — the entire list. Handle zero explicitly (`if n == 0: return []`) or slice from a computed start: `nums[max(len(nums) - n, 0):]`.",
+    examples: [
+      { input: [[1, 2, 3, 4], 2], expected: [3, 4] },
+      { input: [[1, 2, 3], 0], expected: [] },
+    ],
+    hiddenTests: [
+      { input: [[1, 2], 5], expected: [1, 2] },
+      { input: [[], 0], expected: [] },
+      { input: [[9, 8, 7], 3], expected: [9, 8, 7] },
+    ],
+  },
+  {
+    id: 'py-counted-before-checked',
+    number: 77,
+    language: 'python',
+    title: 'Counted Before It Was Checked',
+    difficulty: 'Medium',
+    topic: 'Exceptions',
+    statement:
+      "Return the average of the values that parse as numbers, ignoring anything that does not (return 0.0 if none parse). ['1', '2', 'x'] should give 1.5, but the code returns 1.0.",
+    functionName: 'average_valid',
+    functionSignature: 'def average_valid(values: list[str]) -> float:',
+    buggyCode:
+      'def average_valid(values: list[str]) -> float:\n    total = 0.0\n    count = 0\n    for v in values:\n        try:\n            count += 1\n            total += float(v)\n        except ValueError:\n            continue\n    return total / count if count else 0.0\n',
+    hint: 'Which statements inside the try have already run by the time float(v) raises?',
+    explanation:
+      "Everything in the try body before the failing line still executes, so count is incremented even for values that then fail to parse. Only mutate state after the risky operation succeeds: parse into a temporary first, then update total and count.",
+    examples: [
+      { input: [['1', '2', 'x']], expected: 1.5 },
+      { input: [['4']], expected: 4.0 },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: 0.0 },
+      { input: [['1.5', '2.5', 'oops', '4']], expected: 2.6666666666666665 },
+      { input: [['a', 'b']], expected: 0.0 },
+    ],
+  },
+  {
+    id: 'py-json-keys-are-strings',
+    number: 78,
+    language: 'python',
+    title: 'Keys Are Strings',
+    difficulty: 'Medium',
+    topic: 'Type Coercion',
+    statement:
+      "A word table loaded from JSON maps digit strings to words, e.g. {'1': 'one', '2': 'two'}. Given a list of int digits, return the matching words in order. Every lookup raises KeyError.",
+    functionName: 'digits_to_words',
+    functionSignature: 'def digits_to_words(digits: list[int], words: dict) -> list[str]:',
+    buggyCode:
+      'def digits_to_words(digits: list[int], words: dict) -> list[str]:\n    return [words[d] for d in digits]\n',
+    hint: "Is 1 the same dict key as '1'?",
+    explanation:
+      "JSON object keys are always strings, so the table's keys are '1', '2', ... while the digits are ints. 1 == '1' is False and they hash differently, so words[1] misses. Convert at lookup time: words[str(d)].",
+    examples: [
+      { input: [[1, 2], { '1': 'one', '2': 'two' }], expected: ['one', 'two'] },
+      { input: [[3, 3, 1], { '1': 'one', '3': 'three' }], expected: ['three', 'three', 'one'] },
+    ],
+    hiddenTests: [
+      { input: [[], { '1': 'one' }], expected: [] },
+      { input: [[0, 9], { '0': 'zero', '9': 'nine' }], expected: ['zero', 'nine'] },
+    ],
+  },
+  {
+    id: 'py-dollars-to-cents-truncation',
+    number: 79,
+    language: 'python',
+    title: 'Dollars to Cents',
+    difficulty: 'Medium',
+    topic: 'Floats',
+    statement:
+      'Convert a price in dollars (at most two decimal places) to an integer number of cents. 19.99 should become 1999, but the code returns 1998.',
+    functionName: 'to_cents',
+    functionSignature: 'def to_cents(price: float) -> int:',
+    buggyCode:
+      'def to_cents(price: float) -> int:\n    return int(price * 100)\n',
+    hint: 'Evaluate 19.99 * 100 in a REPL. Then remember that int() truncates toward zero.',
+    explanation:
+      '19.99 cannot be represented exactly in binary floating point, so 19.99 * 100 is 1998.9999999999998, and int() chops it to 1998. Round to the nearest integer instead: round(price * 100). (For real money code, use the decimal module.)',
+    examples: [
+      { input: [19.99], expected: 1999 },
+      { input: [2.0], expected: 200 },
+    ],
+    hiddenTests: [
+      { input: [0.29], expected: 29 },
+      { input: [1.15], expected: 115 },
+      { input: [10.5], expected: 1050 },
+    ],
+  },
+  {
+    id: 'py-isdigit-rejects-sign',
+    number: 80,
+    language: 'python',
+    title: 'Digits Only Misses the Sign',
+    difficulty: 'Medium',
+    topic: 'Strings',
+    statement:
+      "Sum every token that is a valid integer (negatives included) and skip the rest. ['5', '-3', 'x'] should give 2, but the code returns 5.",
+    functionName: 'sum_integers',
+    functionSignature: 'def sum_integers(tokens: list[str]) -> int:',
+    buggyCode:
+      'def sum_integers(tokens: list[str]) -> int:\n    total = 0\n    for t in tokens:\n        if t.isdigit():\n            total += int(t)\n    return total\n',
+    hint: "What does '-3'.isdigit() return?",
+    explanation:
+      "str.isdigit() only says whether every character is a digit, so a leading minus sign makes it False and negatives are silently skipped. Either strip the sign before checking (t.lstrip('-').isdigit()) or, more robustly, attempt int(t) and catch ValueError.",
+    examples: [
+      { input: [['5', '-3', 'x']], expected: 2 },
+      { input: [['1', '2', '3']], expected: 6 },
+    ],
+    hiddenTests: [
+      { input: [['-10', 'abc', '4']], expected: -6 },
+      { input: [[]], expected: 0 },
+      { input: [['3.5', '7', '-1']], expected: 6 },
+    ],
+  },
+  {
+    id: 'py-yield-makes-generator',
+    number: 81,
+    language: 'python',
+    title: 'Yield Makes a Generator',
+    difficulty: 'Medium',
+    topic: 'Generators',
+    statement:
+      "Return a list of the words that start with the given letter, in order. Callers complain they get a '<generator object ...>' instead of a list — even for an empty input, where the early `return []` should have fired.",
+    functionName: 'find_matches',
+    functionSignature: 'def find_matches(words: list[str], letter: str) -> list[str]:',
+    buggyCode:
+      'def find_matches(words: list[str], letter: str) -> list[str]:\n    if not words:\n        return []\n    for w in words:\n        if w.startswith(letter):\n            yield w\n',
+    hint: 'A single yield anywhere in the body changes what calling the function does — before a single line runs.',
+    explanation:
+      'Because the body contains yield, the whole function is a generator function: calling it returns a generator object immediately and runs nothing, so `return []` is never reached and no list is ever produced. Build and return a list instead (append in the loop, or a list comprehension).',
+    examples: [
+      { input: [['apple', 'avocado', 'berry'], 'a'], expected: ['apple', 'avocado'] },
+      { input: [[], 'a'], expected: [] },
+    ],
+    hiddenTests: [
+      { input: [['x', 'y'], 'z'], expected: [] },
+      { input: [['bob', 'bill', 'ann', 'ben'], 'b'], expected: ['bob', 'bill', 'ben'] },
+    ],
+  },
+  {
+    id: 'py-eq-without-hash',
+    number: 82,
+    language: 'python',
+    title: 'Unhashable Points',
+    difficulty: 'Hard',
+    topic: 'Classes',
+    statement:
+      'Count the distinct points in a list of [x, y] pairs by building Point objects and putting them in a set. Point defines equality, yet the code crashes with TypeError: unhashable type: \'Point\'.',
+    functionName: 'count_unique_points',
+    functionSignature: 'def count_unique_points(coords: list[list[int]]) -> int:',
+    buggyCode:
+      'class Point:\n    def __init__(self, x, y):\n        self.x = x\n        self.y = y\n\n    def __eq__(self, other):\n        return isinstance(other, Point) and self.x == other.x and self.y == other.y\n\n\ndef count_unique_points(coords: list[list[int]]) -> int:\n    points = {Point(x, y) for x, y in coords}\n    return len(points)\n',
+    hint: 'What happens to __hash__ when a class defines __eq__ but not __hash__?',
+    explanation:
+      "Defining __eq__ without __hash__ sets __hash__ to None, so instances can no longer go in sets or be dict keys — Python refuses because equal objects must hash equally and it can't guarantee that for you. Add a consistent hash: `def __hash__(self): return hash((self.x, self.y))`.",
+    examples: [
+      { input: [[[0, 0], [1, 1], [0, 0]]], expected: 2 },
+      { input: [[[1, 2]]], expected: 1 },
+    ],
+    hiddenTests: [
+      { input: [[[3, 4], [4, 3], [3, 4], [3, 4]]], expected: 2 },
+      { input: [[]], expected: 0 },
+      { input: [[[5, 5], [5, 5], [5, 5]]], expected: 1 },
+    ],
+  },
+  {
+    id: 'py-version-string-compare',
+    number: 83,
+    language: 'python',
+    title: 'Newest Version',
+    difficulty: 'Hard',
+    topic: 'Sorting',
+    statement:
+      "Given dotted version strings like '1.10.0', return the newest one, comparing each numeric component. ['1.9.0', '1.10.0'] should give '1.10.0', but the code picks '1.9.0'.",
+    functionName: 'newest_version',
+    functionSignature: 'def newest_version(versions: list[str]) -> str:',
+    buggyCode:
+      'def newest_version(versions: list[str]) -> str:\n    return max(versions)\n',
+    hint: "Compare '1.10' and '1.9' as strings: which character decides it?",
+    explanation:
+      "max() compares the strings character by character, and '1' < '9' makes '1.10.0' look smaller than '1.9.0'. Compare tuples of ints instead: max(versions, key=lambda v: tuple(int(p) for p in v.split('.'))). Tuples compare component by component, and a shorter prefix sorts before a longer one.",
+    examples: [
+      { input: [['1.9.0', '1.10.0', '1.2.3']], expected: '1.10.0' },
+      { input: [['2.0.0', '1.99.99']], expected: '2.0.0' },
+    ],
+    hiddenTests: [
+      { input: [['0.9', '0.10']], expected: '0.10' },
+      { input: [['3.1.4']], expected: '3.1.4' },
+      { input: [['1.2', '1.2.1', '1.12']], expected: '1.12' },
+    ],
+  },
+  {
+    id: 'py-reverse-flips-tiebreak',
+    number: 84,
+    language: 'python',
+    title: 'Descending Score, Ascending Name',
+    difficulty: 'Hard',
+    topic: 'Sort Keys',
+    statement:
+      "Each player is a [name, score] pair. Return the names ordered by score from highest to lowest; players with equal scores should appear alphabetically. Ties currently come out in reverse alphabetical order.",
+    functionName: 'rank_players',
+    functionSignature: 'def rank_players(players: list[list]) -> list[str]:',
+    buggyCode:
+      'def rank_players(players: list[list]) -> list[str]:\n    ordered = sorted(players, key=lambda p: (p[1], p[0]), reverse=True)\n    return [p[0] for p in ordered]\n',
+    hint: 'reverse=True reverses the entire key, not just its first component.',
+    explanation:
+      'reverse=True flips every part of the comparison, so names are sorted Z to A as well. To mix directions, negate the numeric component and keep the natural order: sorted(players, key=lambda p: (-p[1], p[0])) with no reverse flag. (Strings cannot be negated, so the numeric field is the one to invert.)',
+    examples: [
+      { input: [[['bob', 10], ['alice', 10], ['carol', 20]]], expected: ['carol', 'alice', 'bob'] },
+      { input: [[['dan', 5], ['ann', 5], ['cat', 5]]], expected: ['ann', 'cat', 'dan'] },
+    ],
+    hiddenTests: [
+      { input: [[['zed', 3], ['amy', 7]]], expected: ['amy', 'zed'] },
+      { input: [[['x', 1]]], expected: ['x'] },
+      { input: [[['mia', 8], ['leo', 9], ['kai', 8], ['ivy', 9]]], expected: ['ivy', 'leo', 'kai', 'mia'] },
+    ],
+  },
+  {
+    id: 'py-memo-leaks-between-grids',
+    number: 85,
+    language: 'python',
+    title: 'Memo Leaks Between Grids',
+    difficulty: 'Hard',
+    topic: 'Memoization',
+    statement:
+      'Count the paths from the top-left to the bottom-right of a grid moving only right or down, where 1 marks a blocked cell. Results are memoized by (row, col). The first call is right, but later calls with different grids return stale counts.',
+    functionName: 'count_paths',
+    functionSignature: 'def count_paths(grid: list[list[int]]) -> int:',
+    buggyCode:
+      'def count_paths(grid: list[list[int]], memo={}) -> int:\n    rows, cols = len(grid), len(grid[0])\n\n    def walk(r, c):\n        if r >= rows or c >= cols or grid[r][c] == 1:\n            return 0\n        if r == rows - 1 and c == cols - 1:\n            return 1\n        if (r, c) in memo:\n            return memo[(r, c)]\n        memo[(r, c)] = walk(r + 1, c) + walk(r, c + 1)\n        return memo[(r, c)]\n\n    return walk(0, 0)\n',
+    hint: 'The memo is keyed only by position. Which grid did those cached positions come from?',
+    explanation:
+      'The default `memo={}` is created once and shared by every call, so a (row, col) entry cached for one grid is reused for a completely different grid. Create the cache per call: default to None and set `memo = {}` inside the function (or simply build the dict locally and drop the parameter).',
+    examples: [
+      { input: [[[0, 0], [0, 0]]], expected: 2 },
+      { input: [[[0, 0, 0], [0, 0, 0]]], expected: 3 },
+    ],
+    hiddenTests: [
+      { input: [[[0, 1], [0, 0]]], expected: 1 },
+      { input: [[[0, 0, 0], [0, 0, 0], [0, 0, 0]]], expected: 6 },
+      { input: [[[0, 0], [1, 0]]], expected: 1 },
+    ],
+  },
 ];
 
 // =============================================================================
-// JAVASCRIPT (34)
+// JAVASCRIPT (85)
 // =============================================================================
 const javascriptProblems: BugFixProblem[] = [
   {
@@ -3577,10 +4013,464 @@ const javascriptProblems: BugFixProblem[] = [
       { input: [["z","y","z","y","z"]], expected: {"z":3,"y":2} },
     ],
   },
+  {
+    id: 'js-array-constructor-length',
+    number: 69,
+    language: 'javascript',
+    title: "Array Constructor Surprise",
+    difficulty: 'Easy',
+    topic: "Arrays",
+    statement:
+      "`wrap(x)` should return a one-element array containing `x`, whatever `x` is. It works for strings, but for numbers it returns an array of the wrong length full of holes, and it throws for negative numbers.",
+    functionName: 'wrap',
+    functionSignature: "function wrap(x: any): any[]",
+    buggyCode:
+      "function wrap(x) {\n  return new Array(x);\n}\n",
+    hint: "`new Array(3)` and `new Array('3')` build very different arrays.",
+    explanation:
+      "When `Array` is called with a single numeric argument it treats it as a LENGTH, so `new Array(3)` is a three-slot empty array (and `new Array(-1)` throws a RangeError). Only non-number arguments become elements. Use an array literal — `return [x];` — or `Array.of(x)`, both of which always wrap the value.",
+    examples: [
+      { input: [3], expected: [3] },
+      { input: ["a"], expected: ["a"] },
+      { input: [0], expected: [0] },
+    ],
+    hiddenTests: [
+      { input: [true], expected: [true] },
+      { input: [[1, 2]], expected: [[1, 2]] },
+      { input: [-1], expected: [-1] },
+    ],
+  },
+  {
+    id: 'js-number-empty-string-zero',
+    number: 70,
+    language: 'javascript',
+    title: "Empty String Is Zero",
+    difficulty: 'Easy',
+    topic: "Type Coercion",
+    statement:
+      "`toNumberOrNull(s)` should convert a form-field string to a number, returning `null` when the field is blank or not numeric. Blank fields (`''` or only whitespace) currently come back as `0` instead of `null`.",
+    functionName: 'toNumberOrNull',
+    functionSignature: "function toNumberOrNull(s: string): number | null",
+    buggyCode:
+      "function toNumberOrNull(s) {\n  const n = Number(s);\n  return Number.isNaN(n) ? null : n;\n}\n",
+    hint: "What does `Number('')` evaluate to? It is not NaN.",
+    explanation:
+      "`Number('')` and `Number('   ')` both return `0`, not `NaN`, so the NaN check never fires for blank input. Guard for emptiness first: `if (s.trim() === '') return null;` and only then convert with `Number(s)`.",
+    examples: [
+      { input: ["42"], expected: 42 },
+      { input: [""], expected: null },
+      { input: ["abc"], expected: null },
+    ],
+    hiddenTests: [
+      { input: ["3.5"], expected: 3.5 },
+      { input: ["   "], expected: null },
+      { input: ["-7"], expected: -7 },
+    ],
+  },
+  {
+    id: 'js-split-empty-string',
+    number: 71,
+    language: 'javascript',
+    title: "Splitting an Empty String",
+    difficulty: 'Easy',
+    topic: "Strings",
+    statement:
+      "`parseTags(s)` takes a comma-separated string and returns an array of trimmed tags. An empty (or whitespace-only) input should produce an empty array, but currently produces an array holding one empty string.",
+    functionName: 'parseTags',
+    functionSignature: "function parseTags(s: string): string[]",
+    buggyCode:
+      "function parseTags(s) {\n  return s.split(',').map(t => t.trim());\n}\n",
+    hint: "`''.split(',')` does not return `[]`.",
+    explanation:
+      "Splitting an empty string returns `['']` — a one-element array containing the empty string — because split always yields at least one piece. Either return early (`if (s.trim() === '') return [];`) or drop empty pieces after splitting with `.filter(t => t.length > 0)`.",
+    examples: [
+      { input: ["a, b"], expected: ["a", "b"] },
+      { input: [""], expected: [] },
+      { input: ["solo"], expected: ["solo"] },
+    ],
+    hiddenTests: [
+      { input: ["x,y,z"], expected: ["x", "y", "z"] },
+      { input: ["   "], expected: [] },
+      { input: ["one, two "], expected: ["one", "two"] },
+    ],
+  },
+  {
+    id: 'js-string-index-assign',
+    number: 72,
+    language: 'javascript',
+    title: "Strings Are Immutable",
+    difficulty: 'Easy',
+    topic: "Strings",
+    statement:
+      "`censorAt(s, i)` should return `s` with the character at index `i` replaced by `*`. The current code assigns into the string and returns it unchanged.",
+    functionName: 'censorAt',
+    functionSignature: "function censorAt(s: string, i: number): string",
+    buggyCode:
+      "function censorAt(s, i) {\n  s[i] = '*';\n  return s;\n}\n",
+    hint: "You can read `s[i]`, but writing to it does nothing.",
+    explanation:
+      "JavaScript strings are immutable: `s[i] = '*'` is silently ignored (and throws in strict mode). Build a new string from the pieces instead: `return s.slice(0, i) + '*' + s.slice(i + 1);`.",
+    examples: [
+      { input: ["hello", 1], expected: "h*llo" },
+      { input: ["a", 0], expected: "*" },
+    ],
+    hiddenTests: [
+      { input: ["abc", 2], expected: "ab*" },
+      { input: ["password", 0], expected: "*assword" },
+      { input: ["12345", 4], expected: "1234*" },
+    ],
+  },
+  {
+    id: 'js-switch-missing-break',
+    number: 73,
+    language: 'javascript',
+    title: "Falling Through the switch",
+    difficulty: 'Easy',
+    topic: "Control Flow",
+    statement:
+      "`shippingCost(zone)` should return 5 for `'local'`, 10 for `'national'`, 25 for `'international'`, and 0 for anything else. Right now `'local'` and `'national'` both return 25.",
+    functionName: 'shippingCost',
+    functionSignature: "function shippingCost(zone: string): number",
+    buggyCode:
+      "function shippingCost(zone) {\n  let cost;\n  switch (zone) {\n    case 'local':\n      cost = 5;\n    case 'national':\n      cost = 10;\n    case 'international':\n      cost = 25;\n      break;\n    default:\n      cost = 0;\n  }\n  return cost;\n}\n",
+    hint: "After a `case` matches, execution keeps going into the next `case` unless something stops it.",
+    explanation:
+      "A `switch` falls through: once `case 'local'` matches, execution continues into `'national'` and `'international'`, overwriting `cost` each time until it hits the first `break`. Add a `break;` after each assignment (or `return` directly from each case).",
+    examples: [
+      { input: ["local"], expected: 5 },
+      { input: ["national"], expected: 10 },
+      { input: ["international"], expected: 25 },
+    ],
+    hiddenTests: [
+      { input: ["unknown"], expected: 0 },
+      { input: [""], expected: 0 },
+      { input: ["local"], expected: 5 },
+    ],
+  },
+  {
+    id: 'js-sort-mutates-input',
+    number: 74,
+    language: 'javascript',
+    title: "Sort Mutates in Place",
+    difficulty: 'Medium',
+    topic: "Arrays",
+    statement:
+      "`firstAndMedian(arr)` should return `{ first, median }` where `first` is the ORIGINAL first element of `arr` and `median` is the median of its values. The median is right, but `first` always comes back as the smallest element.",
+    functionName: 'firstAndMedian',
+    functionSignature: "function firstAndMedian(arr: number[]): { first: number, median: number }",
+    buggyCode:
+      "function firstAndMedian(arr) {\n  const sorted = arr.sort((a, b) => a - b);\n  const mid = Math.floor(sorted.length / 2);\n  const median = sorted.length % 2 === 0\n    ? (sorted[mid - 1] + sorted[mid]) / 2\n    : sorted[mid];\n  return { first: arr[0], median };\n}\n",
+    hint: "`sort` returns the array — but which array?",
+    explanation:
+      "`Array.prototype.sort` sorts IN PLACE and returns the same array, so `sorted` and `arr` are the same object and `arr[0]` is now the minimum. Sort a copy instead: `const sorted = [...arr].sort((a, b) => a - b);` (or `arr.slice().sort(...)`).",
+    examples: [
+      { input: [[5, 1, 3]], expected: { first: 5, median: 3 } },
+      { input: [[2, 4, 1, 3]], expected: { first: 2, median: 2.5 } },
+      { input: [[7]], expected: { first: 7, median: 7 } },
+    ],
+    hiddenTests: [
+      { input: [[10, 20, 5]], expected: { first: 10, median: 10 } },
+      { input: [[9, 8, 7, 6]], expected: { first: 9, median: 7.5 } },
+    ],
+  },
+  {
+    id: 'js-set-of-objects',
+    number: 75,
+    language: 'javascript',
+    title: "Set Can't See Inside Objects",
+    difficulty: 'Medium',
+    topic: "Sets",
+    statement:
+      "`countUniquePoints(points)` receives an array of `{ x, y }` objects and should return how many DISTINCT coordinates it contains. Currently every point counts as unique, even exact duplicates.",
+    functionName: 'countUniquePoints',
+    functionSignature: "function countUniquePoints(points: { x: number, y: number }[]): number",
+    buggyCode:
+      "function countUniquePoints(points) {\n  return new Set(points).size;\n}\n",
+    hint: "A Set compares objects by reference, not by their contents.",
+    explanation:
+      "`Set` uses SameValueZero equality, so two different object literals with identical fields are two different entries. Convert each point to a primitive key first: `new Set(points.map(p => `${p.x},${p.y}`)).size` (or `JSON.stringify(p)`).",
+    examples: [
+      { input: [[{ x: 1, y: 2 }, { x: 1, y: 2 }, { x: 3, y: 4 }]], expected: 2 },
+      { input: [[]], expected: 0 },
+      { input: [[{ x: 0, y: 0 }]], expected: 1 },
+    ],
+    hiddenTests: [
+      { input: [[{ x: 1, y: 1 }, { x: 1, y: 1 }, { x: 1, y: 1 }]], expected: 1 },
+      { input: [[{ x: 1, y: 2 }, { x: 2, y: 1 }]], expected: 2 },
+    ],
+  },
+  {
+    id: 'js-splice-while-iterating',
+    number: 76,
+    language: 'javascript',
+    title: "Splice While Iterating",
+    difficulty: 'Medium',
+    topic: "Arrays",
+    statement:
+      "`removeNegatives(arr)` should return a new array with every negative number removed. When two negatives sit next to each other, the second one survives.",
+    functionName: 'removeNegatives',
+    functionSignature: "function removeNegatives(arr: number[]): number[]",
+    buggyCode:
+      "function removeNegatives(arr) {\n  const out = arr.slice();\n  for (let i = 0; i < out.length; i++) {\n    if (out[i] < 0) out.splice(i, 1);\n  }\n  return out;\n}\n",
+    hint: "After splicing index `i` out, what now lives at index `i`? And where does the loop look next?",
+    explanation:
+      "Removing element `i` shifts everything after it one slot left, so the next element moves INTO index `i` — but the loop then increments to `i + 1` and skips it. Either step back after a removal (`out.splice(i, 1); i--;`), iterate from the end, or avoid mutation entirely: `return arr.filter(x => x >= 0);`.",
+    examples: [
+      { input: [[1, -1, -2, 3]], expected: [1, 3] },
+      { input: [[1, 2, 3]], expected: [1, 2, 3] },
+      { input: [[-1, -1, -1]], expected: [] },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: [] },
+      { input: [[-5, 4, -3, -2, 1]], expected: [4, 1] },
+      { input: [[0, -1]], expected: [0] },
+    ],
+  },
+  {
+    id: 'js-optional-chain-stops-short',
+    number: 77,
+    language: 'javascript',
+    title: "Optional Chain Stops Short",
+    difficulty: 'Medium',
+    topic: "Optional Chaining",
+    statement:
+      "`getZip(user)` should return `user.address.zip`, or `null` when the user, the address, or the zip is missing. It handles a missing user fine, but throws a TypeError when the user exists and has no address.",
+    functionName: 'getZip',
+    functionSignature: "function getZip(user: object | null): string | null",
+    buggyCode:
+      "function getZip(user) {\n  return user?.address.zip ?? null;\n}\n",
+    hint: "`?.` only guards the link it is attached to.",
+    explanation:
+      "`user?.address.zip` short-circuits only when `user` itself is nullish. If `user` exists but `address` is `undefined`, the plain `.zip` access runs on `undefined` and throws. Guard every nullable hop: `return user?.address?.zip ?? null;`.",
+    examples: [
+      { input: [{ name: "Ada", address: { zip: "90210" } }], expected: "90210" },
+      { input: [{ name: "Ada" }], expected: null },
+      { input: [null], expected: null },
+    ],
+    hiddenTests: [
+      { input: [{ name: "Bob", address: null }], expected: null },
+      { input: [{ name: "Cy", address: { zip: "10001" }, age: 3 }], expected: "10001" },
+      { input: [{ address: {} }], expected: null },
+    ],
+  },
+  {
+    id: 'js-modulo-negative-sign',
+    number: 78,
+    language: 'javascript',
+    title: "Modulo Keeps the Sign",
+    difficulty: 'Medium',
+    topic: "Math",
+    statement:
+      "`wrapIndex(i, n)` should map any integer `i` into the range `0..n-1` so it can be used as a circular array index (e.g. `-1` wraps to `n - 1`). Positive inputs work; negative inputs come back negative.",
+    functionName: 'wrapIndex',
+    functionSignature: "function wrapIndex(i: number, n: number): number",
+    buggyCode:
+      "function wrapIndex(i, n) {\n  return i % n;\n}\n",
+    hint: "`-1 % 5` is `-1` in JavaScript — `%` is a remainder, not a true modulo.",
+    explanation:
+      "JavaScript's `%` is a remainder operator whose result takes the sign of the DIVIDEND, so `-1 % 5 === -1`. To get a non-negative modulo, add `n` and reduce again: `return ((i % n) + n) % n;`.",
+    examples: [
+      { input: [7, 5], expected: 2 },
+      { input: [-1, 5], expected: 4 },
+      { input: [0, 3], expected: 0 },
+    ],
+    hiddenTests: [
+      { input: [-6, 4], expected: 2 },
+      { input: [5, 5], expected: 0 },
+      { input: [-10, 3], expected: 2 },
+    ],
+  },
+  {
+    id: 'js-date-object-equality',
+    number: 79,
+    language: 'javascript',
+    title: "Dates Are Objects",
+    difficulty: 'Medium',
+    topic: "Dates",
+    statement:
+      "`isSameDay(a, b)` receives two `YYYY-MM-DD` strings and should return true when they represent the same calendar day. It currently returns false for every pair, even identical ones.",
+    functionName: 'isSameDay',
+    functionSignature: "function isSameDay(a: string, b: string): boolean",
+    buggyCode:
+      "function isSameDay(a, b) {\n  return new Date(a) === new Date(b);\n}\n",
+    hint: "Two `Date` instances are two separate objects, even if they hold the same instant.",
+    explanation:
+      "`===` on objects compares references, and `new Date(...)` creates a fresh object each time, so the comparison is never true. Compare the underlying timestamps instead: `return new Date(a).getTime() === new Date(b).getTime();` (for plain date strings, comparing `a === b` after normalizing also works).",
+    examples: [
+      { input: ["2024-03-01", "2024-03-01"], expected: true },
+      { input: ["2024-03-01", "2024-03-02"], expected: false },
+    ],
+    hiddenTests: [
+      { input: ["2000-01-01", "2000-01-01"], expected: true },
+      { input: ["2024-12-31", "2025-01-01"], expected: false },
+      { input: ["1999-07-04", "1999-07-04"], expected: true },
+    ],
+  },
+  {
+    id: 'js-in-operator-indices',
+    number: 80,
+    language: 'javascript',
+    title: "in Checks Indices",
+    difficulty: 'Medium',
+    topic: "Operators",
+    statement:
+      "`contains(arr, x)` should return true when `x` is one of the VALUES in `arr`. Currently `contains([10, 20], 10)` is false while `contains([10, 20], 1)` is true.",
+    functionName: 'contains',
+    functionSignature: "function contains(arr: any[], x: any): boolean",
+    buggyCode:
+      "function contains(arr, x) {\n  return x in arr;\n}\n",
+    hint: "On an array, `in` asks whether a PROPERTY (index) exists, not whether a value does.",
+    explanation:
+      "The `in` operator tests for a property key. Arrays' keys are their indices, so `1 in [10, 20]` is true (index 1 exists) and `10 in [10, 20]` is false (there is no index 10). Test membership with `arr.includes(x)` (or `arr.indexOf(x) !== -1`).",
+    examples: [
+      { input: [[10, 20, 30], 20], expected: true },
+      { input: [[10, 20, 30], 1], expected: false },
+      { input: [[5], 0], expected: false },
+    ],
+    hiddenTests: [
+      { input: [[], 0], expected: false },
+      { input: [[1, 2, 3], 3], expected: true },
+      { input: [["a", "b"], "a"], expected: true },
+    ],
+  },
+  {
+    id: 'js-zero-based-months',
+    number: 81,
+    language: 'javascript',
+    title: "Zero-Based Months",
+    difficulty: 'Medium',
+    topic: "Dates",
+    statement:
+      "`daysInMonth(year, month)` takes a 1-based month (1 = January) and should return how many days that month has, accounting for leap years. It returns the length of the PREVIOUS month instead — `daysInMonth(2024, 4)` gives 31.",
+    functionName: 'daysInMonth',
+    functionSignature: "function daysInMonth(year: number, month: number): number",
+    buggyCode:
+      "function daysInMonth(year, month) {\n  return new Date(year, month - 1, 0).getDate();\n}\n",
+    hint: "Day 0 of a month is the last day of the month BEFORE it. Which month index do you want to be 'before'?",
+    explanation:
+      "`Date` months are zero-based, and the day-0 trick — `new Date(y, m, 0)` — yields the last day of month index `m - 1`. Passing `month - 1` (the 0-based index of the target month) therefore lands on the month before it. Pass the 1-based value as-is so day 0 of the NEXT month index is used: `new Date(year, month, 0).getDate()`.",
+    examples: [
+      { input: [2024, 2], expected: 29 },
+      { input: [2023, 2], expected: 28 },
+      { input: [2024, 4], expected: 30 },
+    ],
+    hiddenTests: [
+      { input: [2023, 12], expected: 31 },
+      { input: [2100, 2], expected: 28 },
+      { input: [2024, 9], expected: 30 },
+      { input: [2024, 1], expected: 31 },
+    ],
+  },
+  {
+    id: 'js-this-lost-in-callback',
+    number: 82,
+    language: 'javascript',
+    title: "this Lost in the Callback",
+    difficulty: 'Hard',
+    topic: "this Binding",
+    statement:
+      "`scaleAll(factor, arr)` builds a small `scaler` object that multiplies every element of `arr` by its `factor` property. It should return the scaled array, but every element comes back `NaN`.",
+    functionName: 'scaleAll',
+    functionSignature: "function scaleAll(factor: number, arr: number[]): number[]",
+    buggyCode:
+      "function scaleAll(factor, arr) {\n  const scaler = {\n    factor: factor,\n    apply: function (values) {\n      return values.map(function (v) {\n        return v * this.factor;\n      });\n    },\n  };\n  return scaler.apply(arr);\n}\n",
+    hint: "Inside the `map` callback, what is `this`? It is not `scaler`.",
+    explanation:
+      "A `function` expression gets its own `this`, decided by HOW it is called. `map` invokes the callback as a plain function, so `this` is the global object (or `undefined` in strict mode) and `this.factor` is `undefined`, giving `NaN`. Use an arrow function, which inherits `this` from `apply`: `values.map(v => v * this.factor)`. (Passing `this` as `map`'s second argument, or capturing `const self = this`, also works.)",
+    examples: [
+      { input: [2, [1, 2, 3]], expected: [2, 4, 6] },
+      { input: [0.5, [10]], expected: [5] },
+      { input: [3, []], expected: [] },
+    ],
+    hiddenTests: [
+      { input: [-1, [1, -1]], expected: [-1, 1] },
+      { input: [10, [0, 1]], expected: [0, 10] },
+    ],
+  },
+  {
+    id: 'js-regex-global-lastindex',
+    number: 83,
+    language: 'javascript',
+    title: "Sticky lastIndex",
+    difficulty: 'Hard',
+    topic: "Regex",
+    statement:
+      "`filterLowercase(words)` should keep only the words made entirely of lowercase letters. With input `['abc', 'def', 'ghi']` it returns `['abc', 'ghi']` — every other valid word is mysteriously dropped.",
+    functionName: 'filterLowercase',
+    functionSignature: "function filterLowercase(words: string[]): string[]",
+    buggyCode:
+      "function filterLowercase(words) {\n  const re = /^[a-z]+$/g;\n  return words.filter(w => re.test(w));\n}\n",
+    hint: "Look at the regex flags. Does `test` keep any state between calls?",
+    explanation:
+      "With the `g` flag, `RegExp.prototype.test` is stateful: after a successful match it stores `lastIndex` and the NEXT call starts searching from that position. Reusing one global regex across many strings therefore fails on every other input. Drop the `g` flag (`/^[a-z]+$/`) — it is only meaningful for repeated matching within a single string — or reset `re.lastIndex = 0` before each test.",
+    examples: [
+      { input: [["abc", "def", "ghi"]], expected: ["abc", "def", "ghi"] },
+      { input: [["hi", "yo"]], expected: ["hi", "yo"] },
+      { input: [["Hello", "world"]], expected: ["world"] },
+    ],
+    hiddenTests: [
+      { input: [[]], expected: [] },
+      { input: [["a", "b", "c"]], expected: ["a", "b", "c"] },
+      { input: [["ok", "NO", "fine", "x1"]], expected: ["ok", "fine"] },
+    ],
+  },
+  {
+    id: 'js-numeric-keys-reorder',
+    number: 84,
+    language: 'javascript',
+    title: "Numeric Keys Reorder Themselves",
+    difficulty: 'Hard',
+    topic: "Objects",
+    statement:
+      "`dedupeInOrder(ids)` should remove duplicate numeric ids while preserving the order in which each id FIRST appeared. Duplicates are removed correctly, but the result always comes back sorted ascending regardless of input order.",
+    functionName: 'dedupeInOrder',
+    functionSignature: "function dedupeInOrder(ids: number[]): number[]",
+    buggyCode:
+      "function dedupeInOrder(ids) {\n  const seen = {};\n  for (const id of ids) {\n    if (!(id in seen)) seen[id] = true;\n  }\n  return Object.keys(seen).map(Number);\n}\n",
+    hint: "Plain objects do not remember insertion order for every kind of key.",
+    explanation:
+      "Object property order is insertion order ONLY for string keys; integer-like keys are always enumerated first, in ascending numeric order. So `Object.keys` throws away the order you inserted. Track order separately: push into an array when an id is first seen (`const seen = new Set(); const out = []; for (const id of ids) if (!seen.has(id)) { seen.add(id); out.push(id); } return out;`), or use a `Map`/`Set`, which do preserve insertion order for all keys.",
+    examples: [
+      { input: [[3, 1, 2, 3]], expected: [3, 1, 2] },
+      { input: [[1, 2, 3]], expected: [1, 2, 3] },
+      { input: [[5, 5, 5]], expected: [5] },
+    ],
+    hiddenTests: [
+      { input: [[10, 2, 10, 7]], expected: [10, 2, 7] },
+      { input: [[]], expected: [] },
+      { input: [[2, 1]], expected: [2, 1] },
+    ],
+  },
+  {
+    id: 'js-spread-shallow-nested',
+    number: 85,
+    language: 'javascript',
+    title: "Spread Copies One Level Deep",
+    difficulty: 'Hard',
+    topic: "Objects",
+    statement:
+      "`relocate(user, city)` should build an updated copy of `user` living in `city` and return `{ before, after }` — the city on the ORIGINAL user and the city on the updated copy. Instead `before` always equals `after`: the original user has been moved too.",
+    functionName: 'relocate',
+    functionSignature: "function relocate(user: { address: { city: string } }, city: string): { before: string, after: string }",
+    buggyCode:
+      "function relocate(user, city) {\n  const updated = { ...user };\n  updated.address.city = city;\n  return { before: user.address.city, after: updated.address.city };\n}\n",
+    hint: "`{ ...user }` copies the top-level properties — what does `updated.address` point at?",
+    explanation:
+      "Object spread makes a SHALLOW copy: `updated.address` is the very same object as `user.address`, so writing `updated.address.city` mutates the original user as well. Copy the nested object too before changing it: `const updated = { ...user, address: { ...user.address, city } };`. For deeper structures use `structuredClone` or a recursive clone.",
+    examples: [
+      { input: [{ name: "Ada", address: { city: "London" } }, "Paris"], expected: { before: "London", after: "Paris" } },
+      { input: [{ name: "Bob", address: { city: "Rome", zip: "00100" } }, "Oslo"], expected: { before: "Rome", after: "Oslo" } },
+    ],
+    hiddenTests: [
+      { input: [{ address: { city: "Tokyo" } }, "Kyoto"], expected: { before: "Tokyo", after: "Kyoto" } },
+      { input: [{ address: { city: "Lima" } }, "Lima"], expected: { before: "Lima", after: "Lima" } },
+      { input: [{ id: 7, address: { city: "Cairo" } }, "Giza"], expected: { before: "Cairo", after: "Giza" } },
+    ],
+  },
 ];
 
 // =============================================================================
-// JAVA (32)
+// JAVA (80)
 // =============================================================================
 const javaProblems: BugFixProblem[] = [
   {
@@ -4910,6 +5800,334 @@ const javaProblems: BugFixProblem[] = [
       { label: "name() is an @Override instance method", type: 'mustContain', pattern: "@Override\\s+String\\s+name\\s*\\(\\s*\\)", regex: true },
       { label: "name() is no longer static", type: 'mustNotContain', pattern: "static String name()" },
       { label: "Still returns the Circle name", type: 'mustContain', pattern: "return \"Circle\";" },
+    ],
+  },
+  {
+    id: 'java-replaceall-regex-dot',
+    number: 65,
+    language: 'java',
+    title: 'replaceAll Eats Everything',
+    difficulty: 'Easy',
+    topic: 'Strings',
+    statement:
+      '`stripDots` should remove every dot from a version string, so `"1.2.3"` becomes `"123"`. Instead it returns an empty string for every input.',
+    functionSignature: 'public static String stripDots(String version)',
+    buggyCode:
+      'public static String stripDots(String version) {\n    return version.replaceAll(".", "");\n}\n',
+    hint: 'replaceAll takes a regex, and in a regex `.` matches any character. Use the literal `replace`, or escape the dot.',
+    explanation:
+      '`String.replaceAll` interprets its first argument as a regular expression, and `.` is the regex wildcard that matches every character — so every character is replaced with nothing. `String.replace(".", "")` treats the argument as a literal CharSequence and does exactly what was intended. (Escaping the dot with `"\\\\."` or using `Pattern.quote(".")` also works.)',
+    rules: [
+      { label: 'Uses a literal replace or an escaped dot', type: 'mustContain', pattern: 'replace\\(\\s*"\\."\\s*,|replaceAll\\(\\s*"(\\\\\\\\\\.|\\[\\.\\])"\\s*,|Pattern\\.quote\\(', regex: true },
+      { label: 'No longer passes a bare "." as a regex', type: 'mustNotContain', pattern: 'replaceAll\\(\\s*"\\."\\s*,', regex: true },
+    ],
+  },
+  {
+    id: 'java-thread-run-not-start',
+    number: 66,
+    language: 'java',
+    title: 'Worker Runs on the Caller Thread',
+    difficulty: 'Easy',
+    topic: 'Concurrency basics',
+    statement:
+      '`runInBackground` should hand the task to a new thread and return immediately. In practice the caller blocks until the task finishes, and `Thread.currentThread()` inside the task reports the caller, not the worker.',
+    functionSignature: 'public static void runInBackground(Runnable task)',
+    buggyCode:
+      'public static void runInBackground(Runnable task) {\n    Thread worker = new Thread(task);\n    worker.run();\n}\n',
+    hint: 'Calling run() is just a normal method call on the current thread. A different method actually spawns the thread.',
+    explanation:
+      '`Thread.run()` is an ordinary method: it invokes the Runnable synchronously on whichever thread called it, so no new thread ever exists. `Thread.start()` is what asks the JVM to create the OS thread and schedule `run()` on it. Change `worker.run()` to `worker.start()`.',
+    rules: [
+      { label: 'Starts the thread with start()', type: 'mustContain', pattern: 'worker\\.start\\(\\)', regex: true },
+      { label: 'No longer calls run() directly on the thread', type: 'mustNotContain', pattern: 'worker\\.run\\(\\)', regex: true },
+    ],
+  },
+  {
+    id: 'java-bigdecimal-from-double',
+    number: 67,
+    language: 'java',
+    title: 'BigDecimal Built From a Double',
+    difficulty: 'Easy',
+    topic: 'Numbers',
+    statement:
+      '`addAmounts` should add two currency amounts exactly, so `addAmounts(0.1, 0.2)` prints `0.3`. Instead it prints `0.3000000000000000166533453693773481063544750213623046875`.',
+    functionSignature: 'public static BigDecimal addAmounts(double a, double b)',
+    buggyCode:
+      'public static BigDecimal addAmounts(double a, double b) {\n    return new BigDecimal(a).add(new BigDecimal(b));\n}\n',
+    hint: 'new BigDecimal(double) copies the binary value bit for bit — including the floating-point error. There is a factory that goes through the decimal string instead.',
+    explanation:
+      'The `BigDecimal(double)` constructor converts the exact binary representation of the double, so `0.1` becomes the long decimal expansion of the nearest representable float. `BigDecimal.valueOf(double)` uses `Double.toString` first, giving the short canonical decimal `0.1` that the programmer meant. (Passing a String such as `new BigDecimal("0.1")` is the other safe route.)',
+    rules: [
+      { label: 'Constructs via BigDecimal.valueOf or a String', type: 'mustContain', pattern: 'BigDecimal\\.valueOf\\(|new BigDecimal\\(\\s*(String\\.valueOf|Double\\.toString)\\(', regex: true },
+      { label: 'No longer calls new BigDecimal(a)', type: 'mustNotContain', pattern: 'new BigDecimal\\(\\s*a\\s*\\)', regex: true },
+      { label: 'No longer calls new BigDecimal(b)', type: 'mustNotContain', pattern: 'new BigDecimal\\(\\s*b\\s*\\)', regex: true },
+    ],
+  },
+  {
+    id: 'java-array-equals-identity',
+    number: 68,
+    language: 'java',
+    title: 'Arrays Compared With equals',
+    difficulty: 'Easy',
+    topic: 'Equality',
+    statement:
+      '`sameDigits` should return true when two int arrays hold the same values in the same order. Currently `sameDigits(new int[]{1, 2}, new int[]{1, 2})` returns false.',
+    functionSignature: 'public static boolean sameDigits(int[] a, int[] b)',
+    buggyCode:
+      'public static boolean sameDigits(int[] a, int[] b) {\n    return a.equals(b);\n}\n',
+    hint: 'Arrays never override equals — it is the identity check from Object. The java.util.Arrays helper compares contents.',
+    explanation:
+      'Array types inherit `Object.equals`, which is reference identity, so two distinct arrays are never equal no matter their contents. Use `Arrays.equals(a, b)` for a one-dimensional element-wise comparison (`Arrays.deepEquals` for nested arrays).',
+    rules: [
+      { label: 'Compares contents with Arrays.equals', type: 'mustContain', pattern: 'Arrays\\.(deep)?[eE]quals\\(\\s*a\\s*,\\s*b\\s*\\)', regex: true },
+      { label: 'No longer calls equals directly on the array', type: 'mustNotContain', pattern: '\\ba\\.equals\\(', regex: true },
+    ],
+  },
+  {
+    id: 'java-char-plus-int-concat',
+    number: 69,
+    language: 'java',
+    title: 'Column Letter Prints a Number',
+    difficulty: 'Easy',
+    topic: 'Char arithmetic',
+    statement:
+      '`columnLabel` should turn an index into a spreadsheet-style label: `columnLabel(0)` is `"Column A"`, `columnLabel(2)` is `"Column C"`. Instead `columnLabel(2)` returns `"Column 67"`.',
+    functionSignature: 'public static String columnLabel(int index)',
+    buggyCode:
+      'public static String columnLabel(int index) {\n    return "Column " + (\'A\' + index);\n}\n',
+    hint: "'A' + index is an int (65 + index). Cast it back to char before concatenating.",
+    explanation:
+      "Adding an int to a char promotes the expression to int, so `('A' + 2)` is the number 67 and string concatenation prints it as digits. Casting the sum back — `(char) ('A' + index)` — yields the character 'C', which concatenates as a letter.",
+    rules: [
+      { label: 'Casts the sum back to char (or Character.toString)', type: 'mustContain', pattern: "\\(\\s*char\\s*\\)\\s*\\(?\\s*'A'\\s*\\+\\s*index|Character\\.toString\\(", regex: true },
+      { label: 'No longer concatenates the raw int sum', type: 'mustNotContain', pattern: "\"\\s*\\+\\s*\\(\\s*'A'\\s*\\+\\s*index\\s*\\)", regex: true },
+    ],
+  },
+  {
+    id: 'java-interrupt-flag-swallowed',
+    number: 70,
+    language: 'java',
+    title: 'Swallowed Interrupt',
+    difficulty: 'Medium',
+    topic: 'Concurrency basics',
+    statement:
+      '`pause` sleeps for the given number of milliseconds. When the owning thread is interrupted (for example during executor shutdown) the sleep ends early — but the thread then keeps running its loop forever, because `Thread.currentThread().isInterrupted()` is false afterwards.',
+    functionSignature: 'public static void pause(long millis)',
+    buggyCode:
+      'public static void pause(long millis) {\n    try {\n        Thread.sleep(millis);\n    } catch (InterruptedException e) {\n        // ignore\n    }\n}\n',
+    hint: 'Throwing InterruptedException clears the interrupt flag. If you catch it and cannot rethrow, set the flag back so callers still see the interrupt.',
+    explanation:
+      'When `Thread.sleep` throws `InterruptedException`, the JVM clears the thread\'s interrupted status. Catching the exception and doing nothing erases the request, so higher-level code that polls `isInterrupted()` never learns it should stop. The standard fix when you cannot propagate the exception is to restore the flag with `Thread.currentThread().interrupt();` inside the catch block.',
+    rules: [
+      { label: 'Restores the interrupt flag', type: 'mustContain', pattern: 'Thread\\.currentThread\\(\\)\\.interrupt\\(\\)', regex: true },
+      { label: 'Still catches InterruptedException', type: 'mustContain', pattern: 'catch\\s*\\(\\s*InterruptedException', regex: true },
+      { label: 'Still sleeps for the requested time', type: 'mustContain', pattern: 'Thread\\.sleep\\(\\s*millis\\s*\\)', regex: true },
+    ],
+  },
+  {
+    id: 'java-synchronized-string-literal',
+    number: 71,
+    language: 'java',
+    title: 'Locking on a String Literal',
+    difficulty: 'Medium',
+    topic: 'Concurrency basics',
+    statement:
+      '`Ledger` guards its balance with `synchronized` blocks. It works alone, but once a second class elsewhere in the app also synchronizes on the literal `"ledger-lock"`, the two unrelated classes block each other and occasionally deadlock.',
+    functionSignature: 'class Ledger',
+    buggyCode:
+      'class Ledger {\n    private long balance;\n\n    void deposit(long amount) {\n        synchronized ("ledger-lock") {\n            balance += amount;\n        }\n    }\n\n    long balance() {\n        synchronized ("ledger-lock") {\n            return balance;\n        }\n    }\n}\n',
+    hint: 'String literals are interned, so every "ledger-lock" in the whole JVM is one object. Lock on something private to this class instead.',
+    explanation:
+      'The compiler interns string literals, so `"ledger-lock"` is a single shared object visible to any code that spells the same literal — including libraries and unrelated classes. That makes the lock global and invites contention or deadlock. Use a dedicated `private final Object lock = new Object();` (or `synchronized (this)` / synchronized methods) so the monitor belongs to this instance alone.',
+    rules: [
+      { label: 'Uses a private lock object or this', type: 'mustContain', pattern: 'private\\s+(static\\s+)?final\\s+Object\\s+\\w+\\s*=\\s*new\\s+Object\\(\\)|synchronized\\s*\\(\\s*this\\s*\\)|synchronized\\s+(long|void)\\s', regex: true },
+      { label: 'No longer synchronizes on a string literal', type: 'mustNotContain', pattern: 'synchronized\\s*\\(\\s*"', regex: true },
+    ],
+  },
+  {
+    id: 'java-hashmap-mutable-key',
+    number: 72,
+    language: 'java',
+    title: 'Key Mutated After Insertion',
+    difficulty: 'Medium',
+    topic: 'Maps',
+    statement:
+      '`Coord` is used as a `HashMap` key. `equals` and `hashCode` are both overridden correctly, yet after `map.put(c, "home"); c.moveTo(5, 5);` the call `map.get(c)` returns null and the entry can never be retrieved or removed again.',
+    functionSignature: 'class Coord',
+    buggyCode:
+      'class Coord {\n    int x, y;\n\n    Coord(int x, int y) { this.x = x; this.y = y; }\n\n    void moveTo(int x, int y) { this.x = x; this.y = y; }\n\n    @Override\n    public boolean equals(Object o) {\n        if (!(o instanceof Coord)) return false;\n        Coord other = (Coord) o;\n        return x == other.x && y == other.y;\n    }\n\n    @Override\n    public int hashCode() {\n        return 31 * x + y;\n    }\n}\n',
+    hint: 'A HashMap stores each entry in the bucket for its hash at insertion time. If the key\'s fields change, its hash changes, and the map looks in the wrong bucket. Make the key immutable.',
+    explanation:
+      '`HashMap` computes the bucket from `hashCode()` when the key is inserted. Mutating `x` or `y` afterwards changes the hash, so lookups probe a different bucket and never find the original entry — it is effectively lost. Hash keys must be immutable: make the fields `final` and drop the mutator (return a new `Coord` if you need a moved copy).',
+    rules: [
+      { label: 'Fields are final (immutable key)', type: 'mustContain', pattern: 'final\\s+int\\s+x\\b', regex: true },
+      { label: 'No in-place mutator remains', type: 'mustNotContain', pattern: 'void\\s+moveTo\\s*\\(', regex: true },
+      { label: 'Still overrides hashCode', type: 'mustContain', pattern: 'public\\s+int\\s+hashCode\\s*\\(\\s*\\)', regex: true },
+    ],
+  },
+  {
+    id: 'java-math-abs-min-value',
+    number: 73,
+    language: 'java',
+    title: 'abs Returns a Negative',
+    difficulty: 'Medium',
+    topic: 'Overflow',
+    statement:
+      '`distanceFromZero` should return the absolute value of an int as a long, so it can never be negative. `distanceFromZero(Integer.MIN_VALUE)` returns `-2147483648`.',
+    functionSignature: 'public static long distanceFromZero(int value)',
+    buggyCode:
+      'public static long distanceFromZero(int value) {\n    return Math.abs(value);\n}\n',
+    hint: 'Math.abs(int) returns an int, and +2147483648 does not fit in an int. Widen before taking the absolute value.',
+    explanation:
+      'There is no positive int counterpart to `Integer.MIN_VALUE`, so `Math.abs(int)` overflows and returns `MIN_VALUE` itself — still negative — before the result is widened to long. Widen first: `Math.abs((long) value)` computes in 64 bits where 2147483648 fits.',
+    rules: [
+      { label: 'Widens to long before taking the absolute value', type: 'mustContain', pattern: '\\(\\s*long\\s*\\)\\s*value|value\\s*<\\s*0', regex: true },
+      { label: 'No longer calls Math.abs on the raw int', type: 'mustNotContain', pattern: 'Math\\.abs\\(\\s*value\\s*\\)', regex: true },
+    ],
+  },
+  {
+    id: 'java-tomap-duplicate-key',
+    number: 74,
+    language: 'java',
+    title: 'toMap Chokes on Duplicates',
+    difficulty: 'Medium',
+    topic: 'Streams',
+    statement:
+      '`wordCounts` should map each word to how many times it appears. It works on a list of distinct words, but `wordCounts(List.of("a", "b", "a"))` throws `IllegalStateException: Duplicate key a`.',
+    functionSignature: 'public static Map<String, Integer> wordCounts(List<String> words)',
+    buggyCode:
+      'public static Map<String, Integer> wordCounts(List<String> words) {\n    return words.stream()\n        .collect(Collectors.toMap(w -> w, w -> 1));\n}\n',
+    hint: 'The two-argument toMap refuses duplicate keys. The three-argument overload takes a merge function that combines the two values.',
+    explanation:
+      '`Collectors.toMap(keyMapper, valueMapper)` throws as soon as two elements map to the same key. Supply a merge function as the third argument — `Collectors.toMap(w -> w, w -> 1, Integer::sum)` — so duplicate keys add their counts together. (`Collectors.groupingBy(w -> w, Collectors.counting())` is the idiomatic alternative, yielding Long counts.)',
+    rules: [
+      { label: 'Merges duplicate keys (merge function or groupingBy)', type: 'mustContain', pattern: 'Integer::sum|\\(\\s*\\w+\\s*,\\s*\\w+\\s*\\)\\s*->\\s*\\w+\\s*\\+\\s*\\w+|groupingBy\\(', regex: true },
+      { label: 'No longer uses the two-argument toMap', type: 'mustNotContain', pattern: 'toMap\\(\\s*w\\s*->\\s*w\\s*,\\s*w\\s*->\\s*1\\s*\\)', regex: true },
+    ],
+  },
+  {
+    id: 'java-stream-no-terminal-op',
+    number: 75,
+    language: 'java',
+    title: 'Pipeline That Never Runs',
+    difficulty: 'Medium',
+    topic: 'Streams',
+    statement:
+      '`longNames` should return every name longer than five characters. It always returns an empty list, even though the filter and `peek` look correct.',
+    functionSignature: 'public static List<String> longNames(List<String> names)',
+    buggyCode:
+      'public static List<String> longNames(List<String> names) {\n    List<String> out = new ArrayList<>();\n    names.stream()\n        .filter(n -> n.length() > 5)\n        .peek(out::add);\n    return out;\n}\n',
+    hint: 'filter and peek are lazy intermediate operations. Nothing flows through the pipeline until a terminal operation such as forEach or collect is called.',
+    explanation:
+      'Streams are lazy: intermediate operations like `filter` and `peek` only describe the pipeline, and no element is processed until a terminal operation pulls them through. With no terminal operation the `peek` side effect never fires. End the pipeline with `forEach(out::add)`, or better, return `names.stream().filter(...).collect(Collectors.toList())` directly.',
+    rules: [
+      { label: 'Ends the pipeline with a terminal operation', type: 'mustContain', pattern: '\\.forEach\\(|\\.collect\\(|\\.toList\\(\\)', regex: true },
+      { label: 'No longer relies on peek as the last step', type: 'mustNotContain', pattern: '\\.peek\\(\\s*out::add\\s*\\)\\s*;', regex: true },
+    ],
+  },
+  {
+    id: 'java-random-seeded-per-call',
+    number: 76,
+    language: 'java',
+    title: 'Dice That Always Roll the Same',
+    difficulty: 'Medium',
+    topic: 'Randomness',
+    statement:
+      '`rollDie` should return a random number from 1 to 6 on each call. Calling it ten times in a row returns the same value ten times.',
+    functionSignature: 'public static int rollDie()',
+    buggyCode:
+      'public static int rollDie() {\n    Random random = new Random(42);\n    return random.nextInt(6) + 1;\n}\n',
+    hint: 'A Random built with a fixed seed produces the same sequence every time. Creating a fresh one per call means you always take the first number of that identical sequence.',
+    explanation:
+      '`new Random(42)` is deterministic: it always yields the same sequence, and because the method builds a brand-new instance every call, it always reads the first value of that sequence. Reuse one generator across calls — a `private static final Random RANDOM = new Random();` field — or use `ThreadLocalRandom.current().nextInt(1, 7)`. A fixed seed belongs only in tests.',
+    rules: [
+      { label: 'Uses an unseeded or shared generator', type: 'mustContain', pattern: 'new\\s+Random\\(\\s*\\)|ThreadLocalRandom\\.current\\(\\)|SecureRandom', regex: true },
+      { label: 'No longer seeds a new Random(42) inside the method', type: 'mustNotContain', pattern: 'new\\s+Random\\(\\s*42\\s*\\)', regex: true },
+      { label: 'Still returns a value from nextInt', type: 'mustContain', pattern: 'nextInt\\(', regex: true },
+    ],
+  },
+  {
+    id: 'java-double-checked-locking-volatile',
+    number: 77,
+    language: 'java',
+    title: 'Double-Checked Locking Without volatile',
+    difficulty: 'Hard',
+    topic: 'Concurrency basics',
+    statement:
+      '`Config.get()` lazily creates a singleton using double-checked locking. Under load a second thread occasionally receives a `Config` whose fields are still at their default values — it observed the reference before the constructor\'s writes became visible.',
+    functionSignature: 'class Config',
+    buggyCode:
+      'class Config {\n    private static Config instance;\n\n    private Config() {}\n\n    static Config get() {\n        if (instance == null) {\n            synchronized (Config.class) {\n                if (instance == null) {\n                    instance = new Config();\n                }\n            }\n        }\n        return instance;\n    }\n}\n',
+    hint: 'The first null check reads the field without a lock. Without volatile, the JVM may publish the reference before the object is fully constructed.',
+    explanation:
+      'Without `volatile`, the write `instance = new Config()` can be reordered so the reference is stored before the constructor finishes, and the unsynchronized outer `if` can observe that half-built object. Declaring the field `private static volatile Config instance;` establishes a happens-before edge: a thread that sees the non-null reference also sees every write made before it. (An eagerly initialized `static final` field or the initialization-on-demand holder idiom avoids the problem entirely.)',
+    rules: [
+      { label: 'Field is volatile (or eagerly final)', type: 'mustContain', pattern: 'static\\s+volatile\\s+Config\\s+\\w+|static\\s+final\\s+Config\\s+\\w+\\s*=\\s*new\\s+Config\\(\\)', regex: true },
+      { label: 'No longer declares a plain non-volatile static instance', type: 'mustNotContain', pattern: 'private\\s+static\\s+Config\\s+instance\\s*;', regex: true },
+      { label: 'Still exposes get()', type: 'mustContain', pattern: 'static\\s+Config\\s+get\\s*\\(\\s*\\)', regex: true },
+    ],
+  },
+  {
+    id: 'java-wait-without-loop',
+    number: 78,
+    language: 'java',
+    title: 'wait() Guarded by an if',
+    difficulty: 'Hard',
+    topic: 'Concurrency basics',
+    statement:
+      '`MessageBox.take()` should block until a message is available and then return it. With a single consumer it works; with two consumers, one of them sometimes throws `NoSuchElementException` from `removeFirst()` right after waking up.',
+    functionSignature: 'class MessageBox',
+    buggyCode:
+      'class MessageBox {\n    private final Deque<String> queue = new ArrayDeque<>();\n\n    synchronized void put(String msg) {\n        queue.addLast(msg);\n        notifyAll();\n    }\n\n    synchronized String take() throws InterruptedException {\n        if (queue.isEmpty()) {\n            wait();\n        }\n        return queue.removeFirst();\n    }\n}\n',
+    hint: 'Waking from wait() does not guarantee the condition is now true — another thread may have taken the item first, and spurious wakeups exist. Re-check in a loop.',
+    explanation:
+      '`notifyAll` wakes every waiting consumer, but only one of them will find a message; the others re-acquire the monitor after the queue is empty again. Spurious wakeups can also return from `wait()` with no notify at all. The condition must be re-tested every time the thread wakes: `while (queue.isEmpty()) wait();`. This is the canonical guarded-wait idiom.',
+    rules: [
+      { label: 'Re-checks the condition in a while loop around wait()', type: 'mustContain', pattern: 'while\\s*\\(\\s*queue\\.isEmpty\\(\\)\\s*\\)', regex: true },
+      { label: 'No longer guards wait() with a single if', type: 'mustNotContain', pattern: 'if\\s*\\(\\s*queue\\.isEmpty\\(\\)\\s*\\)', regex: true },
+      { label: 'Still waits on the monitor', type: 'mustContain', pattern: '\\bwait\\(\\)', regex: true },
+    ],
+  },
+  {
+    id: 'java-default-method-diamond',
+    number: 79,
+    language: 'java',
+    title: 'Two Defaults, One Class',
+    difficulty: 'Hard',
+    topic: 'OOP',
+    statement:
+      '`Robot` implements both `Speaker` and `Greeter`, each of which provides a default `greet()`. The class fails to compile: "class Robot inherits unrelated defaults for greet() from types Speaker and Greeter". `Robot.greet()` should use the Speaker greeting.',
+    functionSignature: 'class Robot implements Speaker, Greeter',
+    buggyCode:
+      'interface Speaker {\n    default String greet() { return "Hello from Speaker"; }\n}\n\ninterface Greeter {\n    default String greet() { return "Hello from Greeter"; }\n}\n\nclass Robot implements Speaker, Greeter {\n}\n',
+    hint: 'When two interfaces supply the same default, the class must override the method itself. Inside that override you can delegate with InterfaceName.super.method().',
+    explanation:
+      'Java refuses to guess which inherited default wins, so a class that inherits two unrelated defaults with the same signature must override the method explicitly. The override can pick one implementation with the `Interface.super.method()` syntax — `return Speaker.super.greet();` — or supply its own body. Adding that override to `Robot` resolves the diamond.',
+    rules: [
+      { label: 'Robot overrides greet()', type: 'mustContain', pattern: 'class\\s+Robot\\s+implements[\\s\\S]*?String\\s+greet\\s*\\(\\s*\\)\\s*\\{', regex: true },
+      { label: 'Delegates to the chosen default via Interface.super', type: 'mustContain', pattern: 'Speaker\\.super\\.greet\\(\\)', regex: true },
+      { label: 'Robot no longer has an empty body', type: 'mustNotContain', pattern: 'implements\\s+Speaker\\s*,\\s*Greeter\\s*\\{\\s*\\}', regex: true },
+    ],
+  },
+  {
+    id: 'java-reader-not-closed-on-error',
+    number: 80,
+    language: 'java',
+    title: 'Reader Leaks on Exception',
+    difficulty: 'Hard',
+    topic: 'Resources',
+    statement:
+      '`firstLine` opens a file, returns its first line, and closes the reader. On the happy path it is fine, but whenever `readLine` throws an `IOException` the reader is never closed. After enough failures the process dies with "Too many open files".',
+    functionSignature: 'public static String firstLine(String path) throws IOException',
+    buggyCode:
+      'public static String firstLine(String path) throws IOException {\n    BufferedReader reader = new BufferedReader(new FileReader(path));\n    String line = reader.readLine();\n    reader.close();\n    return line;\n}\n',
+    hint: 'A close() that only runs when nothing throws is not a guarantee. Let try-with-resources close it for you on every exit path.',
+    explanation:
+      'If `readLine()` throws, control leaves the method before `reader.close()` runs and the file handle leaks. `BufferedReader` is `AutoCloseable`, so declare it in a try-with-resources header: `try (BufferedReader reader = new BufferedReader(new FileReader(path))) { return reader.readLine(); }`. The compiler inserts a close in every path — normal return or exception — and even chains suppressed exceptions correctly. (A `finally { reader.close(); }` block is the pre-Java-7 equivalent.)',
+    rules: [
+      { label: 'Closes the reader on every path (try-with-resources or finally)', type: 'mustContain', pattern: 'try\\s*\\(\\s*(final\\s+)?(var|BufferedReader)\\s+\\w+\\s*=|finally\\s*\\{[\\s\\S]*?\\.close\\(\\)', regex: true },
+      { label: 'No longer closes only after a successful readLine', type: 'mustNotContain', pattern: 'readLine\\(\\)\\s*;\\s*reader\\.close\\(\\)\\s*;', regex: true },
+      { label: 'Still reads the first line', type: 'mustContain', pattern: 'readLine\\(\\)', regex: true },
     ],
   },
 ];

@@ -1,7 +1,8 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useIsFocused } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import AnimatedTabBar from '../components/AnimatedTabBar';
 import HomeScreen from '../screens/HomeScreen';
@@ -60,8 +61,33 @@ const StudyStack = createNativeStackNavigator<TabStackParamList>();
 const PracticeStackNav = createNativeStackNavigator<PracticeStackParamList>();
 const TestStackNav = createNativeStackNavigator<TestStackParamList>();
 
+// Eases each tab's content in when the tab gains focus. Done per-scene rather
+// than with the navigator's `animation` option: that one animates a shared
+// progress value and, when tabs are tapped mid-transition, can leave a scene
+// stranded at opacity 0. Here the target is always 1, so fast tapping only
+// ever restarts a fade toward fully visible.
+const TAB_FADE_MS = 240;
+function TabScene({ children }: { children: React.ReactNode }) {
+  const focused = useIsFocused();
+  const opacity = useSharedValue(1);
+  const shift = useSharedValue(0);
+  React.useEffect(() => {
+    if (!focused) return;
+    opacity.value = 0;
+    shift.value = 14;
+    opacity.value = withTiming(1, { duration: TAB_FADE_MS, easing: Easing.out(Easing.cubic) });
+    shift.value = withTiming(0, { duration: TAB_FADE_MS, easing: Easing.out(Easing.cubic) });
+  }, [focused, opacity, shift]);
+  const style = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: shift.value }],
+  }));
+  return <Animated.View style={[{ flex: 1 }, style]}>{children}</Animated.View>;
+}
+
 function StudyStackNavigator() {
   return (
+    <TabScene>
     <StudyStack.Navigator screenOptions={{ headerShown: false }}>
       <StudyStack.Screen name="Home" component={HomeScreen} />
       <StudyStack.Screen
@@ -70,11 +96,13 @@ function StudyStackNavigator() {
         options={{ animation: 'slide_from_right' }}
       />
     </StudyStack.Navigator>
+    </TabScene>
   );
 }
 
 function PracticeStackNavigator() {
   return (
+    <TabScene>
     <PracticeStackNav.Navigator screenOptions={{ headerShown: false }}>
       <PracticeStackNav.Screen name="PracticeList" component={PracticeScreen} />
       <PracticeStackNav.Screen
@@ -93,11 +121,13 @@ function PracticeStackNavigator() {
         options={{ animation: 'slide_from_right' }}
       />
     </PracticeStackNav.Navigator>
+    </TabScene>
   );
 }
 
 function TestStackNavigator() {
   return (
+    <TabScene>
     <TestStackNav.Navigator screenOptions={{ headerShown: false }}>
       <TestStackNav.Screen name="TestHome" component={TestHomeScreen} />
       <TestStackNav.Screen
@@ -116,6 +146,7 @@ function TestStackNavigator() {
         options={{ animation: 'slide_from_right', gestureEnabled: false }}
       />
     </TestStackNav.Navigator>
+    </TabScene>
   );
 }
 

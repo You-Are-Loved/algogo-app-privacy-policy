@@ -22,6 +22,7 @@ const TRACKS: { type: ContentType; label: string }[] = [
   { type: 'backend', label: 'Backend' },
   { type: 'sql', label: 'SQL' },
   { type: 'cpp', label: 'C++' },
+  { type: 'cs', label: 'CS Fundamentals' },
 ];
 
 export const quizBank: QuizBankItem[] = TRACKS.flatMap(({ type, label }) =>

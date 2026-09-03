@@ -368,7 +368,14 @@ struct Counter {
     { id: 'sf20', front: 'What is Result<Success, Failure>?', back: 'An enum with .success(value) and .failure(error) cases. Lets you store an outcome as a value, pass it across boundaries, and `switch` on it cleanly.' },
     { id: 'sf21', front: 'What does `defer` do?', back: 'Schedules a block to run when the enclosing scope exits, regardless of how (return, throw, break). Useful for paired setup/teardown like locking, file handles, or cleanup.' },
     { id: 'sf22', front: 'What is a KeyPath?', back: 'A reference to a property\'s location on a type, written `\\Type.property`. Lets you read or write a property generically — used by KVO, SwiftUI, sort(by:), and reduce(into:).' },
-    { id: 'sf23', front: 'What\'s the difference between `Self` and `self`?', back: '`self` (lowercase) is the current instance. `Self` (capital) is the type of the current instance — handy in protocol requirements that need to refer to the conforming type.' }
+    { id: 'sf23', front: 'What\'s the difference between `Self` and `self`?', back: '`self` (lowercase) is the current instance. `Self` (capital) is the type of the current instance — handy in protocol requirements that need to refer to the conforming type.' },
+    { id: 'sf24', front: 'What happens if you access an unowned reference after its target is deallocated?', back: 'The program traps (crashes) — unowned is non-optional and has no nil check. A weak reference in the same situation is zeroed out to nil. Choose unowned only when the referenced object provably outlives the reference.' },
+    { id: 'sf25', front: 'What does `lazy var` do and when is it useful?', back: 'Defers initialization until the property is first read. Must be a var. Useful for expensive setup you may never need, and because its initializer can reference `self` (it runs after init has completed).' },
+    { id: 'sf26', front: 'What is the difference between `static` and `class` members?', back: 'Both are type-level members. `static` members can\'t be overridden by subclasses; `class` members (methods and computed properties on classes only) can be. Structs and enums only get `static`.' },
+    { id: 'sf27', front: 'What happens when you copy a struct that contains a class reference?', back: 'The struct is copied but the reference inside it is shared — both copies point at the same object. Mutating that object through one copy is visible through the other. Value semantics only go as deep as the value-typed fields.' },
+    { id: 'sf28', front: 'What is the difference between `==` and `===`?', back: '`==` is value equality defined by Equatable — two instances with the same contents. `===` is identity — the two references point to the exact same class instance. Only reference types support `===`.' },
+    { id: 'sf29', front: 'What is a property wrapper?', back: 'A type marked @propertyWrapper with a `wrappedValue` that adds behavior to a stored property (validation, persistence, observation). Applied with @Name on the property; an optional `projectedValue` is exposed through the `$` prefix — this is what powers @State and @Published.' },
+    { id: 'sf30', front: 'What is the difference between `try`, `try?`, and `try!`?', back: '`try` propagates the error to a `throws` context or do/catch. `try?` converts a thrown error into nil and gives you an optional. `try!` asserts the call can\'t fail and crashes if it does — only for programmer-controlled invariants.' }
   ],
 
   quizQuestions: [
@@ -441,6 +448,76 @@ struct Counter {
       options: ['A default implementation', 'A protocol extension', 'A placeholder type', 'A type alias'],
       correctAnswer: 2,
       explanation: 'An associated type is a placeholder type in a protocol. The conforming type specifies what actual type to use.'
+    },
+    {
+      id: 'sfq11',
+      question: 'class Person { var pet: Pet? }; class Pet { var owner: Person? } — you link a Person and Pet to each other, then set both local variables to nil. What happens?',
+      options: ['Both objects are deallocated', 'Neither is deallocated — they hold each other alive', 'The compiler rejects the assignment', 'Only Pet is deallocated'],
+      correctAnswer: 1,
+      explanation: 'Each object holds a strong reference to the other, so both reference counts stay at 1 after the locals go away. This is a retain cycle; make one side weak (typically `weak var owner`).'
+    },
+    {
+      id: 'sfq12',
+      question: 'What happens when you read an unowned reference whose target has already been deallocated?',
+      options: ['Runtime crash', 'It returns nil', 'A compile-time error', 'The object is re-created'],
+      correctAnswer: 0,
+      explanation: 'unowned skips the nil check that weak performs. Accessing a dangling unowned reference traps at runtime. If nil is a legitimate possibility, use weak instead.'
+    },
+    {
+      id: 'sfq13',
+      question: 'struct Wrapper { let box: Box }; class Box { var value = 0 }. var a = Wrapper(box: Box()); var b = a; b.box.value = 5. What is a.box.value?',
+      options: ['0', 'Compile error: box is a let', '5', 'Undefined'],
+      correctAnswer: 2,
+      explanation: 'Copying the struct copies the reference, not the object. Both wrappers share one Box, so the mutation through b is visible through a. The `let` only stops you reassigning `box` itself.'
+    },
+    {
+      id: 'sfq14',
+      question: 'Which statement about a `lazy` stored property is true?',
+      options: ['It must be declared with let', 'It is initialized on first access and must be a var', 'Its initializer cannot reference self', 'It is automatically thread-safe'],
+      correctAnswer: 1,
+      explanation: 'lazy defers initialization until first read, which is why it must be a var. Because it runs after init completes it can reference self. It is not synchronized — two threads racing on first access is a bug.'
+    },
+    {
+      id: 'sfq15',
+      question: 'What is the difference between Any and AnyObject?',
+      options: ['They are interchangeable', 'AnyObject includes value types, Any does not', 'Any is only for functions', 'Any covers every type; AnyObject only class instances'],
+      correctAnswer: 3,
+      explanation: 'Any can hold structs, enums, functions, optionals, and class instances. AnyObject is restricted to instances of classes (it is the protocol every class implicitly conforms to).'
+    },
+    {
+      id: 'sfq16',
+      question: 'let n = try? Int(text, radix: 16) — hypothetically, if the call throws, what is n?',
+      options: ['The program crashes', 'The error is rethrown to the caller', 'A default value of 0', 'nil'],
+      correctAnswer: 3,
+      explanation: 'try? swallows the error and produces an optional: the value on success, nil on failure. try! would crash and plain try would propagate the error.'
+    },
+    {
+      id: 'sfq17',
+      question: 'Which type-level member can a subclass override?',
+      options: ['static func', 'final class func', 'class func', 'A method on a struct'],
+      correctAnswer: 2,
+      explanation: 'class members participate in dynamic dispatch and may be overridden. static members are implicitly final, and final class explicitly forbids overriding. Structs have no inheritance at all.'
+    },
+    {
+      id: 'sfq18',
+      question: 'What does the === operator check?',
+      options: ['That two references point to the same instance', 'That two values are Equatable-equal', 'That two values have the same type', 'That two values have the same hash'],
+      correctAnswer: 0,
+      explanation: '=== is identity, only meaningful for reference types. == is value equality through Equatable — two distinct instances can be == without being ===.'
+    },
+    {
+      id: 'sfq19',
+      question: 'var a = [1, 2, 3]; var b = a; b.append(4). What is a.count?',
+      options: ['3', '4', 'Compile error', 'It depends on optimization level'],
+      correctAnswer: 0,
+      explanation: 'Arrays have value semantics. b shares storage with a until it is mutated, at which point copy-on-write gives b its own buffer. a is untouched and still has 3 elements.'
+    },
+    {
+      id: 'sfq20',
+      question: 'What is the minimum requirement for a type marked @propertyWrapper?',
+      options: ['An init(wrappedValue:) initializer', 'A projectedValue property', 'A wrappedValue property', 'Conformance to a Wrapper protocol'],
+      correctAnswer: 2,
+      explanation: 'The compiler only requires a `wrappedValue`. init(wrappedValue:) is needed if you want `@Wrapper var x = 1` syntax, and projectedValue is optional and exposed via the $ prefix.'
     }
   ]
 };
@@ -833,13 +910,20 @@ class MainViewController: UIViewController, SettingsViewControllerDelegate {
     { id: 'uk14', front: 'What is UIStackView used for?', back: 'Simplified Auto Layout for linear arrangements. It manages constraints for arranged subviews based on axis, distribution, and spacing.' },
     { id: 'uk15', front: 'What happens in deinit?', back: 'Called when the view controller is being deallocated. Use for cleanup like removing observers or invalidating timers.' },
     { id: 'uk16', front: 'What is intrinsicContentSize?', back: 'A view\'s natural size based on its content — a label\'s text, an image\'s pixels. Auto Layout falls back to it when constraints don\'t fully specify width or height.' },
-    { id: 'uk17', front: 'What do content hugging and compression resistance priorities do?', back: 'Hugging resists growing beyond intrinsic size; compression resistance resists shrinking below it. When two neighbours fight for space, the one with higher priority wins.' },
-    { id: 'uk18', front: 'When would you use UIStackView?', back: 'When you have a row or column of views that should lay themselves out automatically. It writes the leading/trailing/spacing constraints for you and reacts to hidden subviews.' },
+    { id: 'uk17', front: 'What is the difference between safeAreaLayoutGuide and layoutMarginsGuide?', back: 'The safe area is what system UI obscures — status bar, notch, home indicator, bars. Layout margins are the view\'s own content inset (8pt by default, 16–20pt on a view controller\'s root view) and, because insetsLayoutMarginsFromSafeArea defaults to true, they sit inside the safe area. Pin edge-to-edge chrome to the safe area and text/content to the margins.' },
+    { id: 'uk18', front: 'How do you set up a UIScrollView with Auto Layout?', back: 'Pin the content view\'s four edges to the scroll view\'s contentLayoutGuide — that is what defines contentSize. Then constrain the content view\'s width to the frameLayoutGuide for vertical-only scrolling. If the content has no unambiguous height (a broken top-to-bottom constraint chain), the scroll view simply won\'t scroll.' },
     { id: 'uk19', front: 'What\'s the difference between frame and bounds?', back: 'frame is the view\'s rect in its superview\'s coordinate space. bounds is in its own coordinate space; bounds.origin scrolls the content. Rotation only affects frame.' },
     { id: 'uk20', front: 'How do you implement view-controller containment?', back: 'addChild(_:), addSubview, then call didMove(toParent:) on the child. Reverse with willMove(toParent: nil), removeFromSuperview, removeFromParent. Lets one VC host another.' },
-    { id: 'uk21', front: 'What does safeAreaInsets give you?', back: 'The portion of the view obscured by system UI — status bar, notch, home indicator. Pin content to safeAreaLayoutGuide so it never clips behind that hardware.' },
+    { id: 'uk21', front: 'How do you get self-sizing UITableView cells?', back: 'Set rowHeight = UITableView.automaticDimension and a non-zero estimatedRowHeight, then constrain the cell\'s content to all four edges of contentView so Auto Layout can derive the height from the content. Any gap in the vertical constraint chain silently gives you the estimated height instead.' },
     { id: 'uk22', front: 'When would you choose UICollectionView over UITableView?', back: 'Anything beyond a single vertical column — grids, horizontal scrollers, self-sizing items in a flow, custom layouts. UICollectionViewCompositionalLayout makes this much easier.' },
-    { id: 'uk23', front: 'What is the responder chain?', back: 'The ordered sequence of objects that get a chance to handle a UI event. It starts at the first responder and walks up: responder → next responder → view → superview → window → app.' }
+    { id: 'uk23', front: 'What is the responder chain?', back: 'The ordered sequence of objects that get a chance to handle a UI event. It starts at the first responder and walks up: responder → next responder → view → superview → window → app.' },
+    { id: 'uk24', front: 'What is the order of lifecycle callbacks when a view controller is first shown?', back: 'loadView → viewDidLoad → viewWillAppear → viewWillLayoutSubviews → viewDidLayoutSubviews → viewDidAppear. viewDidLoad runs once per instance; the appear/layout callbacks repeat every time the view is shown or resized.' },
+    { id: 'uk25', front: 'Why would you give a constraint priority 999 instead of the required 1000?', back: 'A required constraint that can\'t be satisfied triggers "Unable to simultaneously satisfy constraints" and Auto Layout breaks one at random. At 999 the constraint is optional — it holds whenever possible but yields quietly during transient states like cell sizing or rotation.' },
+    { id: 'uk26', front: 'How does UIKit decide which view receives a touch?', back: 'Hit testing: starting at the window, hitTest(_:with:) calls point(inside:with:) and recurses into subviews from front to back, returning the deepest view that contains the point. Hidden views, alpha below 0.01, and isUserInteractionEnabled == false are skipped.' },
+    { id: 'uk27', front: 'What is prepareForReuse() for?', back: 'Resetting a cell\'s state before it is dequeued again — cancel in-flight image loads, clear text, reset selection. It is not the place to configure new content; do that in cellForRowAt.' },
+    { id: 'uk28', front: 'What is the difference between setNeedsLayout() and layoutIfNeeded()?', back: 'setNeedsLayout marks the view dirty and defers layout to the next run-loop pass (cheap, coalesced). layoutIfNeeded forces a synchronous layout now. Call layoutIfNeeded inside UIView.animate to animate constraint changes.' },
+    { id: 'uk29', front: 'How do UIView and CALayer relate?', back: 'Every UIView owns a backing CALayer. The view handles touch, Auto Layout, and responder duties; the layer does the drawing — cornerRadius, borders, shadows, masks, and Core Animation. Appearance tweaks that aren\'t on UIView usually live on view.layer.' },
+    { id: 'uk30', front: 'How do you debug an "Unable to simultaneously satisfy constraints" warning?', back: 'Read the log to see which constraint was broken, give constraints `identifier`s so they are readable, set a symbolic breakpoint on UIViewAlertForUnsatisfiableConstraints, and inspect in the view debugger. Usually a duplicate or conflicting required constraint.' }
   ],
 
   quizQuestions: [
@@ -912,6 +996,76 @@ class MainViewController: UIViewController, SettingsViewControllerDelegate {
       options: ['Code organization', 'Memory efficiency', 'Animation support', 'Type safety'],
       correctAnswer: 1,
       explanation: 'Cell reuse saves memory by recycling cells as they scroll off screen rather than creating new ones.'
+    },
+    {
+      id: 'ukq11',
+      question: 'How many times is viewDidLoad called for a single view controller instance?',
+      options: ['Once, after the view is loaded', 'Every time the view appears', 'Every layout pass', 'Once per navigation push'],
+      correctAnswer: 0,
+      explanation: 'viewDidLoad fires once, right after loadView creates the view hierarchy. Per-appearance work belongs in viewWillAppear; size-dependent work belongs in viewDidLayoutSubviews.'
+    },
+    {
+      id: 'ukq12',
+      question: 'You change a constraint constant inside UIView.animate but the view jumps instead of animating. What is missing?',
+      options: ['setNeedsDisplay() before the block', 'view.layoutIfNeeded() inside the animation block', 'updateConstraints() after the block', 'translatesAutoresizingMaskIntoConstraints = true'],
+      correctAnswer: 1,
+      explanation: 'Changing a constant only marks layout dirty. Calling layoutIfNeeded inside the animation block performs the layout now, so the frame change is captured by the animation.'
+    },
+    {
+      id: 'ukq13',
+      question: 'Two labels sit in a horizontal stack with extra space. You want the right label to stretch to absorb it. What do you change?',
+      options: ['Raise the right label\'s compression resistance', 'Raise the right label\'s content hugging priority', 'Set the stack distribution to .fillEqually', 'Lower the right label\'s content hugging priority'],
+      correctAnswer: 3,
+      explanation: 'Hugging is resistance to growing. The label with the lower hugging priority is the one Auto Layout stretches. Compression resistance only matters when there is too little space.'
+    },
+    {
+      id: 'ukq14',
+      question: 'A button is positioned outside its superview\'s bounds and does not respond to taps. Why?',
+      options: ['Hit testing stops at the superview\'s point(inside:) check, so children outside its bounds are never asked', 'clipsToBounds defaults to true', 'The button needs a gesture recognizer', 'Buttons cannot extend beyond their superview'],
+      correctAnswer: 0,
+      explanation: 'hitTest only descends into a view if point(inside:) returns true for that view. A child outside the parent\'s bounds is visible (when clipsToBounds is false) but unreachable unless you override point(inside:) on the parent.'
+    },
+    {
+      id: 'ukq15',
+      question: 'What should a UITableViewCell subclass do in prepareForReuse()?',
+      options: ['Configure the cell with the next row\'s data', 'Register the cell with the table view', 'Reset state such as cancelling image loads and clearing text', 'Compute the row height'],
+      correctAnswer: 2,
+      explanation: 'prepareForReuse runs before a recycled cell is handed back to you. Reset anything that could leak from the previous row; configure the new content in cellForRowAt.'
+    },
+    {
+      id: 'ukq16',
+      question: 'In a UIScrollView, what does changing bounds.origin correspond to?',
+      options: ['Moving the scroll view within its superview', 'Resizing the scroll view', 'Applying a transform', 'Scrolling the content (contentOffset)'],
+      correctAnswer: 3,
+      explanation: 'bounds is the view\'s own coordinate space. Shifting its origin shifts which part of the content is visible — that is exactly what contentOffset does. frame.origin would move the scroll view itself.'
+    },
+    {
+      id: 'ukq17',
+      question: 'A UIBarButtonItem sends its action with target: nil. Who handles it?',
+      options: ['The AppDelegate only', 'The window', 'The first responder, then up the responder chain until something implements the action', 'The topmost view controller only'],
+      correctAnswer: 2,
+      explanation: 'A nil target means UIKit walks the responder chain starting at the first responder. Whichever responder implements the selector handles it — this is how paste/undo style actions work.'
+    },
+    {
+      id: 'ukq18',
+      question: 'How do you give a UIImageView rounded corners that actually clip the image?',
+      options: ['layer.cornerRadius plus clipsToBounds (masksToBounds) = true', 'view.cornerRadius = 12', 'layer.borderRadius = 12', 'contentMode = .scaleAspectFill'],
+      correctAnswer: 0,
+      explanation: 'cornerRadius lives on the backing layer, and the image contents are only clipped when masksToBounds (UIView exposes it as clipsToBounds) is enabled. There is no cornerRadius on UIView itself.'
+    },
+    {
+      id: 'ukq19',
+      question: 'What happens at runtime when two required constraints conflict?',
+      options: ['The app crashes', 'Both constraints are ignored', 'Auto Layout logs a warning and breaks one of them', 'The most recently added constraint always wins'],
+      correctAnswer: 2,
+      explanation: 'Auto Layout prints "Unable to simultaneously satisfy constraints", picks one to break, and carries on. Layout may look right by luck, so treat the log as a bug to fix.'
+    },
+    {
+      id: 'ukq20',
+      question: 'You set isUserInteractionEnabled = false on a container view. What happens to taps on its subviews?',
+      options: ['Subviews still receive taps normally', 'Only subviews with gesture recognizers receive taps', 'Neither the container nor any subview receives taps', 'Taps are forwarded to the container\'s superview and then to the subviews'],
+      correctAnswer: 2,
+      explanation: 'Hit testing skips a view with user interaction disabled and never descends into its subtree, so every subview goes dead too. Enable interaction on the container and disable individual children if that is what you want.'
     }
   ]
 };
@@ -1388,14 +1542,21 @@ struct SplitView: View {
     { id: 'sui13', front: 'What is presentationDetents?', back: 'iOS 16+ modifier for sheets that allows setting height stops like .medium, .large, or custom heights.' },
     { id: 'sui14', front: 'What is @ViewBuilder?', back: 'Enables functions to return multiple views as a single result. Used for building view hierarchies in custom containers.' },
     { id: 'sui15', front: 'What is the difference between List and ForEach?', back: 'List is a scrollable container with platform styling. ForEach is just a loop that generates views. ForEach can be used inside any container.' },
-    { id: 'sui16', front: 'What\'s the difference between @StateObject and @ObservedObject?', back: '@StateObject creates and *owns* the object — exactly one instance for the lifetime of the view. @ObservedObject receives one passed in and doesn\'t own it; the parent must keep it alive.' },
-    { id: 'sui17', front: 'What does @EnvironmentObject do?', back: 'Injects an ObservableObject through the view hierarchy without passing it as a prop. Provided once with .environmentObject(...) and read by any descendant with @EnvironmentObject.' },
-    { id: 'sui18', front: 'What does @ViewBuilder enable?', back: 'Lets a function or closure return multiple views as a single opaque type. It\'s why you can put `if`, `switch`, and `ForEach` inside `body` and custom containers.' },
+    { id: 'sui16', front: 'What is the difference between VStack and LazyVStack?', back: 'VStack creates all of its children immediately and sizes itself from them. LazyVStack (inside a ScrollView) creates child views only as they approach the visible region, so long lists stay cheap; once created, lazy children are kept around. Use VStack for small fixed groups and LazyVStack for long or unbounded lists.' },
+    { id: 'sui17', front: 'How do you use a UIKit view inside SwiftUI?', back: 'Conform a struct to UIViewRepresentable: makeUIView creates the view once, updateUIView pushes SwiftUI state into it on every render, and makeCoordinator returns a class that acts as the UIKit delegate/target and writes changes back through a @Binding. UIViewControllerRepresentable does the same for view controllers.' },
+    { id: 'sui18', front: 'What does .task(id:) do?', back: 'Runs the async closure when the view appears and again whenever the id value changes, cancelling the previous task first. It is the idiomatic way to react to a changing input with async work — re-running a search whenever the query changes, for example — without managing Task handles yourself.' },
     { id: 'sui19', front: 'What is a ViewModifier?', back: 'A reusable wrapper that applies a transformation to a view. Used via .modifier(...) or as a custom .someStyle() extension method on View.' },
     { id: 'sui20', front: 'When would you reach for PreferenceKey?', back: 'When a child view needs to send data *up* the hierarchy — the opposite direction of environment. Common case: measure a child\'s size and have the parent react.' },
     { id: 'sui21', front: 'What does GeometryReader give you?', back: 'A view that exposes the size and frame its parent gave it via a GeometryProxy. Use it sparingly — it disables natural flex sizing for everything inside it.' },
-    { id: 'sui22', front: 'What\'s the difference between .task and .onAppear?', back: '.task runs an async closure tied to the view\'s lifecycle and cancels on disappear — ideal for fetches. .onAppear runs synchronous code each time the view appears and never cancels.' },
-    { id: 'sui23', front: 'How do you hide a view but keep its space?', back: '.opacity(0) or .hidden() — invisible but still occupies layout space. To remove from the layout entirely, conditionally include it: `if condition { TheView() }`.' }
+    { id: 'sui22', front: 'What is @FocusState?', back: 'A property wrapper that binds keyboard focus to a Bool or an optional enum value. Pair it with .focused($field, equals: .email) on each text field; setting the state moves focus programmatically, and setting it to nil (or false) dismisses the keyboard. It lives in the view, not in a view model.' },
+    { id: 'sui23', front: 'How do you hide a view but keep its space?', back: '.opacity(0) or .hidden() — invisible but still occupies layout space. To remove from the layout entirely, conditionally include it: `if condition { TheView() }`.' },
+    { id: 'sui24', front: 'What is view identity in SwiftUI?', back: 'How SwiftUI decides two views across renders are "the same" view. Structural identity comes from position in the view tree (an if/else branch is a different identity); explicit identity comes from .id() or ForEach ids. Identity controls whether @State persists and whether a change animates or transitions.' },
+    { id: 'sui25', front: 'Why is initializing @State from an init parameter a trap?', back: 'SwiftUI stores @State outside the view and only uses your initial value the first time the view\'s identity is created. If the parent later passes a different value, the stored state keeps the old one. Use @Binding for parent-owned data or key the view with .id().' },
+    { id: 'sui26', front: 'How does @Observable (iOS 17) differ from ObservableObject?', back: 'It tracks reads at the property level, so a view only re-renders when a property it actually read changes — no @Published needed. Own it with @State, inject it with .environment(), and use @Bindable to get bindings into its properties.' },
+    { id: 'sui27', front: 'What goes wrong if you write `@ObservedObject var model = Model()` inside a view?', back: 'The view struct is recreated whenever its parent re-renders, so a brand-new Model is created each time and any state in it is lost. @StateObject (or @State with @Observable) ties the object\'s lifetime to the view\'s identity instead.' },
+    { id: 'sui28', front: 'Why does ForEach need stable ids?', back: 'Ids give each row an explicit identity across updates. With stable ids SwiftUI can diff inserts and deletes, animate them correctly, and keep per-row @State attached to the right row. Using array indices as ids breaks all of that the moment an element is removed.' },
+    { id: 'sui29', front: 'How does SwiftUI layout work at a high level?', back: 'Parent proposes a size, the child chooses its own size (which may ignore the proposal), and the parent then positions the child. This is why .frame(width:) is a wrapper view that proposes a size rather than a constraint — a Text can still refuse to shrink and overflow it.' },
+    { id: 'sui30', front: 'When does a SwiftUI view\'s body get re-evaluated?', back: 'Whenever a dependency it reads changes — @State, @Binding, an observed object, or an environment value — or when its parent re-renders and passes new inputs. body should therefore be cheap and side-effect free; a View is a description, not the rendered object.' }
   ],
 
   quizQuestions: [
@@ -1468,6 +1629,76 @@ struct SplitView: View {
       options: ['NavigationView', 'NavigationStack', 'NavigationLink only', 'UINavigationController'],
       correctAnswer: 1,
       explanation: 'NavigationStack with navigationDestination provides type-safe, value-based navigation in iOS 16+.'
+    },
+    {
+      id: 'suiq11',
+      question: 'struct Counter: View { @ObservedObject var model = CounterModel() ... }. The parent view re-renders often. What happens to the count?',
+      options: ['It is preserved because ObservedObject caches the instance', 'It resets, because a new CounterModel is created every time the parent re-renders', 'The compiler rejects the default value', 'It doubles on each render'],
+      correctAnswer: 1,
+      explanation: '@ObservedObject does not own the object. Each time the parent creates a new Counter struct the default initializer runs again, replacing the model. @StateObject keeps one instance for the lifetime of the view\'s identity.'
+    },
+    {
+      id: 'suiq12',
+      question: 'if isOn { Text("On") } else { Text("Off") } — what happens when isOn toggles?',
+      options: ['The same Text is updated in place', 'A compile error: both branches must be identical', 'The two Texts have different identities, so one is removed and the other inserted (with a transition)', 'Nothing renders until the next state change'],
+      correctAnswer: 2,
+      explanation: 'Each branch of an if has its own structural identity. Toggling swaps views rather than mutating one, so transitions apply and any @State inside is reset. Text(isOn ? "On" : "Off") would keep one identity.'
+    },
+    {
+      id: 'suiq13',
+      question: 'What happens when you change the value passed to .id() on a view?',
+      options: ['Only the accessibility identifier changes', 'The view is treated as a new view: its @State is reset and it is re-created', 'The view is cached under both ids', 'It becomes the first responder'],
+      correctAnswer: 1,
+      explanation: '.id() sets explicit identity. A different id means a different view to SwiftUI, which tears down the old one (including its state and animations) and creates a fresh one — a common trick to force a reset.'
+    },
+    {
+      id: 'suiq14',
+      question: 'struct Child: View { @State var text: String; init(text: String) { _text = State(initialValue: text) } }. The parent later passes a new string. What does Child show?',
+      options: ['The new string', 'An empty string', 'A crash', 'The original string — @State keeps the first value'],
+      correctAnswer: 3,
+      explanation: 'The initial value is only consulted when the view\'s identity is first created. Subsequent inits with different parameters do not overwrite existing state. Use @Binding or a plain property for parent-owned data.'
+    },
+    {
+      id: 'suiq15',
+      question: 'With an @Observable model passed into a child view, which wrapper lets the child create bindings to its properties?',
+      options: ['@Binding', '@ObservedObject', '@Bindable', '@StateObject'],
+      correctAnswer: 2,
+      explanation: '@Bindable is the Observation-framework counterpart to @ObservedObject\'s $ projection. @ObservedObject and @StateObject are for ObservableObject types; @Binding wraps a single value, not a model.'
+    },
+    {
+      id: 'suiq16',
+      question: 'A parent proposes 300x300 to Text("Hi"). What size does the Text take?',
+      options: ['Its ideal size — just big enough for "Hi"', '300x300, filling the proposal', 'Zero until a frame is applied', 'The screen size'],
+      correctAnswer: 0,
+      explanation: 'Children choose their own size. Text returns the size of its content regardless of the proposal (it only uses the proposal to decide wrapping). Shapes and Colors, by contrast, accept the whole proposal.'
+    },
+    {
+      id: 'suiq17',
+      question: 'What does .frame(maxWidth: .infinity) do?',
+      options: ['Gives the view infinite width', 'Makes the view horizontally scrollable', 'Lets the view accept all of the width its parent proposes', 'Ignores the safe area'],
+      correctAnswer: 2,
+      explanation: 'It wraps the view in a flexible frame whose width can grow up to the full proposed width, which is how you make a button or row fill horizontally. The actual width is still bounded by the parent\'s proposal.'
+    },
+    {
+      id: 'suiq18',
+      question: 'Three views observe the same ObservableObject via @ObservedObject; only one reads the @Published property that changes. How many bodies re-evaluate?',
+      options: ['Only the one that reads the property', 'None until the next user interaction', 'All three', 'Only the view that owns the object'],
+      correctAnswer: 2,
+      explanation: '@Published fires objectWillChange for the whole object, so every observing view is invalidated regardless of which properties it uses. The @Observable macro fixes this with per-property tracking.'
+    },
+    {
+      id: 'suiq19',
+      question: 'ForEach(items.indices, id: \\.self) { i in Row(items[i]) }. What breaks when the first item is deleted?',
+      options: ['Nothing — indices are always unique', 'Identities shift, so the wrong rows animate and per-row state attaches to the wrong item', 'The compiler requires Identifiable', 'The list stops scrolling'],
+      correctAnswer: 1,
+      explanation: 'After the delete, index 0 now refers to a different item, but SwiftUI thinks it is the same row. Use a stable id such as a UUID or a database key so identity follows the data.'
+    },
+    {
+      id: 'suiq20',
+      question: 'var body: some View { if flag { return Text("A") } else { return Image(systemName: "star") } } — what happens?',
+      options: ['Works, because both are Views', 'Runtime crash', 'The Image is silently ignored', 'Compile error — explicit returns of different types are not allowed with some View'],
+      correctAnswer: 3,
+      explanation: 'some View is a single concrete type. Without @ViewBuilder (which explicit `return` opts out of) the branches must return the same type. Drop the returns so the @ViewBuilder wraps them in a _ConditionalContent, or use AnyView.'
     }
   ]
 };
@@ -1888,14 +2119,21 @@ class ViewModel {
     { id: 'cc13', front: 'How do you run async code from synchronous context?', back: 'Create a Task { } block. The task runs asynchronously and inherits the current actor context.' },
     { id: 'cc14', front: 'What is Task.detached for?', back: 'Creates an unstructured task that doesn\'t inherit the current actor context. Runs independently.' },
     { id: 'cc15', front: 'Why should you never sync to main from main?', back: 'Causes deadlock. The main queue waits for sync work, but sync work needs the main queue (which is blocked).' },
-    { id: 'cc16', front: 'What is structured concurrency?', back: 'async/await with task lifetimes tied to scopes. Child tasks are awaited or cancelled when the parent scope exits — using async let or TaskGroup. No leaked work.' },
-    { id: 'cc17', front: 'What does @MainActor do?', back: 'Marks a type, property, or function as required to run on the main thread. The compiler inserts the hops for you and refuses to let off-main code touch it without an `await`.' },
-    { id: 'cc18', front: 'When would you use Task.detached?', back: 'When you specifically need a Task that *doesn\'t* inherit the current context (priority, actor, task-locals). Use sparingly — it escapes structured concurrency.' },
-    { id: 'cc19', front: 'What problem does an `actor` solve?', back: 'Mutual exclusion on shared state. Only one task at a time runs inside the actor\'s methods, so reads and writes can\'t race without you reaching for a lock.' },
-    { id: 'cc20', front: 'What is a Sendable type?', back: 'A type that\'s safe to pass between concurrency domains. Value types of Sendable fields are Sendable automatically. Reference types need to be either final + immutable or internally synchronised.' },
+    { id: 'cc16', front: 'What is actor reentrancy?', back: 'An actor\'s method can suspend at an await, and while it is suspended other calls may run on the same actor and change its state. Actors prevent data races, not logic races — re-validate any assumption after every await.' },
+    { id: 'cc17', front: 'What is a global actor and when would you define your own?', back: 'A singleton actor that can isolate declarations anywhere in the program: annotate a type, function, or property with @MyActor and all of it runs serialized on that actor. Define one with @globalActor plus a static shared instance — e.g. a @DatabaseActor so every type that touches the database shares one isolation domain. @MainActor is the built-in example.' },
+    { id: 'cc18', front: 'What does withTaskCancellationHandler do?', back: 'Runs an operation and, if the task is cancelled, invokes the handler immediately — even while the operation is suspended — instead of waiting for the next cancellation check. Use it to push cancellation into non-Swift-concurrency work such as a URLSessionTask or a stored continuation. The handler can run concurrently with the operation, so it must be thread-safe.' },
+    { id: 'cc19', front: 'What is an `isolated` parameter?', back: 'Marking a parameter `isolated` (e.g. func flush(_ db: isolated Database)) makes the function run inside that actor\'s isolation for the whole call. It can read and mutate the actor\'s state synchronously with no awaits — handy for helpers that need to perform several operations atomically without being declared on the actor itself.' },
+    { id: 'cc20', front: 'What does Task.yield() do?', back: 'Voluntarily suspends the current task so the executor can run other tasks, then resumes it. Use it inside long CPU-bound loops that never hit an await; otherwise the task hogs a cooperative-pool thread. It does not throw on cancellation — pair it with Task.checkCancellation() if the loop should stop.' },
     { id: 'cc21', front: 'How do you cancel a Task?', back: 'Call task.cancel(). The task itself must observe by checking Task.isCancelled or calling try Task.checkCancellation(). Cancellation is cooperative — the task decides how to bail.' },
-    { id: 'cc22', front: 'What does `async let` do?', back: 'Starts an async expression eagerly and lets you keep executing other code in parallel. You await its result later — perfect for fetching independent things at the same time.' },
-    { id: 'cc23', front: 'How does an actor differ from a serial queue?', back: 'A serial queue serialises *closure execution*. An actor serialises *access to its state* via the language. Actors integrate with structured concurrency; queues do not.' }
+    { id: 'cc22', front: 'What is a task-local value (@TaskLocal)?', back: 'A static property marked @TaskLocal that you bind for a scope with $value.withValue(x) { ... }. Every child task created inside that scope — async let, task groups, plain Task { } — inherits it, while Task.detached does not. Ideal for request ids, tracing context, or a test-injected clock without threading a parameter through every call.' },
+    { id: 'cc23', front: 'How does an actor differ from a serial queue?', back: 'A serial queue serialises *closure execution*. An actor serialises *access to its state* via the language. Actors integrate with structured concurrency; queues do not.' },
+    { id: 'cc24', front: 'When would you still use GCD instead of async/await?', back: 'Bridging legacy callback APIs, simple fire-and-forget hops to the main queue, and barrier-protected caches in older code. New code should prefer async/await for cancellation, structure, and compiler-checked isolation — and never mix them by blocking an async context with a semaphore or DispatchQueue.sync.' },
+    { id: 'cc25', front: 'What is the cooperative thread pool and why must you never block it?', back: 'Swift concurrency runs tasks on a small pool of threads (roughly one per core). Blocking one with a semaphore, sleep(), or a sync dispatch can starve every other task — including the one you are waiting for — and deadlock. Suspend with await instead.' },
+    { id: 'cc26', front: 'What is a continuation used for?', back: 'withCheckedContinuation / withCheckedThrowingContinuation wrap a callback-based API in async. You call continuation.resume(...) exactly once from the callback; the checked variants trap if you resume twice and log if you never resume.' },
+    { id: 'cc27', front: 'What is the difference between a data race and a race condition?', back: 'A data race is unsynchronized concurrent access to memory where at least one access is a write — undefined behavior, and a compile error under Swift 6 strict concurrency. A race condition is any timing-dependent bug, which can survive even in race-free code (see actor reentrancy).' },
+    { id: 'cc28', front: 'What does @Sendable on a closure mean?', back: 'The closure may be run from another concurrency domain, so it can only capture Sendable values and cannot capture mutable local variables by reference. Task initializers and detached tasks take @Sendable closures.' },
+    { id: 'cc29', front: 'What is AsyncStream for?', back: 'Turning a push-based source — delegate callbacks, NotificationCenter, a socket — into an AsyncSequence you can `for await` over. You get a continuation to yield values and finish, and cancellation flows through automatically.' },
+    { id: 'cc30', front: 'What actually happens at an `await`?', back: 'The function may suspend: its thread is released to run other work, and it resumes later — possibly on a different thread, and after other code has run. Anything you checked before the await may no longer be true afterwards.' }
   ],
 
   quizQuestions: [
@@ -1968,6 +2206,76 @@ class ViewModel {
       options: ['Task { }', 'Task.detached { }', 'async let', 'withTaskGroup'],
       correctAnswer: 1,
       explanation: 'Task.detached creates an unstructured task without inheriting the current actor context.'
+    },
+    {
+      id: 'ccq11',
+      question: 'actor Bank { var balance = 100; func withdraw(_ n: Int) async { if balance >= n { await audit(); balance -= n } } }. Two tasks call withdraw(80) concurrently. What can happen?',
+      options: ['Balance can end at -60 because state changes across the await', 'Balance is always 20 — actors serialize whole methods', 'Compile error: await inside an actor method', 'Deadlock between the two calls'],
+      correctAnswer: 0,
+      explanation: 'Actors are reentrant. Both calls pass the balance check, suspend at await audit(), and then each subtracts 80. Re-check invariants after every await, or avoid suspending between check and mutation.'
+    },
+    {
+      id: 'ccq12',
+      question: 'Inside an async function you call semaphore.wait() to block until a callback fires. What is the risk?',
+      options: ['The compiler inserts an implicit await', 'The semaphore is automatically released', 'Starving or deadlocking the cooperative thread pool', 'Nothing — semaphores are the recommended bridge'],
+      correctAnswer: 2,
+      explanation: 'Blocking a cooperative thread removes it from the pool. If the callback needs one of those threads to run, nothing can make progress. Bridge callbacks with withCheckedContinuation instead.'
+    },
+    {
+      id: 'ccq13',
+      question: 'A callback fires twice and your withCheckedContinuation code calls continuation.resume(returning:) both times. What happens?',
+      options: ['The second value overwrites the first', 'A runtime trap on the second resume', 'The second resume is silently ignored', 'The awaiting task receives an array of both values'],
+      correctAnswer: 1,
+      explanation: 'A continuation must be resumed exactly once. The checked variant detects a double resume and crashes deliberately; the unsafe variant would be undefined behavior. Guard the callback so it resumes only once.'
+    },
+    {
+      id: 'ccq14',
+      question: 'Under Swift 6 strict concurrency, you capture a non-Sendable class instance inside Task.detached { }. What happens?',
+      options: ['It works but with a runtime warning', 'The instance is copied', 'The Task runs on the main actor to stay safe', 'Compile error: the value is not Sendable'],
+      correctAnswer: 3,
+      explanation: 'Detached tasks take a @Sendable closure, so every capture must be Sendable. The compiler rejects the capture. Fix by making the type Sendable, moving it into an actor, or passing only the data you need.'
+    },
+    {
+      id: 'ccq15',
+      question: 'Which of these is a race condition but NOT a data race?',
+      options: ['Two threads incrementing a plain Int with no lock', 'Two actor methods interleaving at an await so a stale check is acted on', 'Reading a let constant from two threads', 'Two tasks appending to the same array without synchronization'],
+      correctAnswer: 1,
+      explanation: 'Actor isolation guarantees no simultaneous memory access, so there is no data race — but the logic can still be wrong because the state changed across a suspension point. Options 1 and 4 are data races; option 3 is safe.'
+    },
+    {
+      id: 'ccq16',
+      question: 'Inside a @MainActor-isolated method you write Task { updateUI() }. Where does the Task body run?',
+      options: ['On the main actor — Task inherits the caller\'s actor context', 'On a background thread of the cooperative pool', 'On a new dedicated thread', 'It is undefined'],
+      correctAnswer: 0,
+      explanation: 'Task { } inherits the current actor isolation, priority, and task-locals. Only Task.detached drops that context, which is why UI updates inside a plain Task from a view or view model are safe.'
+    },
+    {
+      id: 'ccq17',
+      question: 'func load() async -> A { async let a = fetchA(); async let b = fetchB(); return await a } — b is never awaited. What happens to it?',
+      options: ['It keeps running in the background after load() returns', 'Compile error: every async let must be awaited', 'It is cancelled and awaited implicitly when the scope exits', 'It is promoted to a detached task'],
+      correctAnswer: 2,
+      explanation: 'async let creates a child task bound to the scope. Structured concurrency guarantees the child does not outlive its parent, so on scope exit Swift cancels it and waits for it to finish.'
+    },
+    {
+      id: 'ccq18',
+      question: 'Three legacy completion-handler network calls must all finish before you refresh the UI. Which GCD tool fits?',
+      options: ['DispatchSemaphore on the main queue', 'DispatchGroup with enter/leave and notify', 'A serial DispatchQueue', 'DispatchQueue.main.asyncAfter'],
+      correctAnswer: 1,
+      explanation: 'enter() before each call, leave() in each completion, and group.notify(queue: .main) fires once all three have left. A semaphore would block, and a serial queue would only order the starts, not wait for completions.'
+    },
+    {
+      id: 'ccq19',
+      question: 'A long-running Task is cancelled with task.cancel() but its body never checks Task.isCancelled or calls checkCancellation. What happens?',
+      options: ['It is killed immediately', 'It throws CancellationError at the next await', 'It pauses until resumed', 'It keeps running to completion'],
+      correctAnswer: 3,
+      explanation: 'Cancellation is cooperative — it only sets a flag. Library calls like Task.sleep and URLSession do check it and throw, but your own loops must check explicitly or the work continues.'
+    },
+    {
+      id: 'ccq20',
+      question: 'Which statement is true about the code that runs after an await returns?',
+      options: ['It always runs on the same thread it suspended on', 'It runs on the main thread', 'It may run on a different thread, and other code may have run in between', 'It runs before any other task can execute'],
+      correctAnswer: 2,
+      explanation: 'A suspension releases the thread. Resumption is scheduled on whatever thread the executor chooses (unless actor-isolated), and any amount of other work can have happened. Never rely on thread identity or unchanged state across an await.'
     }
   ]
 };
@@ -2464,16 +2772,23 @@ class AuthCoordinator: Coordinator {
     { id: 'ar11', front: 'What is a DI Container?', back: 'A dependency injection container manages object creation and their dependencies. It resolves the full dependency graph automatically.' },
     { id: 'ar12', front: 'What is Property Injection?', back: 'Setting dependencies via properties after initialization. Less preferred than constructor injection as dependencies aren\'t explicit in the init.' },
     { id: 'ar13', front: 'What makes ViewModels testable?', back: 'No UIKit dependencies, pure logic, injectable dependencies. You can test input/output without a view.' },
-    { id: 'ar14', front: 'What is the benefit of the Coordinator pattern?', back: 'View controllers don\'t know about each other. They\'re reusable and navigation logic is centralized.' },
+    { id: 'ar14', front: 'What is a Composition Root?', back: 'The single place — the App struct, SceneDelegate, or an AppContainer — where the whole object graph is wired: concrete services are created, injected into view models and coordinators, and handed out. Everything below it receives dependencies rather than creating them, so swapping an implementation (or a whole test graph) happens in one file.' },
     { id: 'ar15', front: 'What is an Entity in Clean Architecture?', back: 'Core business objects with business rules. They\'re independent of frameworks and the outermost layers.' },
     { id: 'ar16', front: 'How does MVVM differ from MVC?', back: 'MVVM adds a ViewModel between the View and the Model. The View binds to observable properties on the ViewModel, so the View has no business logic and the ViewModel has no UI dependencies — easier to test.' },
     { id: 'ar17', front: 'What does VIPER add over MVVM?', back: 'Two extra roles: an Interactor (business logic and data) and a Router (navigation). Each screen has more files but each file has a sharper responsibility — common in large UIKit codebases.' },
     { id: 'ar18', front: 'What is dependency injection?', back: 'Passing collaborators in from outside instead of constructing them inside. Lets tests substitute fakes and decouples your type from the concrete implementations it talks to.' },
-    { id: 'ar19', front: 'What is the coordinator pattern for?', back: 'Pulling navigation logic out of view controllers. The VC says "user tapped buy"; the coordinator decides what screen comes next. Makes deep links and flows much easier to test.' },
+    { id: 'ar19', front: 'What is unidirectional data flow?', back: 'State flows down to views, and views send actions up to a store or reducer that produces the next state. There is one source of truth and one place where state changes, which makes features predictable, easy to log, and easy to test (Redux, TCA, and much of SwiftUI follow this).' },
     { id: 'ar20', front: 'When would you reach for The Composable Architecture (TCA)?', back: 'When you want a unidirectional store, reducer-style updates, and explicit effects in a feature you\'ll grow over time. The learning curve and boilerplate aren\'t worth it for a tiny screen.' },
-    { id: 'ar21', front: 'Why prefer protocol-based dependencies?', back: 'A class that takes `NetworkClient` (a protocol) can be tested with a fake. The same class that takes `URLSession` directly can only be tested with the real network or heavyweight URLProtocol stubs.' },
-    { id: 'ar22', front: 'What problem does the Repository pattern solve?', back: 'Hides where data comes from (network, cache, local DB) behind a single interface. The rest of the app doesn\'t know or care about the storage details.' },
-    { id: 'ar23', front: 'When is "no architecture" the right answer?', back: 'Prototypes, demos, and screens that will never grow. Patterns trade up-front complexity for testability and clear seams — not always worth the cost on a 50-line throwaway.' }
+    { id: 'ar21', front: 'How do you handle deep links cleanly?', back: 'Parse the URL or notification payload into a typed Route value in one parser, then hand it to the root coordinator or router, which knows how to build the screen stack for that route (switch tab, pop to root, push detail). Routes are plain data, so parsing and navigation decisions are unit-testable and the same routes can drive in-app navigation.' },
+    { id: 'ar22', front: 'How do you keep feature flags from spreading through a codebase?', back: 'Put them behind a protocol (e.g. FeatureFlags) injected like any other dependency, and branch on a flag at one boundary — the composition root or a single factory — rather than scattering `if flags.newCheckout` through views. Back it with remote config plus local overrides for QA, and delete the flag and the old path once the rollout completes.' },
+    { id: 'ar23', front: 'When is "no architecture" the right answer?', back: 'Prototypes, demos, and screens that will never grow. Patterns trade up-front complexity for testability and clear seams — not always worth the cost on a 50-line throwaway.' },
+    { id: 'ar24', front: 'Who keeps a Coordinator alive?', back: 'Nothing in UIKit holds it, so you must. The app or parent coordinator keeps a strong array of child coordinators; each child holds its parent weakly and is removed from the array when its flow finishes — otherwise coordinators leak or vanish mid-flow.' },
+    { id: 'ar25', front: 'What is wrong with reaching for Singleton.shared inside a class?', back: 'It hides a dependency: nothing in the type\'s interface says it needs the singleton, and tests can\'t substitute it. Keep the single lifetime if you like, but pass the instance in through the initializer behind a protocol.' },
+    { id: 'ar26', front: 'Why modularize an app into Swift packages or frameworks?', back: 'Enforced boundaries (a feature can\'t import what it doesn\'t declare), faster incremental builds, parallel team ownership, and testable seams. A common split is an interface module plus an implementation module so features depend on abstractions only.' },
+    { id: 'ar27', front: 'How does MVP differ from MVVM?', back: 'In MVP the Presenter holds a weak reference to the View (behind a protocol) and imperatively tells it what to display. In MVVM the ViewModel knows nothing about the view; it exposes observable state and the view binds to it.' },
+    { id: 'ar28', front: 'What does "single source of truth" mean in practice?', back: 'Every piece of state lives in exactly one place and everything else derives from it. Two screens that each cache a copy of the same user will drift; one store (or one @Observable model) shared by both never can.' },
+    { id: 'ar29', front: 'What belongs in a ViewModel versus a Use Case?', back: 'Use Case: business rules reusable across screens (can this order be cancelled?). ViewModel: presentation state for one screen — loading/error flags, formatted strings, which button is enabled. If a rule would be duplicated by a second screen, it is not presentation logic.' },
+    { id: 'ar30', front: 'Compare NotificationCenter, KVO, and Combine for observation.', back: 'NotificationCenter is global and stringly typed — easy but hard to trace. KVO needs NSObject subclasses and @objc dynamic properties. Combine (and the Observation framework) is typed and composable with explicit lifetimes via AnyCancellable. Prefer the narrowest tool that reaches the observer.' }
   ],
 
   quizQuestions: [
@@ -2546,6 +2861,76 @@ class AuthCoordinator: Coordinator {
       options: ['Faster execution', 'Less code', 'Improved testability', 'Automatic UI updates'],
       correctAnswer: 2,
       explanation: 'DI allows injecting mock dependencies in tests, making code testable without real services.'
+    },
+    {
+      id: 'arq11',
+      question: 'How should a parent coordinator and its child coordinators reference each other?',
+      options: ['Parent holds children strongly; child holds parent weakly', 'Parent holds children weakly; child holds parent strongly', 'Both hold each other strongly', 'Both hold each other weakly'],
+      correctAnswer: 0,
+      explanation: 'Someone must own the child or it deallocates immediately, so the parent keeps a strong array. The back-reference must be weak or you get a retain cycle and the whole flow leaks.'
+    },
+    {
+      id: 'arq12',
+      question: 'Your Domain package suddenly needs `import UIKit` to build. Which principle has been violated?',
+      options: ['Single Responsibility', 'Liskov Substitution', 'The Dependency Rule — inner layers must not depend on outer ones', 'Interface Segregation'],
+      correctAnswer: 2,
+      explanation: 'Business logic sits at the center and must be framework-agnostic. Needing UIKit means a UI concern leaked inward. Move the formatting or color choice out to the presentation layer.'
+    },
+    {
+      id: 'arq13',
+      question: 'A ViewModel imports UIKit to return a UIColor for a status. What is the practical downside?',
+      options: ['UIColor is not thread-safe', 'The ViewModel becomes harder to unit test and reuse in SwiftUI or on other platforms', 'Colors cannot be stored in properties', 'It forces the view to become an ObservableObject'],
+      correctAnswer: 1,
+      explanation: 'Coupling to a UI framework drags UIKit into your test target and ties the ViewModel to one rendering technology. Expose a semantic value (e.g. an enum) and let the view map it to a color.'
+    },
+    {
+      id: 'arq14',
+      question: 'In MVP, how does the Presenter refer to the View?',
+      options: ['It does not reference the view at all', 'Through a strong reference to the concrete UIViewController', 'Through the app delegate', 'Through a weak reference to a view protocol'],
+      correctAnswer: 3,
+      explanation: 'The presenter drives the view directly, so it needs a reference, but behind a protocol (for testing) and weak (the view controller owns the presenter). MVVM is the pattern where the view model has no view reference.'
+    },
+    {
+      id: 'arq15',
+      question: 'In a unidirectional data flow architecture, how does a view change application state?',
+      options: ['It sends an action to the store, which produces the new state', 'It mutates the state property directly', 'It calls a setter on the parent view', 'It posts a notification that other views observe'],
+      correctAnswer: 0,
+      explanation: 'State flows down, actions flow up. Only the reducer/store mutates state, which keeps every change predictable, loggable, and testable in isolation.'
+    },
+    {
+      id: 'arq16',
+      question: 'Two tabs show the same user profile and sometimes display different names after an edit. What is the root cause?',
+      options: ['Missing @MainActor', 'The view models are not using Combine', 'Multiple sources of truth — each tab caches its own copy', 'The coordinator is not shared'],
+      correctAnswer: 2,
+      explanation: 'When the same data is stored in two places, one of them will be stale. Give both screens the same store or observable model so an edit is visible everywhere at once.'
+    },
+    {
+      id: 'arq17',
+      question: 'Twenty view models call URLSession.shared directly. What is the smallest refactor that makes them unit-testable?',
+      options: ['Wrap each call in a Task', 'Inject a protocol (e.g. NetworkClient) that URLSession is adapted to and tests can fake', 'Move the calls into the AppDelegate', 'Switch to Combine publishers'],
+      correctAnswer: 1,
+      explanation: 'Depending on an abstraction lets tests substitute a fake that returns canned responses instantly. Tasks or Combine change the async style but leave the hard dependency on the real network.'
+    },
+    {
+      id: 'arq18',
+      question: 'Where should the code that turns a Date into "2 hours ago" for the UI live?',
+      options: ['In the Entity', 'In the Repository', 'In the Use Case', 'In the ViewModel or a presentation formatter'],
+      correctAnswer: 3,
+      explanation: 'Relative-time strings are presentation, not business rules. Keeping them in the ViewModel keeps entities and use cases free of locale and display concerns, and the formatting is still unit-testable.'
+    },
+    {
+      id: 'arq19',
+      question: 'What is the main drawback of the Service Locator pattern compared with constructor injection?',
+      options: ['Dependencies are hidden and missing registrations only fail at runtime', 'It cannot return protocol types', 'It requires third-party libraries', 'It only works with singletons'],
+      correctAnswer: 0,
+      explanation: 'With a locator, a type\'s real dependencies are invisible from its initializer and resolution errors surface as crashes at runtime. Constructor injection makes them explicit and compile-checked.'
+    },
+    {
+      id: 'arq20',
+      question: 'Which architecture introduces an Interactor and a Router as distinct roles?',
+      options: ['MVVM', 'MVC', 'VIPER', 'TCA'],
+      correctAnswer: 2,
+      explanation: 'VIPER splits a screen into View, Interactor (business logic), Presenter, Entity, and Router (navigation). MVVM has none of these extra roles, and TCA uses reducers and stores instead.'
     }
   ]
 };
@@ -3006,13 +3391,20 @@ class APIClient: APIClientProtocol {
     { id: 'dn14', front: 'How do you save data securely in Keychain?', back: 'Use Security framework with SecItemAdd/SecItemCopyMatching. Store as kSecClassGenericPassword with account key.' },
     { id: 'dn15', front: 'What is an NSPredicate in Core Data?', back: 'A filter for fetch requests. Example: NSPredicate(format: "age > %d AND name CONTAINS %@", 18, "John")' },
     { id: 'dn16', front: 'What is URLProtocol used for?', back: 'Custom request handling — stubbing in tests, transparent caching, custom URL schemes. Register a subclass with a URLSessionConfiguration and you intercept matching requests.' },
-    { id: 'dn17', front: 'How does Codable handle snake_case JSON?', back: 'Set JSONDecoder().keyDecodingStrategy = .convertFromSnakeCase. For mixed cases or renames, define an explicit CodingKeys enum on the struct.' },
-    { id: 'dn18', front: 'When would you use downloadTask over dataTask?', back: 'For large responses you don\'t want to hold in memory. downloadTask streams to a temporary file on disk; dataTask buffers the whole body in memory.' },
-    { id: 'dn19', front: 'What is an NSManagedObjectContext?', back: 'A scratchpad where you fetch, insert, edit, and delete Core Data objects. Changes only hit the persistent store when you call save() on it.' },
+    { id: 'dn17', front: 'What is NSFetchedResultsController?', back: 'A controller that runs a fetch request, keeps the results in sync as the context changes, and reports inserts, deletes, moves, and updates to a delegate so a table or collection view can animate them. It supports sections and a cache, and controller(_:didChangeContentWith:) hands you a diffable snapshot directly.' },
+    { id: 'dn18', front: 'How does a background URLSession deliver a download if your app was terminated?', back: 'The system finishes the transfer out of process, relaunches your app in the background, and calls application(_:handleEventsForBackgroundURLSession:completionHandler:). You recreate the session with the same identifier so its delegate callbacks fire, then call the stored completion handler from urlSessionDidFinishEvents(forBackgroundURLSession:).' },
+    { id: 'dn19', front: 'What are Core Data batch requests and what is their catch?', back: 'NSBatchInsertRequest, NSBatchUpdateRequest, and NSBatchDeleteRequest run directly against the persistent store, skipping managed objects entirely, so big imports and mass updates are fast and use little memory. The catch: no context sees the changes — merge them with NSManagedObjectContext.mergeChanges(fromRemoteContextSave:into:) or enable persistent history tracking.' },
     { id: 'dn20', front: 'When might you skip Core Data?', back: 'When migrations, threading rules, or the API\'s ceremony slow you down. Realm or SwiftData are simpler for many cases; raw SQLite gives full SQL control if you need it.' },
     { id: 'dn21', front: 'How does URLSession honour cache headers?', back: 'URLCache reads Cache-Control / ETag / Last-Modified automatically. Tune behaviour by configuring URLSessionConfiguration.urlCache and the request\'s cachePolicy.' },
     { id: 'dn22', front: 'How do you handle a 401 globally?', back: 'Wrap URLSession in a client (or use a URLSessionDelegate) that intercepts responses. On 401, refresh the token and retry the original request once before bubbling the error up.' },
-    { id: 'dn23', front: 'What is App Transport Security?', back: 'iOS forbids plaintext HTTP and weak TLS by default. Exceptions require explicit entries under NSAppTransportSecurity in Info.plist — App Review pushes back on broad exemptions.' }
+    { id: 'dn23', front: 'What is App Transport Security?', back: 'iOS forbids plaintext HTTP and weak TLS by default. Exceptions require explicit entries under NSAppTransportSecurity in Info.plist — App Review pushes back on broad exemptions.' },
+    { id: 'dn24', front: 'How do you decode polymorphic JSON such as {"type": "image", ...} / {"type": "text", ...}?', back: 'Model it as an enum with associated values and write a custom init(from:): decode the "type" discriminator first, then decode the matching payload into the right case. Codable cannot synthesize this for you.' },
+    { id: 'dn25', front: 'What is the gotcha with decoding Date via Codable?', back: 'The default dateDecodingStrategy expects a Double (seconds since 2001), so ISO strings fail. Set .iso8601, .secondsSince1970, or .formatted(formatter). The built-in .iso8601 strategy does not accept fractional seconds — use a custom formatter for those.' },
+    { id: 'dn26', front: 'How do you decode an array where one element may be malformed without failing the whole response?', back: 'Wrap elements in a `FailableDecodable<T>` whose init(from:) does `try? T(from: decoder)`, decode `[FailableDecodable<T>]`, then compactMap the values. Codable\'s default is all-or-nothing.' },
+    { id: 'dn27', front: 'How do viewContext and a background context work together in Core Data?', back: 'viewContext is main-queue-bound and feeds the UI; newBackgroundContext() does imports and heavy writes. Set viewContext.automaticallyMergesChangesFromParent = true so background saves flow in, and pick a mergePolicy to resolve conflicts.' },
+    { id: 'dn28', front: 'What does kSecAttrAccessible control on a Keychain item?', back: 'When the item can be read: .whenUnlocked (default), .afterFirstUnlock (needed for background work), and the ThisDeviceOnly variants that block backup/iCloud migration. Choose the most restrictive class that still works for your use case.' },
+    { id: 'dn29', front: 'What is a Core Data lightweight migration?', back: 'Automatic migration between model versions for simple changes — adding optional attributes, renaming with a renaming identifier, changing optionality. Enabled by default on NSPersistentContainer. Anything structural needs a mapping model or a manual migration.' },
+    { id: 'dn30', front: 'What is a fault in Core Data?', back: 'A placeholder NSManagedObject whose attributes are not loaded yet. Accessing a property "fires" the fault and hits the store. Fetching a list and touching a relationship in each row causes N+1 fetches — fix with relationshipKeyPathsForPrefetching or returnsObjectsAsFaults = false.' }
   ],
 
   quizQuestions: [
@@ -3085,6 +3477,76 @@ class APIClient: APIClientProtocol {
       options: ['Error is thrown', 'Property is set to nil', 'Default value used', 'Crash'],
       correctAnswer: 1,
       explanation: 'Optional properties become nil if the key is missing. Non-optional properties throw an error.'
+    },
+    {
+      id: 'dnq11',
+      question: 'The API returns "price": "12.5" but your Codable struct declares `let price: Double`. What happens on decode?',
+      options: ['price becomes 12.5', 'DecodingError.typeMismatch is thrown', 'price becomes nil', 'price becomes 0'],
+      correctAnswer: 1,
+      explanation: 'Codable does not coerce types. A JSON string into a Double fails the entire decode. Decode it as String and convert, or write a custom init(from:).'
+    },
+    {
+      id: 'dnq12',
+      question: 'You decode {"createdAt": "2024-01-01T10:00:00Z"} into `let createdAt: Date` with a plain JSONDecoder(). What happens?',
+      options: ['It decodes correctly', 'It decodes as midnight 1970', 'It decodes as a String', 'It fails — the default strategy expects a Double timestamp'],
+      correctAnswer: 3,
+      explanation: 'The default dateDecodingStrategy is .deferredToDate, which reads a Double of seconds since the reference date. Set decoder.dateDecodingStrategy = .iso8601 for this format.'
+    },
+    {
+      id: 'dnq13',
+      question: 'You save new objects on a background context, but the UI list backed by viewContext does not update. What is the usual fix?',
+      options: ['Set viewContext.automaticallyMergesChangesFromParent = true', 'Call viewContext.reset()', 'Save on viewContext instead, from the background thread', 'Increase the fetch limit'],
+      correctAnswer: 0,
+      explanation: 'Contexts do not see each other\'s changes by default. Merging saves from the coordinator into viewContext (automatically or via the didSave notification) is what refreshes fetched results.'
+    },
+    {
+      id: 'dnq14',
+      question: 'You fetch an NSManagedObject on a background context and later read its properties on the main thread. What is the outcome?',
+      options: ['It works because the object is immutable', 'Core Data copies the object to the main context', 'Undefined behavior — possible crashes or corrupt data', 'A compile error'],
+      correctAnswer: 2,
+      explanation: 'Managed objects are bound to their context\'s queue. Cross-thread use is a classic intermittent crash. Pass the objectID and re-fetch on viewContext, or turn on -com.apple.CoreData.ConcurrencyDebug to catch it.'
+    },
+    {
+      id: 'dnq15',
+      question: 'A background refresh needs a Keychain token while the device is locked. Which accessibility class should the token use?',
+      options: ['kSecAttrAccessibleWhenUnlocked', 'kSecAttrAccessibleAfterFirstUnlock', 'kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly', 'kSecAttrAccessibleWhenUnlockedThisDeviceOnly'],
+      correctAnswer: 1,
+      explanation: 'The WhenUnlocked classes make the item unreadable while the device is locked, so background reads fail. AfterFirstUnlock is readable after the first unlock since boot, which is what background work needs.'
+    },
+    {
+      id: 'dnq16',
+      question: 'A Task is cancelled while it is suspended on `try await URLSession.shared.data(for: request)`. What happens?',
+      options: ['The request completes and the data is discarded', 'The request continues but the task is marked cancelled', 'Nothing until the timeout fires', 'The underlying request is cancelled and the call throws URLError.cancelled'],
+      correctAnswer: 3,
+      explanation: 'URLSession\'s async APIs are cancellation-aware. Cancelling the task cancels the network request immediately and the await throws, which is why .task-driven fetches in SwiftUI clean up on disappear.'
+    },
+    {
+      id: 'dnq17',
+      question: 'You add a new optional attribute to a Core Data entity and ship the update. What kind of migration is needed?',
+      options: ['A manual migration with NSMigrationManager', 'A custom mapping model', 'A lightweight migration, which NSPersistentContainer performs automatically', 'No migration is possible — the store must be deleted'],
+      correctAnswer: 2,
+      explanation: 'Adding an optional attribute is a lightweight-migratable change. Creating a new model version (rather than editing the old one in place) is the only thing you must remember.'
+    },
+    {
+      id: 'dnq18',
+      question: 'Which JSONEncoder setting writes `createdAt` as "created_at" without a CodingKeys enum?',
+      options: ['keyEncodingStrategy = .convertToSnakeCase', 'keyDecodingStrategy = .convertFromSnakeCase', 'outputFormatting = .snakeCase', 'dataEncodingStrategy = .snakeCase'],
+      correctAnswer: 0,
+      explanation: 'Encoding and decoding have separate strategies. .convertFromSnakeCase is the decoder side; .convertToSnakeCase is its encoder counterpart. outputFormatting only affects pretty printing and key ordering.'
+    },
+    {
+      id: 'dnq19',
+      question: 'Scrolling a list of 500 Core Data rows is slow; profiling shows one SQL query per row when reading `item.category.name`. What is happening?',
+      options: ['The predicate is too complex', 'Each relationship is a fault that fires on access, causing N+1 fetches', 'The view context is on the wrong thread', 'NSFetchedResultsController is missing a cache name'],
+      correctAnswer: 1,
+      explanation: 'Relationships are returned as faults. Touching one per row triggers a fetch per row. Prefetch with fetchRequest.relationshipKeyPathsForPrefetching = ["category"].'
+    },
+    {
+      id: 'dnq20',
+      question: 'Which URLSessionConfiguration keeps cookies, cache, and credentials in memory only?',
+      options: ['.default', '.background(withIdentifier:)', 'URLSession.shared', '.ephemeral'],
+      correctAnswer: 3,
+      explanation: '.ephemeral writes nothing to disk, similar to private browsing — useful for privacy-sensitive or test sessions. .default and .shared persist cache and cookies; .background is for transfers that outlive the app.'
     }
   ]
 };
@@ -3579,14 +4041,21 @@ class CheckoutViewModelTests: XCTestCase {
     { id: 'lt13', front: 'What does waitForExistence(timeout:) do?', back: 'Waits up to timeout seconds for an element to exist. Returns true if found, false if timeout. Use for async UI updates.' },
     { id: 'lt14', front: 'What is the Arrange-Act-Assert pattern?', back: 'Test structure: Arrange (setup), Act (execute), Assert (verify). Makes tests clear and readable.' },
     { id: 'lt15', front: 'How do you mock a protocol dependency?', back: 'Create a class conforming to the protocol that records calls and returns preset values. Inject it instead of the real implementation.' },
-    { id: 'lt16', front: 'What does SceneDelegate handle that AppDelegate doesn\'t?', back: 'Scene-level lifecycle for multi-window: foreground, background, disconnect of an individual scene. AppDelegate still owns process-level events like launch, push registration, and URL opens.' },
+    { id: 'lt16', front: 'How do you put the app into a known state for a UI test?', back: 'Set launchArguments or launchEnvironment on XCUIApplication before launch() — e.g. ["-uiTesting", "-mockNetwork"] — and have the app read ProcessInfo.processInfo.arguments at startup to reset UserDefaults, skip onboarding, or swap in stub services. The UI test runs in a separate process, so this is the only channel; you can\'t inject objects directly.' },
     { id: 'lt17', front: 'When does applicationDidBecomeActive fire?', back: 'Every time the app moves from inactive to active in the foreground — first launch, returning from background, dismissing a system prompt (Face ID, alert), or coming back from a phone call.' },
-    { id: 'lt18', front: 'How do you run periodic background work?', back: 'Register a BGAppRefreshTask identifier in Info.plist, schedule with BGTaskScheduler, and handle the task by submitting a new request before completion. The system grants short, opportunistic windows.' },
+    { id: 'lt18', front: 'What is an Xcode test plan?', back: 'An .xctestplan file that lists which test targets run and under which configurations — environment variables, launch arguments, language and region, sanitizers, code coverage, repetitions. One plan can run the same tests under several configurations (English and Arabic, or with Thread Sanitizer on), and schemes and CI pick a plan to execute.' },
     { id: 'lt19', front: 'How does Swift Testing differ from XCTest?', back: 'Swift Testing uses #expect macros, struct-based suites, trait-driven configuration, and parallel execution by default. XCTest is still required for UI tests and remains supported.' },
     { id: 'lt20', front: 'What is Xcode\'s UI test recording good for?', back: 'A first-draft sketch. Xcode generates XCUIElement queries while you tap through the app. The recording usually needs hand-edits — use accessibility identifiers and trim brittle parts.' },
     { id: 'lt21', front: 'How do you mock URLSession in unit tests?', back: 'Register a URLProtocol stub on a custom URLSessionConfiguration, then pass that into a test URLSession. Your stub returns canned responses without touching the network.' },
     { id: 'lt22', front: 'What does measure { } do in XCTest?', back: 'Runs the block several times, records timing, and compares against the saved baseline. The test fails if performance regresses beyond an allowed deviation.' },
-    { id: 'lt23', front: 'How do you stabilise a flaky UI test?', back: 'Wait on expectations (waitForExpectations, expectation(for:evaluatedWith:handler:)) instead of fixed sleeps. Disable animations in setup. Address views by accessibilityIdentifier, not visible text.' }
+    { id: 'lt23', front: 'How do you stabilise a flaky UI test?', back: 'Wait on expectations (waitForExpectations, expectation(for:evaluatedWith:handler:)) instead of fixed sleeps. Disable animations in setup. Address views by accessibilityIdentifier, not visible text.' },
+    { id: 'lt24', front: 'What is the difference between the Inactive and Background states?', back: 'Inactive: the app is in the foreground but not receiving events — a system alert, Control Center, or a transition is on top. Background: the app is not visible and has a short window to finish work before suspension.' },
+    { id: 'lt25', front: 'What are background modes and how do you declare them?', back: 'Capabilities under UIBackgroundModes in Info.plist — audio, location, voip, fetch, processing, remote-notification, bluetooth-central, and others — that let specific work continue after the app leaves the foreground. Each needs the matching framework usage; App Review rejects modes that aren\'t genuinely used.' },
+    { id: 'lt26', front: 'How should an app respond to a memory warning?', back: 'Release anything rebuildable — image caches, prefetched data, offscreen view hierarchies — in didReceiveMemoryWarning or the UIApplication.didReceiveMemoryWarningNotification. If usage keeps growing the system\'s jetsam mechanism terminates the app without a normal crash report.' },
+    { id: 'lt27', front: 'What does the Memory Graph Debugger show?', back: 'A snapshot of every live object and the references between them. Filter to leaked objects (marked with a purple !), select one, and follow the arrows to see who is holding it — the fastest way to find a retain cycle.' },
+    { id: 'lt28', front: 'Which Instruments template do you reach for, and when?', back: 'Time Profiler for CPU hotspots and slow scrolling; Allocations and Leaks for memory growth and leaks; Animation Hitches / Core Animation for dropped frames; Network for request timing. Always profile a Release build on a real device.' },
+    { id: 'lt29', front: 'How do you test a method that fires off an unstructured Task { } internally?', back: 'Make the async work awaitable: return the Task, expose an async version, or inject a scheduler. Otherwise assert with an XCTestExpectation fulfilled from the completion path. Sleeping in the test is a flaky non-answer.' },
+    { id: 'lt30', front: 'How do you write a unit test that catches a memory leak?', back: 'Hold the system under test with a `weak var` alongside the strong reference in the test, then use addTeardownBlock { XCTAssertNil(weakSut) }. If a retain cycle keeps the object alive after the test releases it, the assertion fails.' }
   ],
 
   quizQuestions: [
@@ -3659,6 +4128,76 @@ class CheckoutViewModelTests: XCTestCase {
       options: ['UI layout', 'Dependency injection', 'Test structure', 'Error handling'],
       correctAnswer: 2,
       explanation: 'AAA organizes tests: Arrange (setup), Act (execute), Assert (verify). Makes tests clear and maintainable.'
+    },
+    {
+      id: 'ltq11',
+      question: 'The user pulls down Control Center over your app. Which state is your app in?',
+      options: ['Background', 'Suspended', 'Inactive', 'Not Running'],
+      correctAnswer: 2,
+      explanation: 'The app is still in the foreground but has stopped receiving touch events, which is exactly the Inactive state. applicationWillResignActive fires; didEnterBackground does not.'
+    },
+    {
+      id: 'ltq12',
+      question: 'A suspended app in the background is using too much memory and the system needs it. What happens?',
+      options: ['The system terminates it (jetsam) and the next launch is a cold start', 'didReceiveMemoryWarning is called while suspended', 'The app is moved to Inactive', 'applicationWillTerminate is called first'],
+      correctAnswer: 0,
+      explanation: 'Suspended apps run no code, so they get no warning and no willTerminate callback. That is why state must be saved in didEnterBackground, before suspension.'
+    },
+    {
+      id: 'ltq13',
+      question: 'Which Instruments template directly shows dropped frames while scrolling?',
+      options: ['Leaks', 'Animation Hitches', 'Network', 'Energy Log'],
+      correctAnswer: 1,
+      explanation: 'Animation Hitches (and the older Core Animation template) measure frames that missed their deadline and attribute them to commit or render phases. Time Profiler helps find the CPU cause afterwards.'
+    },
+    {
+      id: 'ltq14',
+      question: 'In the Memory Graph Debugger, what does a purple exclamation badge next to an object mean?',
+      options: ['The object is on the main thread', 'The object is a Swift struct', 'The object was created by a system framework', 'Xcode believes the object is leaked'],
+      correctAnswer: 3,
+      explanation: 'The runtime leak checker flags objects that are unreachable from any root yet still allocated. Inspect the object\'s references to find the cycle that keeps it alive.'
+    },
+    {
+      id: 'ltq15',
+      question: 'viewModel.load() spawns a Task internally. The test calls load() then immediately asserts items.count == 3 and fails only sometimes. Why?',
+      options: ['XCTAssertEqual is not thread-safe', 'The Task has not finished yet — the test needs to await the work or use an expectation', 'load() must be marked @MainActor', 'The mock returned the wrong data'],
+      correctAnswer: 1,
+      explanation: 'Unstructured tasks run independently of the caller, so the assertion races the network mock. Make the work awaitable or fulfil an expectation when it completes; never add a sleep.'
+    },
+    {
+      id: 'ltq16',
+      question: 'When does XCTestCase.tearDown() run?',
+      options: ['Once after the whole test class', 'Only when a test fails', 'After each individual test method', 'Before each test method'],
+      correctAnswer: 2,
+      explanation: 'tearDown pairs with setUp and runs after every test, so shared state and the system under test are reset between tests. The class-level equivalent is the class func tearDown.'
+    },
+    {
+      id: 'ltq17',
+      question: 'In a unit test (not UI test) you need to wait until a property becomes true without polling manually. Which XCTest tool fits?',
+      options: ['expectation(for: NSPredicate, evaluatedWith:) plus wait(for:timeout:)', 'XCTAssertTrue in a while loop', 'Thread.sleep(forTimeInterval:)', 'XCUIElement.waitForExistence'],
+      correctAnswer: 0,
+      explanation: 'A predicate expectation polls the condition for you and fails cleanly on timeout. Sleeping is slow and flaky, and waitForExistence is for UI-test elements, not model state.'
+    },
+    {
+      id: 'ltq18',
+      question: 'Your podcast app stops playing when the user locks the phone. What is required to keep audio running?',
+      options: ['Request a BGProcessingTask', 'Call beginBackgroundTask before play()', 'Use a background URLSession', 'Add the audio background mode and configure an AVAudioSession playback category'],
+      correctAnswer: 3,
+      explanation: 'Continuous audio needs the audio entry in UIBackgroundModes and an active AVAudioSession with the .playback category. beginBackgroundTask only buys about 30 seconds.'
+    },
+    {
+      id: 'ltq19',
+      question: 'When is applicationWillTerminate(_:) actually called?',
+      options: ['Every time the user swipes the app away', 'Only when the app is terminated while still running, not when a suspended app is killed', 'Whenever the app enters the background', 'On every low-memory event'],
+      correctAnswer: 1,
+      explanation: 'Suspended apps execute no code, so the system kills them silently. willTerminate fires only in cases like a foreground app being killed or an app with background execution being terminated — do not rely on it to save data.'
+    },
+    {
+      id: 'ltq20',
+      question: 'A test creates `var sut: ViewModel? = ViewModel()`, keeps `weak var weakSut = sut`, sets sut = nil, and then asserts XCTAssertNil(weakSut). What is being verified?',
+      options: ['That ViewModel is thread-safe', 'That ViewModel conforms to Equatable', 'That the ViewModel deallocates when released, i.e. it has no retain cycle', 'That the ViewModel was initialized on the main thread'],
+      correctAnswer: 2,
+      explanation: 'If a retain cycle (for example a closure capturing self strongly) keeps the object alive, the weak reference stays non-nil and the test fails. This is a cheap guard against leaks in view models and coordinators.'
     }
   ]
 };

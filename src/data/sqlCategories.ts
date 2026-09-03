@@ -225,6 +225,48 @@ VALUES ('SKU-1', 5)
 ON CONFLICT (sku) DO UPDATE
 SET qty = inventory.qty + EXCLUDED.qty;`,
     },
+    {
+      id: 'sql-fund-6',
+      title: 'Constraints and Data Integrity',
+      content: `Constraints are rules the database enforces on every write so bad data never lands. They are the "C" in ACID — a statement that would violate one is rejected outright.
+
+**The five you must know:**
+- **PRIMARY KEY** — unique + NOT NULL, one per table. Identifies a row.
+- **FOREIGN KEY** — the value must exist in the referenced table. Choose what happens on parent delete: \`ON DELETE CASCADE\` (delete children), \`SET NULL\`, or \`RESTRICT\` (refuse — the default).
+- **UNIQUE** — no two rows share the value. Unlike a primary key, it allows NULLs, and in Postgres several NULLs coexist because NULL <> NULL.
+- **CHECK** — an arbitrary boolean per row. A CHECK that evaluates to UNKNOWN (because of NULL) **passes** — it only rejects FALSE.
+- **NOT NULL** — the value is required. Combine with \`DEFAULT\` for safe backfills.
+
+**Why constraints beat app-level validation:** every writer — the app, a migration script, an analyst in psql — goes through the same gate. Race conditions that slip past "check then insert" in code are caught by UNIQUE atomically.
+
+**Naming:** always name constraints (\`CONSTRAINT orders_total_positive CHECK (...)\`). Error messages and \`ALTER TABLE ... DROP CONSTRAINT\` become far easier.`,
+      codeExample: `CREATE TABLE orders (
+  id          BIGSERIAL PRIMARY KEY,
+  user_id     BIGINT NOT NULL
+              REFERENCES users (id) ON DELETE CASCADE,
+  status      TEXT   NOT NULL DEFAULT 'pending',
+  total       NUMERIC(12, 2),
+  coupon_code TEXT,
+
+  CONSTRAINT orders_total_positive
+    CHECK (total > 0),                     -- NULL total still passes
+  CONSTRAINT orders_status_valid
+    CHECK (status IN ('pending', 'paid', 'shipped', 'cancelled')),
+  CONSTRAINT orders_user_coupon_once
+    UNIQUE (user_id, coupon_code)          -- many NULL coupons allowed
+);
+
+-- Add a constraint later; validate existing rows in the same step
+ALTER TABLE orders
+  ADD CONSTRAINT orders_total_max CHECK (total <= 1000000);
+
+-- Deleting a user now removes their orders (CASCADE)
+DELETE FROM users WHERE id = 42;
+
+-- UNIQUE catches the race two app servers would miss
+INSERT INTO users (email) VALUES ('a@x.com');
+INSERT INTO users (email) VALUES ('a@x.com');  -- ERROR: duplicate key`,
+    },
   ],
 
   visualizations: [
@@ -283,6 +325,18 @@ SET qty = inventory.qty + EXCLUDED.qty;`,
     { id: 'sf16', front: 'Is BETWEEN inclusive or exclusive?', back: 'Inclusive on both bounds. BETWEEN 1 AND 10 includes both 1 and 10. The two arguments must be in ascending order — BETWEEN 10 AND 1 returns nothing.' },
     { id: 'sf17', front: 'How does AND vs OR precedence work?', back: 'AND binds tighter than OR. `a OR b AND c` parses as `a OR (b AND c)`. Use parentheses to make intent explicit.' },
     { id: 'sf18', front: 'What does LIMIT 20 OFFSET 40 do?', back: 'Skip the first 40 rows, return the next 20. Standard pagination — equivalent to page 3 at 20 per page. Performance degrades on deep offsets; prefer keyset pagination for large lists.' },
+    { id: 'sf19', front: 'Does `WHERE status <> \'paid\'` return rows whose status is NULL?', back: 'No. NULL <> \'paid\' is UNKNOWN, and NOT UNKNOWN is still UNKNOWN, so both `= \'paid\'` and `<> \'paid\'` drop NULL rows. Add `OR status IS NULL` if you want them.' },
+    { id: 'sf20', front: 'What does IS DISTINCT FROM do?', back: 'A NULL-safe inequality: `a IS DISTINCT FROM b` is TRUE or FALSE, never UNKNOWN. Two NULLs are "not distinct". Use it (or IS NOT DISTINCT FROM) when comparing nullable columns.' },
+    { id: 'sf21', front: 'UNION vs UNION ALL?', back: 'UNION removes duplicate rows (an extra sort/hash step). UNION ALL keeps everything and is faster. Reach for UNION ALL unless you specifically need de-duplication.' },
+    { id: 'sf22', front: 'What do INTERSECT and EXCEPT do?', back: 'Set operators over two SELECTs with matching column lists. INTERSECT keeps rows present in both; EXCEPT keeps rows in the first but not the second. Both de-duplicate and treat NULLs as equal.' },
+    { id: 'sf23', front: 'Why must a paginated ORDER BY include a unique tiebreaker?', back: 'If many rows share the sort value, their relative order is undefined and can change between queries — rows get skipped or repeated across pages. ORDER BY created_at, id makes the order stable.' },
+    { id: 'sf24', front: 'How does DISTINCT treat NULL values?', back: 'All NULLs in the column collapse into a single NULL row — DISTINCT (like GROUP BY) treats NULLs as equal to each other, even though NULL = NULL is UNKNOWN in WHERE.' },
+    { id: 'sf25', front: 'DATE_TRUNC vs EXTRACT — when do you use each?', back: 'DATE_TRUNC(\'month\', ts) rounds a timestamp down to the unit, ideal for grouping by month. EXTRACT(dow FROM ts) pulls one numeric field out — ideal for filtering by weekday or hour.' },
+    { id: 'sf26', front: 'What does `first_name || \' \' || last_name` return when last_name is NULL?', back: 'NULL — the || operator propagates NULL like arithmetic does. CONCAT(first_name, \' \', last_name) treats NULL as an empty string, or wrap with COALESCE.' },
+    { id: 'sf27', front: 'Why does `CASE col WHEN NULL THEN \'missing\' END` never fire?', back: 'A simple CASE compares with =, and col = NULL is UNKNOWN. Use the searched form: CASE WHEN col IS NULL THEN \'missing\' ... END.' },
+    { id: 'sf28', front: 'Without ORDER BY, is the row order guaranteed?', back: 'No. The order is whatever the plan happened to produce — it can change after an index is added, a VACUUM runs, or a parallel plan kicks in. Always ORDER BY when order matters.' },
+    { id: 'sf29', front: 'What does `SELECT 7 / 2` return in Postgres?', back: '3. Integer divided by integer performs integer division and truncates. Write 7 / 2.0 or 7::numeric / 2 to get 3.5.' },
+    { id: 'sf30', front: 'PRIMARY KEY vs UNIQUE constraint?', back: 'Both enforce uniqueness via an index. A PRIMARY KEY also implies NOT NULL and there is only one per table. UNIQUE allows NULLs (multiple NULLs in Postgres) and a table can have many.' },
   ],
 
   quizQuestions: [
@@ -355,6 +409,76 @@ SET qty = inventory.qty + EXCLUDED.qty;`,
       options: ['DELETE FROM t', 'DROP TABLE t', 'TRUNCATE TABLE t', 'UPDATE t SET deleted = TRUE'],
       correctAnswer: 2,
       explanation: 'TRUNCATE is essentially a metadata operation — far faster than DELETE on large tables, but it skips triggers and may bypass cascading FK behavior.',
+    },
+    {
+      id: 'sfq11',
+      question: 'The `status` column has NULLs. What does `WHERE status <> \'paid\'` do with those rows?',
+      options: ['Includes them, since NULL is not \'paid\'', 'Raises an error', 'Excludes them — the comparison is UNKNOWN', 'Includes them only with NOT IN'],
+      correctAnswer: 2,
+      explanation: 'NULL <> \'paid\' evaluates to UNKNOWN, which WHERE treats as not-true. Neither = nor <> ever matches a NULL; add OR status IS NULL explicitly.',
+    },
+    {
+      id: 'sfq12',
+      question: 'Why is UNION ALL usually faster than UNION?',
+      options: ['It uses indexes', 'It skips the duplicate-removal step', 'It runs both queries in parallel', 'It returns fewer rows'],
+      correctAnswer: 1,
+      explanation: 'UNION must sort or hash the combined result to remove duplicates. UNION ALL simply appends the second result to the first.',
+    },
+    {
+      id: 'sfq13',
+      question: 'What does `SELECT \'Hello \' || NULL` return?',
+      options: ['\'Hello \'', 'NULL', 'An error', '\'Hello NULL\''],
+      correctAnswer: 1,
+      explanation: 'The || operator propagates NULL — any NULL operand makes the whole result NULL. CONCAT() is the function that treats NULL as an empty string.',
+    },
+    {
+      id: 'sfq14',
+      question: 'You paginate with `ORDER BY created_at LIMIT 20 OFFSET 20`. Thousands of rows share the same created_at. What can go wrong?',
+      options: ['Rows may be skipped or repeated across pages', 'The query errors on ties', 'OFFSET is ignored', 'Nothing — ORDER BY is deterministic'],
+      correctAnswer: 0,
+      explanation: 'Order among ties is undefined and can differ between executions. Add a unique tiebreaker: ORDER BY created_at, id.',
+    },
+    {
+      id: 'sfq15',
+      question: 'Which expression groups orders into calendar months for a monthly revenue report?',
+      options: ['EXTRACT(month FROM placed_at)', 'placed_at::date', 'DATE_TRUNC(\'month\', placed_at)', 'TO_CHAR(placed_at, \'MM\')'],
+      correctAnswer: 2,
+      explanation: 'DATE_TRUNC keeps the year and rounds down to the first of the month. EXTRACT(month) returns just 1–12, which merges January 2025 with January 2026.',
+    },
+    {
+      id: 'sfq16',
+      question: 'A table has `CHECK (qty > 0)`. What happens when you insert a row with qty = NULL?',
+      options: ['Rejected — NULL is not greater than 0', 'Rejected — CHECK implies NOT NULL', 'Accepted only with DEFAULT', 'Accepted — the CHECK evaluates to UNKNOWN, which passes'],
+      correctAnswer: 3,
+      explanation: 'CHECK constraints only reject rows where the expression is FALSE. NULL > 0 is UNKNOWN, so the row is allowed. Add NOT NULL if you need the value present.',
+    },
+    {
+      id: 'sfq17',
+      question: 'orders.user_id references users(id) ON DELETE CASCADE. What happens when you delete a user who has orders?',
+      options: ['The delete is refused', 'The orders\' user_id is set to NULL', 'The user and all their orders are deleted', 'Only the user is deleted; orders keep a dangling id'],
+      correctAnswer: 2,
+      explanation: 'CASCADE propagates the delete to referencing rows. RESTRICT (the default) would refuse the delete; SET NULL would null out user_id.',
+    },
+    {
+      id: 'sfq18',
+      question: 'What does `SELECT 10 / 4` return in Postgres?',
+      options: ['2.5', '3', '2', 'NULL'],
+      correctAnswer: 2,
+      explanation: 'Both operands are integers, so the division is integer division and truncates toward zero. Cast one side (10 / 4.0) to get 2.5.',
+    },
+    {
+      id: 'sfq19',
+      question: 'What does `CASE nickname WHEN NULL THEN \'none\' ELSE nickname END` return for a row where nickname is NULL?',
+      options: ['\'none\'', 'NULL', 'An error', '\'NULL\''],
+      correctAnswer: 1,
+      explanation: 'Simple CASE uses equality, and nickname = NULL is UNKNOWN, so the WHEN never matches and the ELSE branch returns the NULL nickname. Use CASE WHEN nickname IS NULL.',
+    },
+    {
+      id: 'sfq20',
+      question: 'What does `SELECT id FROM customers EXCEPT SELECT customer_id FROM orders` return?',
+      options: ['Customers who have placed orders', 'Every customer id and every order id', 'Customer ids with no orders, de-duplicated', 'An error — column names differ'],
+      correctAnswer: 2,
+      explanation: 'EXCEPT keeps rows from the first query that do not appear in the second and removes duplicates. Column names need not match, only the count and types.',
     },
   ],
 };
@@ -530,6 +654,100 @@ LEFT JOIN (
 EXPLAIN ANALYZE
 SELECT ... ;`,
     },
+    {
+      id: 'sql-join-5',
+      title: 'Semi-Joins, Anti-Joins, and Row Multiplication',
+      content: `Interviewers love "which users have (or don't have) X?" questions because a naive JOIN gets the row count wrong.
+
+**Semi-join** — "rows in A that have at least one match in B", each A row **once**. Written with \`EXISTS\` or \`IN\`. A plain JOIN would repeat the user once per matching order, and slapping \`DISTINCT\` on top means the DB builds all those rows and then throws them away. EXISTS stops probing at the first match.
+
+**Anti-join** — "rows in A with no match in B". Three spellings:
+- \`NOT EXISTS (...)\` — NULL-safe, clearest intent. **Default choice.**
+- \`LEFT JOIN b ... WHERE b.id IS NULL\` — NULL-safe, sometimes plans differently.
+- \`NOT IN (subquery)\` — **broken** if the subquery can return NULL: the whole predicate becomes UNKNOWN and you get zero rows.
+
+**Symmetric difference** — rows that exist on exactly one side. \`FULL OUTER JOIN ... WHERE a.id IS NULL OR b.id IS NULL\`. Ideal for reconciling two data sources.
+
+**Row multiplication after a LEFT JOIN:** a user with three orders becomes three rows. \`COUNT(*)\` then counts the NULL-padded row for users with zero orders as 1. Count the right-side key — \`COUNT(o.id)\` — to get 0.`,
+      codeExample: `-- Semi-join: users with at least one paid order, each listed once
+SELECT u.id, u.name
+FROM users u
+WHERE EXISTS (
+  SELECT 1 FROM orders o
+  WHERE o.user_id = u.id AND o.status = 'paid'
+);
+
+-- Anti-join, preferred spelling
+SELECT u.id, u.name
+FROM users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM orders o WHERE o.user_id = u.id
+);
+
+-- Symmetric difference: ids present in only one of two feeds
+SELECT COALESCE(a.id, b.id) AS id,
+       CASE WHEN a.id IS NULL THEN 'only_in_b' ELSE 'only_in_a' END AS side
+FROM feed_a a
+FULL OUTER JOIN feed_b b ON b.id = a.id
+WHERE a.id IS NULL OR b.id IS NULL;
+
+-- Counting after LEFT JOIN: COUNT(*) is 1 for users with no orders
+SELECT u.id,
+       COUNT(*)    AS wrong_count,   -- never 0
+       COUNT(o.id) AS order_count    -- 0 when no orders
+FROM users u
+LEFT JOIN orders o ON o.user_id = u.id
+GROUP BY u.id;`,
+    },
+    {
+      id: 'sql-join-6',
+      title: 'LATERAL and Non-Equi Joins',
+      content: `**LATERAL** lets a subquery in FROM reference columns from tables to its left — a correlated subquery you can return multiple rows and columns from. It is the cleanest way to write **top-N per group**: for each parent row, run a small ordered LIMIT query.
+
+- \`CROSS JOIN LATERAL (...)\` — drops parents whose subquery returns no rows.
+- \`LEFT JOIN LATERAL (...) ON TRUE\` — keeps them with NULLs.
+
+SQL Server calls the same thing \`CROSS APPLY\` / \`OUTER APPLY\`.
+
+**Non-equi joins** use a condition other than equality — ranges, inequalities, BETWEEN. Classic uses: tax brackets, price tiers, date-range lookups (which rate was active when the order was placed). The planner cannot use a hash join for these, so expect nested loops; an index on the range columns matters.
+
+**NATURAL JOIN** joins on **every** same-named column automatically. It looks tidy but silently breaks when someone adds a \`created_at\` column to both tables. Prefer explicit ON or USING.`,
+      codeExample: `-- Top 3 most recent orders per user (LATERAL)
+SELECT u.name, recent.id AS order_id, recent.placed_at
+FROM users u
+CROSS JOIN LATERAL (
+  SELECT o.id, o.placed_at
+  FROM orders o
+  WHERE o.user_id = u.id
+  ORDER BY o.placed_at DESC
+  LIMIT 3
+) AS recent;
+
+-- Same, but keep users with no orders
+SELECT u.name, recent.id AS order_id
+FROM users u
+LEFT JOIN LATERAL (
+  SELECT o.id FROM orders o
+  WHERE o.user_id = u.id
+  ORDER BY o.placed_at DESC
+  LIMIT 3
+) AS recent ON TRUE;
+
+-- Non-equi join: assign each order to its tax bracket
+SELECT o.id, o.total, b.rate
+FROM orders o
+JOIN tax_brackets b
+  ON o.total >= b.min_total
+ AND o.total <  b.max_total;
+
+-- Non-equi join on a date range: the price in effect at order time
+SELECT o.id, p.price
+FROM orders o
+JOIN price_history p
+  ON p.product_id = o.product_id
+ AND o.placed_at >= p.valid_from
+ AND o.placed_at <  p.valid_to;`,
+    },
   ],
 
   visualizations: [
@@ -581,6 +799,18 @@ SELECT ... ;`,
     { id: 'jn16', front: 'What\'s a LATERAL join?', back: 'A subquery in the FROM clause that can reference columns from preceding tables — like a correlated subquery you can SELECT from. Great for "top-N per group" queries.' },
     { id: 'jn17', front: 'Why is `FROM a, b` discouraged?', back: 'It\'s an implicit CROSS JOIN. Forgetting the WHERE clause produces a Cartesian product. Explicit JOIN syntax makes intent clearer and harder to break.' },
     { id: 'jn18', front: 'Difference between hash join and nested-loop join?', back: 'Nested-loop iterates one table and probes the other (good for small/indexed sides). Hash join builds a hash on one side then streams the other (good for big unindexed joins). The planner picks based on size and indexes.' },
+    { id: 'jn19', front: 'What is a semi-join?', back: 'Returns each row of A that has at least one match in B — once, without B\'s columns. Written with EXISTS or IN. Unlike a JOIN, it never multiplies rows.' },
+    { id: 'jn20', front: 'Why is JOIN + DISTINCT worse than EXISTS for "users with orders"?', back: 'The JOIN builds one row per matching order and DISTINCT then discards the extras. EXISTS stops at the first match per user and never produces the extra rows.' },
+    { id: 'jn21', front: 'Why avoid NATURAL JOIN?', back: 'It joins on every column that shares a name in both tables. Adding a column like created_at or name to either table silently changes the join condition and the results.' },
+    { id: 'jn22', front: 'What is a non-equi join?', back: 'A join whose condition is not simple equality — ranges, BETWEEN, <, >. Used for tax brackets, price tiers, and "which rate was active at this timestamp". Hash joins can\'t be used, so expect nested loops.' },
+    { id: 'jn23', front: 'How do you find rows that exist in exactly one of two tables?', back: 'FULL OUTER JOIN on the key, then WHERE a.id IS NULL OR b.id IS NULL. That is the symmetric difference — perfect for reconciling two data feeds.' },
+    { id: 'jn24', front: 'Does it matter whether a filter goes in ON or WHERE for an INNER JOIN?', back: 'No — for INNER joins the result is identical and the planner treats them the same. The placement only changes results for OUTER joins, where ON filters before padding with NULLs and WHERE filters after.' },
+    { id: 'jn25', front: 'What is a merge join?', back: 'Both inputs are sorted on the join key and walked in step like a zipper. Cheap when the inputs are already sorted (an index or prior sort) and both sides are large. The third join algorithm next to nested-loop and hash.' },
+    { id: 'jn26', front: 'What happens to row count when a LEFT JOIN\'s right side has multiple matches?', back: 'The left row is repeated once per match — a user with 3 orders becomes 3 rows. Aggregates over the left table (SUM of user balance) inflate accordingly; pre-aggregate or count the child key.' },
+    { id: 'jn27', front: 'How do you write top-3 orders per user with LATERAL?', back: 'FROM users u CROSS JOIN LATERAL (SELECT ... FROM orders o WHERE o.user_id = u.id ORDER BY placed_at DESC LIMIT 3) r. The subquery runs per user and can reference u.' },
+    { id: 'jn28', front: 'CROSS JOIN LATERAL vs LEFT JOIN LATERAL ... ON TRUE?', back: 'CROSS JOIN LATERAL drops parent rows whose subquery returns nothing. LEFT JOIN LATERAL ... ON TRUE keeps them, padding the subquery columns with NULL.' },
+    { id: 'jn29', front: 'Why is an OR in a join condition slow?', back: 'ON a.x = b.x OR a.y = b.y can\'t be hashed or merged on a single key, so the planner falls back to a nested loop over both tables. Rewrite as a UNION of two equi-joins.' },
+    { id: 'jn30', front: 'After a LEFT JOIN, why does COUNT(*) never return 0 for a parent with no children?', back: 'The parent still produces one NULL-padded row, and COUNT(*) counts rows. COUNT(child.id) skips the NULL and returns 0.' },
   ],
 
   quizQuestions: [
@@ -653,6 +883,76 @@ SELECT ... ;`,
       options: ['LEFT JOIN', 'INNER JOIN', 'FULL OUTER JOIN', 'CROSS JOIN'],
       correctAnswer: 1,
       explanation: 'INNER JOINs are commutative and associative. OUTER joins must respect which side is preserved, limiting reordering.',
+    },
+    {
+      id: 'jnq11',
+      question: 'users has 3 rows; each user has exactly 2 orders. How many rows does `SELECT * FROM users u LEFT JOIN orders o ON o.user_id = u.id` return?',
+      options: ['3', '5', '6', '9'],
+      correctAnswer: 2,
+      explanation: 'Each user row is repeated once per matching order: 3 × 2 = 6. A join multiplies rows by the number of matches.',
+    },
+    {
+      id: 'jnq12',
+      question: 'After `LEFT JOIN orders o ... GROUP BY u.id`, what does COUNT(*) return for a user with no orders?',
+      options: ['0', 'NULL', '1', 'An error'],
+      correctAnswer: 2,
+      explanation: 'The user still appears as one NULL-padded row, and COUNT(*) counts rows. Use COUNT(o.id), which skips the NULL and returns 0.',
+    },
+    {
+      id: 'jnq13',
+      question: 'You need ids that appear in feed_a OR feed_b but not both. Which query?',
+      options: ['INNER JOIN on id', 'FULL OUTER JOIN on id WHERE a.id IS NULL OR b.id IS NULL', 'LEFT JOIN on id WHERE b.id IS NULL', 'CROSS JOIN with a filter'],
+      correctAnswer: 1,
+      explanation: 'A FULL OUTER JOIN keeps unmatched rows from both sides; filtering for a NULL on either side leaves exactly the rows present in only one feed. LEFT JOIN alone only finds rows missing from b.',
+    },
+    {
+      id: 'jnq14',
+      question: 'Which is the most efficient way to list each user who has at least one order, exactly once?',
+      options: ['SELECT DISTINCT u.* FROM users u JOIN orders o ON o.user_id = u.id', 'SELECT u.* FROM users u WHERE EXISTS (SELECT 1 FROM orders o WHERE o.user_id = u.id)', 'SELECT u.* FROM users u CROSS JOIN orders o', 'SELECT u.* FROM users u LEFT JOIN orders o ON o.user_id = u.id'],
+      correctAnswer: 1,
+      explanation: 'EXISTS is a semi-join: it stops at the first matching order per user and never builds duplicate rows. JOIN + DISTINCT constructs every match and then de-duplicates.',
+    },
+    {
+      id: 'jnq15',
+      question: 'Both users and orders have columns id and created_at. What does `users NATURAL JOIN orders` join on?',
+      options: ['Nothing — it errors', 'The foreign key user_id', 'All same-named columns: id AND created_at', 'The primary key only'],
+      correctAnswer: 2,
+      explanation: 'NATURAL JOIN matches every column name shared by both tables, which here is nonsense (users.id = orders.id AND equal timestamps). This is why explicit ON / USING is preferred.',
+    },
+    {
+      id: 'jnq16',
+      question: 'Which join assigns each order to the tax bracket whose range contains its total?',
+      options: ['JOIN brackets b ON b.min_total = o.total', 'JOIN brackets b USING (total)', 'CROSS JOIN brackets b', 'JOIN brackets b ON o.total >= b.min_total AND o.total < b.max_total'],
+      correctAnswer: 3,
+      explanation: 'A range condition is a non-equi join. Equality on min_total would only match orders exactly at the boundary, and CROSS JOIN pairs every order with every bracket.',
+    },
+    {
+      id: 'jnq17',
+      question: 'You want the 3 latest orders per user, and users with no orders should still appear. Which form?',
+      options: ['CROSS JOIN LATERAL (...)', 'LEFT JOIN LATERAL (...) ON TRUE', 'INNER JOIN with LIMIT 3', 'FULL OUTER JOIN LATERAL (...)'],
+      correctAnswer: 1,
+      explanation: 'LEFT JOIN LATERAL ... ON TRUE keeps parents whose subquery returns zero rows. CROSS JOIN LATERAL drops them. LIMIT on a plain join applies to the whole result, not per user.',
+    },
+    {
+      id: 'jnq18',
+      question: 'For `users u INNER JOIN orders o ON o.user_id = u.id`, what changes if you move `AND o.status = \'paid\'` from ON to WHERE?',
+      options: ['Nothing — the result is identical', 'Users with no paid orders are now kept', 'It becomes a CROSS JOIN', 'The index on status can no longer be used'],
+      correctAnswer: 0,
+      explanation: 'For an INNER join, filtering before or after matching yields the same rows and the planner treats both placements the same. Only OUTER joins are sensitive to ON vs WHERE.',
+    },
+    {
+      id: 'jnq19',
+      question: 'Which join algorithm requires both inputs to be sorted on the join key?',
+      options: ['Nested loop', 'Hash join', 'Merge join', 'Bitmap join'],
+      correctAnswer: 2,
+      explanation: 'A merge join zips two sorted streams together in one pass. It shines when an index or earlier sort already provides the order; hash and nested-loop joins do not need sorted input.',
+    },
+    {
+      id: 'jnq20',
+      question: 'In `FROM users u1 JOIN users u2 ON u2.city = u1.city AND u2.id > u1.id`, why `>` rather than `<>`?',
+      options: ['> uses the index, <> does not', 'With <> each pair appears twice, as (A,B) and (B,A)', '<> would include NULL cities', '<> is not allowed in ON clauses'],
+      correctAnswer: 1,
+      explanation: 'Both operators exclude self-pairs, but <> returns every unordered pair in both directions. Requiring u2.id > u1.id keeps exactly one ordering of each pair.',
     },
   ],
 };
@@ -827,6 +1127,99 @@ WHERE rn = 1;
 SELECT DISTINCT country, plan FROM users;
 SELECT country, plan FROM users GROUP BY country, plan;`,
     },
+    {
+      id: 'sql-agg-5',
+      title: 'GROUPING SETS, GROUPING(), and NULL Groups',
+      content: `**GROUPING SETS** is the general form behind ROLLUP and CUBE: you list exactly which combinations of columns to aggregate by, and the DB computes them all in one pass over the data.
+
+\`\`\`
+GROUP BY GROUPING SETS ((country, plan), (country), ())
+-- identical to GROUP BY ROLLUP(country, plan)
+\`\`\`
+
+Use it when you want *some* subtotals but not the full hierarchy — e.g. totals per country and totals per plan, but not every (country, plan) pair.
+
+**Telling subtotals apart from real NULLs.** Subtotal rows show NULL in the rolled-up column, but so do rows whose data is genuinely NULL. \`GROUPING(col)\` returns 1 when the column was rolled up for that row and 0 otherwise — use it to label totals correctly.
+
+**NULL in GROUP BY:** all rows with a NULL grouping value land in **one** group. GROUP BY (like DISTINCT) treats NULLs as equal to each other, even though \`NULL = NULL\` is UNKNOWN in WHERE.
+
+**Aggregates over empty input:** \`COUNT\` returns 0, but \`SUM\`, \`AVG\`, \`MIN\`, \`MAX\` return NULL when no rows (or only NULLs) are aggregated. Wrap with \`COALESCE(SUM(x), 0)\` for reports.`,
+      codeExample: `-- Per-country and per-plan totals, but not the full cross-tab
+SELECT
+  country,
+  plan,
+  COUNT(*) AS users
+FROM users
+GROUP BY GROUPING SETS ((country), (plan))
+ORDER BY country NULLS LAST, plan NULLS LAST;
+
+-- Label subtotal rows so they aren't confused with NULL data
+SELECT
+  CASE WHEN GROUPING(country) = 1 THEN 'ALL' ELSE country END AS country,
+  CASE WHEN GROUPING(plan)    = 1 THEN 'ALL' ELSE plan    END AS plan,
+  SUM(monthly_spend) AS revenue
+FROM users
+GROUP BY ROLLUP (country, plan);
+
+-- NULL countries collapse into a single group
+SELECT country, COUNT(*)
+FROM users
+GROUP BY country;    -- one row has country = NULL
+
+-- Empty input: SUM is NULL, COUNT is 0
+SELECT COUNT(*) AS n, SUM(total) AS revenue, COALESCE(SUM(total), 0) AS safe_revenue
+FROM orders
+WHERE placed_at > NOW();   -- no rows match`,
+    },
+    {
+      id: 'sql-agg-6',
+      title: 'Classic Aggregation Interview Problems',
+      content: `A handful of aggregation patterns come up in nearly every SQL interview. Know them cold.
+
+**1. Find duplicates.** Group by the columns that should be unique and keep groups with more than one row: \`GROUP BY email HAVING COUNT(*) > 1\`.
+
+**2. Zero-filled time series.** \`GROUP BY day\` silently omits days with no rows. Generate the full calendar first (\`generate_series\` in Postgres, or a calendar table), LEFT JOIN the facts, and count the fact key so empty days show 0.
+
+**3. Median / percentiles.** There is no standard MEDIAN(). Use the ordered-set aggregate \`PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY x)\` (Postgres, Oracle, SQL Server). \`PERCENTILE_DISC\` returns an actual value from the set instead of interpolating.
+
+**4. Full row with the group max ("join back").** \`SELECT department, MAX(salary)\` can't tell you *who* earns it. Aggregate in a subquery, then join back on both the key and the value. Beware: ties return more than one row per group.
+
+**5. HAVING without GROUP BY.** Legal — the whole table is one group, so the query returns either one row or none. Handy for "alert if total errors today > N".`,
+      codeExample: `-- 1. Duplicate emails, with how many times each appears
+SELECT email, COUNT(*) AS copies
+FROM users
+GROUP BY email
+HAVING COUNT(*) > 1;
+
+-- 2. Orders per day, including days with zero orders
+SELECT d::date AS day, COUNT(o.id) AS orders
+FROM generate_series('2026-01-01', '2026-01-31', INTERVAL '1 day') AS d
+LEFT JOIN orders o ON o.placed_at::date = d::date
+GROUP BY d
+ORDER BY d;
+
+-- 3. Median order value per country
+SELECT country,
+       PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY total) AS median_total
+FROM orders
+GROUP BY country;
+
+-- 4. Highest-paid employee(s) in each department, full row
+SELECT e.department, e.name, e.salary
+FROM employees e
+JOIN (
+  SELECT department, MAX(salary) AS max_salary
+  FROM employees
+  GROUP BY department
+) m ON m.department = e.department
+   AND m.max_salary = e.salary;
+
+-- 5. One-row alert query: returns a row only if the threshold is crossed
+SELECT COUNT(*) AS errors_today
+FROM logs
+WHERE level = 'error' AND logged_at >= CURRENT_DATE
+HAVING COUNT(*) > 100;`,
+    },
   ],
 
   visualizations: [
@@ -883,6 +1276,18 @@ SELECT country, plan FROM users GROUP BY country, plan;`,
     { id: 'ag16', front: 'How do you find groups with no matching child rows?', back: 'LEFT JOIN the child, GROUP BY parent, and HAVING COUNT(child.id) = 0. Anti-join via aggregate.' },
     { id: 'ag17', front: 'Why is GROUP BY 1, 2 sometimes valid?', back: 'Some dialects let you group by the column positions in the SELECT list. Concise but fragile — adding a column shifts the indices. Prefer named columns.' },
     { id: 'ag18', front: 'How do you bucket a continuous value (e.g. age) into ranges before aggregating?', back: 'GROUP BY a CASE expression or a width_bucket() function. SELECT CASE WHEN age < 18 ... END AS bucket, COUNT(*) GROUP BY bucket.' },
+    { id: 'ag19', front: 'What does SUM(total) return when no rows match?', back: 'NULL, not 0 — SUM, AVG, MIN, and MAX of an empty set are NULL. Only COUNT returns 0. Wrap with COALESCE(SUM(total), 0) for reports.' },
+    { id: 'ag20', front: 'How does GROUP BY treat NULL in the grouping column?', back: 'Every row with a NULL value lands in one shared group. GROUP BY (and DISTINCT) treat NULLs as equal to each other, unlike = in WHERE.' },
+    { id: 'ag21', front: 'What is GROUPING SETS?', back: 'The general form of ROLLUP/CUBE: you list exactly which column combinations to aggregate by, e.g. GROUPING SETS ((country), (plan)). The DB computes all of them in one pass.' },
+    { id: 'ag22', front: 'How do you tell a ROLLUP subtotal NULL from a real NULL value?', back: 'GROUPING(col) returns 1 for rows where col was rolled up (a subtotal) and 0 for ordinary rows — even when the ordinary row\'s value is NULL.' },
+    { id: 'ag23', front: 'Why doesn\'t `SELECT department, name, MAX(salary) FROM employees GROUP BY department` give the top earner?', back: 'name is neither grouped nor aggregated — the DB has no rule for which name to show and strict mode rejects it. Join back to a MAX subquery or use a window function instead.' },
+    { id: 'ag24', front: 'How do you find duplicate rows by email?', back: 'SELECT email, COUNT(*) FROM users GROUP BY email HAVING COUNT(*) > 1. Group on the columns that should be unique and keep groups larger than one.' },
+    { id: 'ag25', front: 'Can you write HAVING without GROUP BY?', back: 'Yes. The entire result is treated as one group, so the query returns either one row or zero rows — useful for threshold alerts like HAVING COUNT(*) > 100.' },
+    { id: 'ag26', front: 'How do you compute a median in SQL?', back: 'There is no standard MEDIAN(). Use the ordered-set aggregate PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY x). PERCENTILE_DISC returns an actual observed value rather than interpolating.' },
+    { id: 'ag27', front: 'What does SUM(DISTINCT amount) do, and why is it usually a bug?', back: 'It sums each distinct value once, so amounts 10, 10, 20 give 30 instead of 40. Nearly always wrong for revenue; it\'s only right when you truly mean unique values.' },
+    { id: 'ag28', front: 'How do you report a count for every day, including days with zero rows?', back: 'GROUP BY alone drops empty days. Generate the calendar (generate_series or a dates table), LEFT JOIN the facts onto it, and COUNT the fact key so missing days show 0.' },
+    { id: 'ag29', front: 'What is the "join back" pattern for max-per-group?', back: 'Aggregate MAX(value) per key in a subquery, then JOIN the original table on both key AND value to recover the full row. Ties return multiple rows per group.' },
+    { id: 'ag30', front: 'Can GROUP BY reference a column alias from SELECT?', back: 'Not in standard SQL — GROUP BY runs before SELECT. Postgres and MySQL accept output-column aliases as an extension, but HAVING in Postgres cannot use them. Repeating the expression is the portable choice.' },
   ],
 
   quizQuestions: [
@@ -955,6 +1360,76 @@ SELECT country, plan FROM users GROUP BY country, plan;`,
       options: ['SELECT DISTINCT a vs SELECT a GROUP BY b', 'SELECT DISTINCT a, b vs SELECT a, b GROUP BY a, b', 'SELECT COUNT(*) vs COUNT(DISTINCT id)', 'WHERE vs HAVING with the same predicate'],
       correctAnswer: 1,
       explanation: 'DISTINCT on a set of columns is equivalent to GROUP BY on those same columns when there are no aggregates.',
+    },
+    {
+      id: 'agq11',
+      question: 'No orders were placed today. What does `SELECT SUM(total) FROM orders WHERE placed_at::date = CURRENT_DATE` return?',
+      options: ['0', 'No rows', 'NULL', 'An error'],
+      correctAnswer: 2,
+      explanation: 'An aggregate over zero rows still returns one row, and SUM of nothing is NULL. COUNT would return 0. Use COALESCE(SUM(total), 0) to get a numeric zero.',
+    },
+    {
+      id: 'agq12',
+      question: 'Which query lists email addresses that appear more than once in users?',
+      options: ['SELECT email FROM users GROUP BY email HAVING COUNT(*) > 1', 'SELECT DISTINCT email FROM users WHERE COUNT(*) > 1', 'SELECT email, COUNT(*) FROM users WHERE COUNT(email) > 1', 'SELECT email FROM users ORDER BY COUNT(*) DESC LIMIT 1'],
+      correctAnswer: 0,
+      explanation: 'Group on the column that should be unique and filter groups with HAVING. Aggregates are not allowed in WHERE, so the other forms are invalid or wrong.',
+    },
+    {
+      id: 'agq13',
+      question: '100 users have country = NULL. How do they appear in `SELECT country, COUNT(*) FROM users GROUP BY country`?',
+      options: ['They are excluded', '100 separate rows with country NULL', 'They are merged into the largest group', 'One row with country NULL and count 100'],
+      correctAnswer: 3,
+      explanation: 'GROUP BY treats NULLs as equal, so all NULL countries form a single group. Rows are never silently dropped by GROUP BY.',
+    },
+    {
+      id: 'agq14',
+      question: 'In a ROLLUP query, a row has GROUPING(plan) = 1. What does that mean?',
+      options: ['The plan value for that row is genuinely NULL', 'The row is a subtotal where plan was rolled up', 'The row belongs to plan number 1', 'The plan column was excluded from SELECT'],
+      correctAnswer: 1,
+      explanation: 'GROUPING(col) is 1 exactly when col was aggregated away for that row. It is the reliable way to distinguish subtotal rows from real NULL data.',
+    },
+    {
+      id: 'agq15',
+      question: 'What can `SELECT COUNT(*) FROM logs WHERE level = \'error\' HAVING COUNT(*) > 100` return?',
+      options: ['Always exactly one row', 'One row per level', 'Either one row or zero rows', 'A syntax error — HAVING needs GROUP BY'],
+      correctAnswer: 2,
+      explanation: 'Without GROUP BY the whole table is a single group. HAVING then keeps or discards that one group, so the result is one row or none.',
+    },
+    {
+      id: 'agq16',
+      question: 'Which expression computes the median of `total` in Postgres?',
+      options: ['PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY total)', 'MEDIAN(total)', 'AVG(total) FILTER (WHERE rank = 0.5)', 'NTILE(2) OVER (ORDER BY total)'],
+      correctAnswer: 0,
+      explanation: 'PERCENTILE_CONT is the standard ordered-set aggregate for percentiles. There is no MEDIAN() in Postgres, and NTILE assigns bucket numbers rather than computing a value.',
+    },
+    {
+      id: 'agq17',
+      question: 'Your daily orders report skips days with no orders. What is the fix?',
+      options: ['Use COUNT(*) instead of COUNT(id)', 'LEFT JOIN orders onto a generated calendar of days and COUNT(o.id)', 'Add HAVING COUNT(*) >= 0', 'Replace GROUP BY with DISTINCT'],
+      correctAnswer: 1,
+      explanation: 'Rows that do not exist cannot be grouped. Generate every day first, LEFT JOIN the facts, and count the fact key so empty days become 0.',
+    },
+    {
+      id: 'agq18',
+      question: 'In strict SQL mode, what happens with `SELECT department, name, MAX(salary) FROM employees GROUP BY department`?',
+      options: ['Returns the highest earner per department', 'Returns an arbitrary name per department', 'Returns one row per employee', 'Error — name is neither grouped nor aggregated'],
+      correctAnswer: 3,
+      explanation: 'Every non-aggregated column must be in GROUP BY. Even where MySQL allows it in lax mode, the name returned is arbitrary and not the top earner. Join back or use a window function.',
+    },
+    {
+      id: 'agq19',
+      question: 'amounts are 10, 10, 20. What does SUM(DISTINCT amount) return?',
+      options: ['40', '30', '20', '3'],
+      correctAnswer: 1,
+      explanation: 'DISTINCT inside the aggregate removes the duplicate 10 before summing: 10 + 20 = 30. Plain SUM would give 40.',
+    },
+    {
+      id: 'agq20',
+      question: 'What does `GROUP BY GROUPING SETS ((country), (plan))` produce?',
+      options: ['One row per (country, plan) pair', 'Per-country rows, per-plan rows, and a grand total', 'Per-country totals and per-plan totals only', 'The same as CUBE(country, plan)'],
+      correctAnswer: 2,
+      explanation: 'GROUPING SETS computes exactly the listed groupings. There is no (country, plan) set and no empty set (), so neither the cross-tab nor the grand total is included.',
     },
   ],
 };
@@ -1195,6 +1670,106 @@ WITH RECURSIVE walk AS (
 )
 SELECT DISTINCT friend_id FROM walk;`,
     },
+    {
+      id: 'sql-sub-5',
+      title: 'Classic Subquery Interview Problems',
+      content: `These four problems show up constantly. Each one hinges on a correlated subquery — the inner query references the outer row.
+
+**1. Rows above their group's average.** "Employees earning more than their department's average." The subquery recomputes the average for the outer row's department.
+
+**2. Nth highest value.** Two idioms:
+- \`SELECT DISTINCT salary ... ORDER BY salary DESC LIMIT 1 OFFSET n-1\` — simple, returns NULL-free empty result if fewer than n distinct values.
+- Correlated count: keep salaries with exactly \`n-1\` distinct salaries above them. Works everywhere, including databases without LIMIT/OFFSET.
+
+**3. Latest row per key without window functions.** Compare each row's timestamp to the MAX for the same key.
+
+**4. Scalar subquery pitfalls:**
+- If it returns **more than one row**, the query fails at runtime ("more than one row returned by a subquery used as an expression"). Aggregate, add LIMIT 1, or switch to IN.
+- If it returns **zero rows**, it yields NULL — silently. A comparison against it becomes UNKNOWN and drops the row.
+- The SELECT list of an EXISTS subquery is ignored: \`SELECT 1\` and \`SELECT *\` behave identically.`,
+      codeExample: `-- 1. Employees above their department average
+SELECT e.name, e.department, e.salary
+FROM employees e
+WHERE e.salary > (
+  SELECT AVG(e2.salary)
+  FROM employees e2
+  WHERE e2.department = e.department
+);
+
+-- 2a. Third-highest distinct salary
+SELECT DISTINCT salary
+FROM employees
+ORDER BY salary DESC
+LIMIT 1 OFFSET 2;
+
+-- 2b. Same, with a correlated count (portable)
+SELECT DISTINCT e.salary
+FROM employees e
+WHERE 2 = (
+  SELECT COUNT(DISTINCT e2.salary)
+  FROM employees e2
+  WHERE e2.salary > e.salary
+);
+
+-- 3. Latest order per customer via correlated MAX
+SELECT o.*
+FROM orders o
+WHERE o.placed_at = (
+  SELECT MAX(o2.placed_at)
+  FROM orders o2
+  WHERE o2.customer_id = o.customer_id
+);
+
+-- 4. Scalar subquery that can return many rows: runtime error
+SELECT * FROM users
+WHERE id = (SELECT user_id FROM orders WHERE total > 100);  -- fails if >1 row
+-- Fix
+SELECT * FROM users
+WHERE id IN (SELECT user_id FROM orders WHERE total > 100);`,
+    },
+    {
+      id: 'sql-sub-6',
+      title: 'Set Operations: UNION, INTERSECT, EXCEPT',
+      content: `Set operations stack the results of two SELECTs vertically. Each side must return the **same number of columns** with compatible types; column names come from the first query.
+
+- **UNION** — rows from either side, duplicates removed.
+- **UNION ALL** — rows from either side, duplicates kept. Faster: no sort/hash for de-duplication.
+- **INTERSECT** — rows present in both sides.
+- **EXCEPT** (MINUS in Oracle) — rows in the first side that are not in the second.
+
+**NULL handling differs from WHERE.** Set operations compare rows the way DISTINCT does: two NULLs count as equal. So \`EXCEPT\` is a NULL-safe way to express "in A but not in B" — unlike \`NOT IN\`.
+
+**De-duplication is the default** for UNION, INTERSECT, and EXCEPT. Add \`ALL\` to keep duplicates (\`INTERSECT ALL\`, \`EXCEPT ALL\`) — bag semantics rather than set semantics.
+
+**ORDER BY applies to the whole combined result**, and must come last. To sort each side independently, wrap it in a subquery — but the final order still needs an outer ORDER BY.
+
+**Typical uses:** merging two similar tables into one feed (UNION ALL), reconciling data between systems (EXCEPT both ways), and splitting an OR across two indexable queries (UNION).`,
+      codeExample: `-- One activity feed from two tables (keep every row)
+SELECT id, created_at, 'post'    AS kind FROM posts
+UNION ALL
+SELECT id, created_at, 'comment' AS kind FROM comments
+ORDER BY created_at DESC
+LIMIT 50;
+
+-- Reconciliation: rows that differ between staging and production
+(SELECT id, email FROM users_staging
+ EXCEPT
+ SELECT id, email FROM users_prod)
+UNION ALL
+(SELECT id, email FROM users_prod
+ EXCEPT
+ SELECT id, email FROM users_staging);
+
+-- Customers who bought in BOTH years
+SELECT customer_id FROM orders WHERE placed_at >= '2025-01-01' AND placed_at < '2026-01-01'
+INTERSECT
+SELECT customer_id FROM orders WHERE placed_at >= '2026-01-01' AND placed_at < '2027-01-01';
+
+-- EXCEPT treats NULLs as equal, NOT IN does not
+SELECT region FROM warehouses
+EXCEPT
+SELECT region FROM stores;   -- a NULL region in both sides cancels out`,
+    },
   ],
 
   visualizations: [
@@ -1249,6 +1824,18 @@ SELECT DISTINCT friend_id FROM walk;`,
     { id: 'sq16', front: 'Can CTEs write data?', back: 'In Postgres, yes — INSERT/UPDATE/DELETE with RETURNING can sit inside a WITH. The main query sees the affected rows. Other DBs vary.' },
     { id: 'sq17', front: 'What is UNION ALL vs UNION inside a recursive CTE?', back: 'UNION ALL keeps duplicates and is required for recursive CTEs. UNION (which dedupes) usually breaks recursion in standard SQL.' },
     { id: 'sq18', front: 'When is a subquery faster than a JOIN?', back: 'For semi-joins (EXISTS) on selective filters — the planner can stop scanning after the first match. JOINs sometimes do redundant work.' },
+    { id: 'sq19', front: 'What happens if a scalar subquery returns more than one row?', back: 'A runtime error: "more than one row returned by a subquery used as an expression". Aggregate the subquery, add LIMIT 1, or use IN / EXISTS instead of =.' },
+    { id: 'sq20', front: 'What does a scalar subquery yield when it matches zero rows?', back: 'NULL, with no error. Any comparison against it becomes UNKNOWN, so the outer row is silently filtered out — a common source of "missing rows" bugs.' },
+    { id: 'sq21', front: 'CTE vs derived table in FROM — what\'s the real difference?', back: 'Same results and, since Postgres 12, usually the same plan. A CTE is named once and can be referenced repeatedly or recursively; a derived table is inline and single-use. Choose by readability.' },
+    { id: 'sq22', front: 'Can a CTE reference another CTE defined later in the same WITH?', back: 'No. CTEs are visible only to CTEs that come after them (and to the main query). Only a recursive CTE may reference itself.' },
+    { id: 'sq23', front: 'How do you track depth and path in a recursive CTE?', back: 'Carry extra columns: `1 AS depth` and `ARRAY[id] AS path` in the anchor, then `r.depth + 1` and `r.path || e.id` in the recursive step. The path doubles as a cycle guard: WHERE NOT e.id = ANY(r.path).' },
+    { id: 'sq24', front: 'IN (subquery) vs = (subquery)?', back: '= requires the subquery to return at most one row (scalar) and errors otherwise. IN accepts any number of rows and is true if the value matches any of them.' },
+    { id: 'sq25', front: 'How do you find employees earning more than their department\'s average?', back: 'Correlated subquery: WHERE e.salary > (SELECT AVG(salary) FROM employees e2 WHERE e2.department = e.department). The inner query is re-evaluated for each outer department.' },
+    { id: 'sq26', front: 'How do you get the nth highest distinct salary?', back: 'SELECT DISTINCT salary ORDER BY salary DESC LIMIT 1 OFFSET n-1, or a correlated count: WHERE n-1 = (SELECT COUNT(DISTINCT salary) FROM employees e2 WHERE e2.salary > e.salary).' },
+    { id: 'sq27', front: 'When is `AS MATERIALIZED` a win, and when does it hurt?', back: 'Win: an expensive CTE referenced several times — compute once, reuse. Hurt: a CTE referenced once with a selective outer WHERE — materializing blocks the planner from pushing that predicate down, so it scans everything.' },
+    { id: 'sq28', front: 'Why does a recursive CTE fail with "column has type X in non-recursive term but type Y overall"?', back: 'UNION ALL requires matching column types, and the anchor fixes them. If the anchor yields an int but the recursive step produces bigint or text, cast the anchor column explicitly (e.g. 1::bigint AS depth).' },
+    { id: 'sq29', front: 'Does the SELECT list inside EXISTS matter?', back: 'No. EXISTS only checks whether any row comes back; SELECT 1, SELECT *, and SELECT NULL are equivalent and the planner ignores the projection.' },
+    { id: 'sq30', front: 'How does EXCEPT handle NULLs compared with NOT IN?', back: 'EXCEPT compares rows like DISTINCT — two NULLs are equal — so it is NULL-safe. NOT IN uses = and returns no rows if the subquery contains a NULL. EXCEPT also de-duplicates and needs matching column lists.' },
   ],
 
   quizQuestions: [
@@ -1321,6 +1908,76 @@ SELECT DISTINCT friend_id FROM walk;`,
       options: ['Scalar subquery', 'JOIN', 'They\'re identical', 'Depends — but JOIN often wins on large data'],
       correctAnswer: 3,
       explanation: 'Per-row scalar subqueries can re-execute often. JOINs / window functions typically process the data in one pass.',
+    },
+    {
+      id: 'sqq11',
+      question: '`WHERE price > (SELECT price FROM products WHERE brand = \'A\')` — brand A has 3 products. What happens?',
+      options: ['Compares against the highest price', 'Compares against the first price found', 'Runtime error: subquery returned more than one row', 'Returns no rows'],
+      correctAnswer: 2,
+      explanation: 'A subquery used with a comparison operator must be scalar. With three rows it fails at execution time. Use > ALL, > ANY, or an aggregate like MAX.',
+    },
+    {
+      id: 'sqq12',
+      question: 'A scalar subquery in WHERE matches zero rows. What is the effect on the outer query?',
+      options: ['The subquery yields NULL, the comparison is UNKNOWN, and the row is dropped', 'A runtime error', 'The comparison is treated as TRUE', 'The outer query returns zero rows'],
+      correctAnswer: 0,
+      explanation: 'An empty scalar subquery quietly evaluates to NULL. Only rows compared against it are affected; the rest of the outer query is unaffected.',
+    },
+    {
+      id: 'sqq13',
+      question: 'Which query returns employees earning more than the average of their own department?',
+      options: ['WHERE salary > (SELECT AVG(salary) FROM employees)', 'WHERE salary > (SELECT AVG(salary) FROM employees e2 WHERE e2.department = e.department)', 'WHERE salary > AVG(salary) GROUP BY department', 'HAVING salary > AVG(salary)'],
+      correctAnswer: 1,
+      explanation: 'The subquery must be correlated on department so each employee is compared to their own group. Option A compares to the company-wide average; C and D are invalid uses of an aggregate.',
+    },
+    {
+      id: 'sqq14',
+      question: 'Which query returns the third-highest distinct salary?',
+      options: ['SELECT MAX(salary) FROM employees LIMIT 3', 'SELECT salary FROM employees ORDER BY salary DESC LIMIT 3', 'SELECT DISTINCT salary FROM employees ORDER BY salary LIMIT 1 OFFSET 2', 'SELECT DISTINCT salary FROM employees ORDER BY salary DESC LIMIT 1 OFFSET 2'],
+      correctAnswer: 3,
+      explanation: 'Sort distinct salaries descending, skip two, take one. Option C sorts ascending (third-lowest), and B returns three rows that may include duplicates.',
+    },
+    {
+      id: 'sqq15',
+      question: 'What happens with `WITH a AS (...), b AS (SELECT * FROM c), c AS (...) SELECT * FROM b`?',
+      options: ['Works — CTEs are resolved lazily', 'Error — c is not yet defined when b is declared', 'b returns an empty result', 'Only a and c are executed'],
+      correctAnswer: 1,
+      explanation: 'A CTE can only reference CTEs declared before it in the WITH list. Reorder so c comes before b.',
+    },
+    {
+      id: 'sqq16',
+      question: 'In a recursive CTE, the anchor selects `ARRAY[id] AS path` and the recursive step adds `WHERE NOT e.id = ANY(r.path)`. What does that condition do?',
+      options: ['Prevents revisiting a node, so cycles terminate', 'Limits recursion depth to the array length', 'Removes duplicate rows from the output', 'Forces breadth-first order'],
+      correctAnswer: 0,
+      explanation: 'Each row carries the ids already on its path. Refusing to extend into an id already on the path means a cycle can never loop forever.',
+    },
+    {
+      id: 'sqq17',
+      question: 'Which is true of `EXISTS (SELECT * FROM orders o WHERE o.user_id = u.id)` vs `EXISTS (SELECT 1 ...)`?',
+      options: ['SELECT * is slower because it reads every column', 'SELECT 1 can return wrong results', 'They are equivalent — the SELECT list is ignored', 'SELECT * requires a GROUP BY'],
+      correctAnswer: 2,
+      explanation: 'EXISTS only tests whether any row is produced. The planner discards the projection, so the two forms plan and perform identically.',
+    },
+    {
+      id: 'sqq18',
+      question: 'What does `WITH big AS NOT MATERIALIZED (SELECT ... FROM events)` allow that MATERIALIZED does not?',
+      options: ['Referencing big more than once', 'Pushing the outer query\'s WHERE predicates down into the CTE', 'Using RECURSIVE', 'Writing data inside the CTE'],
+      correctAnswer: 1,
+      explanation: 'An inlined CTE is treated like a subquery, so a selective outer filter can be applied inside it and use indexes. A materialized CTE is computed in full first.',
+    },
+    {
+      id: 'sqq19',
+      question: 'Table a has values {1, NULL}; table b has {NULL}. What does `SELECT x FROM a EXCEPT SELECT x FROM b` return?',
+      options: ['{1, NULL}', 'No rows', 'NULL only', '{1}'],
+      correctAnswer: 3,
+      explanation: 'Set operations compare rows with DISTINCT semantics, where two NULLs are considered equal. The NULL in a is cancelled by the NULL in b, leaving 1.',
+    },
+    {
+      id: 'sqq20',
+      question: 'Users has a correlated subquery in the SELECT list: `(SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id)`. What is the equivalent set-based rewrite?',
+      options: ['CROSS JOIN orders then COUNT(*)', 'LEFT JOIN orders o ... GROUP BY u.id with COUNT(o.id)', 'INNER JOIN orders o ... GROUP BY u.id with COUNT(*)', 'WHERE EXISTS (SELECT 1 FROM orders o WHERE o.user_id = u.id)'],
+      correctAnswer: 1,
+      explanation: 'A LEFT JOIN plus COUNT(o.id) reproduces the per-user count including zeros in a single pass. INNER JOIN drops users with no orders and EXISTS only yields a boolean.',
     },
   ],
 };
@@ -1564,6 +2221,102 @@ SELECT
 FROM daily_signups
 WINDOW w AS (ORDER BY date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW);`,
     },
+    {
+      id: 'sql-win-5',
+      title: 'Frames in Depth: ROWS vs RANGE and Tied Rows',
+      content: `The frame is the sub-range of the partition a window aggregate actually sees. Getting it wrong produces numbers that look plausible and are quietly incorrect.
+
+**The default frame surprise.** When you write \`SUM(x) OVER (ORDER BY d)\` with no explicit frame, you get \`RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\`. RANGE is defined by **value**, so "current row" means "all rows with the same ORDER BY value" — the *peers*. Every tied row gets the same cumulative sum, which is not a row-by-row running total.
+
+**ROWS** is defined by **position**. \`ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\` gives a true running total, advancing one physical row at a time — but the order among ties is whatever the sort produced, so add a tiebreaker to ORDER BY for determinism.
+
+**RANGE with an offset** needs a numeric or interval ORDER BY column and works on the *values*: \`RANGE BETWEEN INTERVAL '7 days' PRECEDING AND CURRENT ROW\` means "everything dated within the last week", even if some days are missing. \`ROWS BETWEEN 6 PRECEDING\` would silently span more than a week whenever days are missing.
+
+**Ranking functions ignore frames** — ROW_NUMBER, RANK, LAG, LEAD always work over the whole ordered partition. Frames only affect aggregate-style functions and FIRST_VALUE / LAST_VALUE / NTH_VALUE.`,
+      codeExample: `-- Sales on Jan 1 (10 and 20) and Jan 2 (5)
+-- Default RANGE frame: peers share a sum -> 30, 30, 35
+SELECT day, amount,
+  SUM(amount) OVER (ORDER BY day) AS range_sum
+FROM sales;
+
+-- ROWS frame: true running total -> 10, 30, 35
+SELECT day, amount,
+  SUM(amount) OVER (
+    ORDER BY day, id            -- tiebreaker keeps it deterministic
+    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+  ) AS running_total
+FROM sales;
+
+-- Time-based window that tolerates missing days
+SELECT day, signups,
+  SUM(signups) OVER (
+    ORDER BY day
+    RANGE BETWEEN INTERVAL '6 days' PRECEDING AND CURRENT ROW
+  ) AS trailing_7d
+FROM daily_signups;
+
+-- Trailing average of the previous 3 rows, excluding today
+SELECT day, price,
+  AVG(price) OVER (
+    ORDER BY day
+    ROWS BETWEEN 3 PRECEDING AND 1 PRECEDING
+  ) AS prev_3_avg
+FROM prices;`,
+    },
+    {
+      id: 'sql-win-6',
+      title: 'Gaps and Islands, Dedup, and Windows over GROUP BY',
+      content: `**Gaps and islands** — "find runs of consecutive days a user was active" — is the most common hard window question.
+
+The trick: number the rows with \`ROW_NUMBER()\` and subtract that from the value. Inside a consecutive run, both increase by one per row, so the difference is **constant**; when the run breaks, the difference jumps. GROUP BY the difference to get one row per island.
+
+**Finding the gaps** themselves is easier with \`LEAD\`: look at the next value and report where \`next - current > 1\`.
+
+**De-duplication with ROW_NUMBER.** Partition by the columns that define a duplicate, order by whichever copy you want to keep, and delete every row whose number is greater than 1. This is the standard "remove duplicate rows but keep one" answer.
+
+**Windows on top of GROUP BY.** Window functions run *after* GROUP BY and HAVING, so they see the aggregated rows. \`SUM(SUM(total)) OVER (ORDER BY month)\` is legal and means "running total of monthly totals". \`COUNT(*) OVER ()\` in a paginated query returns the total row count on every row, saving a second query.
+
+**Top-N with ties.** \`ROW_NUMBER() <= 3\` gives exactly three rows. \`RANK() <= 3\` includes tied rows but may skip values. \`DENSE_RANK() <= 3\` gives all rows with the three highest *distinct* values — usually what "top 3 salaries" means.`,
+      codeExample: `-- Islands: streaks of consecutive active days per user
+WITH numbered AS (
+  SELECT user_id, active_day,
+    active_day - (ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY active_day))::int AS grp
+  FROM user_activity
+)
+SELECT user_id,
+       MIN(active_day) AS streak_start,
+       MAX(active_day) AS streak_end,
+       COUNT(*)        AS streak_len
+FROM numbered
+GROUP BY user_id, grp
+ORDER BY user_id, streak_start;
+
+-- Gaps: missing id ranges in a sequence
+SELECT id + 1 AS gap_start, next_id - 1 AS gap_end
+FROM (
+  SELECT id, LEAD(id) OVER (ORDER BY id) AS next_id
+  FROM tickets
+) t
+WHERE next_id - id > 1;
+
+-- Dedupe: keep the oldest row per email, delete the rest
+WITH ranked AS (
+  SELECT id, ROW_NUMBER() OVER (PARTITION BY email ORDER BY id) AS rn
+  FROM users
+)
+DELETE FROM users
+WHERE id IN (SELECT id FROM ranked WHERE rn > 1);
+
+-- Running total over aggregated rows + total count for pagination
+SELECT
+  DATE_TRUNC('month', placed_at) AS month,
+  SUM(total)                     AS monthly,
+  SUM(SUM(total)) OVER (ORDER BY DATE_TRUNC('month', placed_at)) AS cumulative,
+  COUNT(*) OVER ()               AS total_months
+FROM orders
+GROUP BY 1
+ORDER BY 1;`,
+    },
   ],
 
   visualizations: [
@@ -1614,6 +2367,18 @@ WINDOW w AS (ORDER BY date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW);`,
     { id: 'wn16', front: 'How do you compute percent-of-total per row?', back: 'value * 100.0 / SUM(value) OVER (PARTITION BY group_key) — current row divided by the partition\'s sum.' },
     { id: 'wn17', front: 'What\'s a sessionization?', back: 'Grouping consecutive events that are within a time threshold. LAG to find gaps, flag new sessions, then SUM the flag in a window to assign session IDs.' },
     { id: 'wn18', front: 'What does PERCENT_RANK return?', back: 'Relative rank between 0 and 1: (rank - 1) / (total_rows - 1). Useful for percentile-style sorting.' },
+    { id: 'wn19', front: 'Why does SUM(x) OVER (ORDER BY day) give equal totals to rows with the same day?', back: 'The default frame is RANGE, which is value-based: "current row" includes all peers with the same ORDER BY value. Use ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW (plus a tiebreaker) for a true row-by-row running total.' },
+    { id: 'wn20', front: 'What does the third argument of LAG(x, 1, 0) do?', back: 'It is the default returned when there is no previous row — here 0 instead of NULL. Handy so the first row\'s delta is x - 0 rather than NULL.' },
+    { id: 'wn21', front: 'How does the gaps-and-islands trick identify consecutive runs?', back: 'Subtract ROW_NUMBER() from the value (or date). Within a consecutive run both rise by one per row, so the difference stays constant; it jumps at each break. GROUP BY that difference to get one row per island.' },
+    { id: 'wn22', front: 'How do you find missing values in a sequence with LEAD?', back: 'SELECT id + 1 AS gap_start, LEAD(id) OVER (ORDER BY id) - 1 AS gap_end, then keep rows where the next id minus the current is greater than 1.' },
+    { id: 'wn23', front: 'What is COUNT(*) OVER () useful for?', back: 'It returns the total row count on every row without collapsing them — the standard way to return a paginated page plus the total number of results in one query.' },
+    { id: 'wn24', front: 'What does adding ORDER BY inside OVER do to an aggregate like SUM?', back: 'It switches the aggregate from whole-partition to cumulative: an implicit frame from the partition start to the current row appears. Without ORDER BY, every row gets the partition total.' },
+    { id: 'wn25', front: 'How do you delete duplicate rows but keep one copy?', back: 'ROW_NUMBER() OVER (PARTITION BY dup_columns ORDER BY id) in a CTE, then DELETE rows whose number is greater than 1. The ORDER BY decides which copy survives.' },
+    { id: 'wn26', front: 'Can you nest a window function inside another window or an aggregate?', back: 'No — SUM(ROW_NUMBER() OVER ...) or AVG(x) OVER (...) OVER (...) are errors. Compute the first window in a CTE or subquery, then apply the next layer on top.' },
+    { id: 'wn27', front: 'Which ranking function gives "top 3 salaries" including everyone tied at those values?', back: 'DENSE_RANK() <= 3 — it returns every row holding one of the three highest distinct values. ROW_NUMBER cuts ties arbitrarily; RANK can skip values after a tie.' },
+    { id: 'wn28', front: 'What does CUME_DIST return?', back: 'The fraction of rows in the partition whose ORDER BY value is less than or equal to the current row\'s: rows_at_or_below / total_rows, in (0, 1]. PERCENT_RANK is (rank - 1) / (total - 1) and starts at 0.' },
+    { id: 'wn29', front: 'Can you combine window functions with GROUP BY in the same query?', back: 'Yes — windows run after GROUP BY, so they operate on the grouped rows. SUM(SUM(total)) OVER (ORDER BY month) is a running total of monthly totals.' },
+    { id: 'wn30', front: 'What is the main performance cost of window functions?', back: 'Each distinct PARTITION BY / ORDER BY combination needs its own sort of the input. Share specs via a WINDOW clause, and an index on (partition_cols, order_cols) can supply the order and skip the sort.' },
   ],
 
   quizQuestions: [
@@ -1686,6 +2451,76 @@ WINDOW w AS (ORDER BY date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW);`,
       options: ['Performance', 'To name and reuse the same window definition across multiple functions', 'It\'s required', 'To avoid GROUP BY'],
       correctAnswer: 1,
       explanation: 'Lets you write SUM(x) OVER w, AVG(x) OVER w without repeating the PARTITION/ORDER spec.',
+    },
+    {
+      id: 'wnq11',
+      question: 'sales rows: (Jan 1, 10), (Jan 1, 20), (Jan 2, 5). What does `SUM(amount) OVER (ORDER BY day)` return, in that order?',
+      options: ['10, 30, 35', '30, 30, 35', '10, 20, 5', '35, 35, 35'],
+      correctAnswer: 1,
+      explanation: 'The default frame is RANGE ... CURRENT ROW, and RANGE includes all peers with the same day. Both Jan 1 rows see 10 + 20 = 30. A ROWS frame would give 10, 30, 35.',
+    },
+    {
+      id: 'wnq12',
+      question: 'What does `LAG(sales, 1, 0) OVER (ORDER BY day)` return on the first row?',
+      options: ['NULL', 'The first row\'s own value', '0', 'An error'],
+      correctAnswer: 2,
+      explanation: 'The third argument is the default used when no preceding row exists. Without it, LAG would return NULL on the first row.',
+    },
+    {
+      id: 'wnq13',
+      question: 'A user was active on days 1, 2, 3, 5, 6. With `day - ROW_NUMBER() OVER (ORDER BY day)`, what values do you get?',
+      options: ['1, 2, 3, 5, 6', '0, 0, 0, 1, 1', '1, 1, 1, 2, 2', '0, 1, 2, 3, 4'],
+      correctAnswer: 1,
+      explanation: 'Row numbers are 1..5, so 1-1, 2-2, 3-3 = 0 and 5-4, 6-5 = 1. Two distinct differences mean two islands: days 1–3 and days 5–6.',
+    },
+    {
+      id: 'wnq14',
+      question: 'Which query removes duplicate emails while keeping the row with the lowest id?',
+      options: ['DELETE FROM users WHERE email IN (SELECT email FROM users GROUP BY email HAVING COUNT(*) > 1)', 'DELETE FROM users WHERE id NOT IN (SELECT MIN(id) FROM users)', 'DELETE FROM users WHERE id IN (SELECT id FROM (SELECT id, ROW_NUMBER() OVER (PARTITION BY email ORDER BY id) rn FROM users) t WHERE rn > 1)', 'DELETE FROM users USING users u2 WHERE users.email = u2.email'],
+      correctAnswer: 2,
+      explanation: 'Numbering within each email group and deleting rn > 1 keeps exactly one row per email, the lowest id. Option A deletes every copy including the one to keep, and B keeps only one row in the whole table.',
+    },
+    {
+      id: 'wnq15',
+      question: 'You need everyone earning one of the three highest distinct salaries, including ties. Which filter?',
+      options: ['ROW_NUMBER() OVER (ORDER BY salary DESC) <= 3', 'RANK() OVER (ORDER BY salary DESC) <= 3', 'NTILE(3) OVER (ORDER BY salary DESC) = 1', 'DENSE_RANK() OVER (ORDER BY salary DESC) <= 3'],
+      correctAnswer: 3,
+      explanation: 'DENSE_RANK numbers distinct values consecutively, so <= 3 captures all rows at the three highest salaries. RANK skips after ties (two people at rank 1 push the next to 3, dropping the third value), and ROW_NUMBER cuts ties arbitrarily.',
+    },
+    {
+      id: 'wnq16',
+      question: 'In a query with `GROUP BY month`, what does `SUM(SUM(total)) OVER (ORDER BY month)` compute?',
+      options: ['A syntax error — aggregates cannot nest', 'The grand total on every row', 'A running total of the monthly totals', 'Each month\'s total counted twice'],
+      correctAnswer: 2,
+      explanation: 'The inner SUM is the GROUP BY aggregate; the outer SUM is a window over those grouped rows. Windows run after GROUP BY, so this is a cumulative sum of monthly sums.',
+    },
+    {
+      id: 'wnq17',
+      question: 'You return page 3 of search results and also need the total number of matches, in one query. What do you add?',
+      options: ['COUNT(*) GROUP BY page', 'COUNT(*) OVER ()', 'ROW_NUMBER() OVER ()', 'A second query with COUNT(*)'],
+      correctAnswer: 1,
+      explanation: 'COUNT(*) OVER () annotates every row with the total count of the filtered result before LIMIT is applied, so a separate count query is unnecessary.',
+    },
+    {
+      id: 'wnq18',
+      question: 'ticket ids are 1, 2, 5, 6. For the row with id = 2, what does `LEAD(id) OVER (ORDER BY id) - id` return?',
+      options: ['1', '2', '3', 'NULL'],
+      correctAnswer: 2,
+      explanation: 'LEAD(id) for id = 2 is 5, and 5 - 2 = 3. A difference greater than 1 flags a gap covering ids 3 and 4.',
+    },
+    {
+      id: 'wnq19',
+      question: 'Which of these is NOT allowed?',
+      options: ['SUM(total) OVER (PARTITION BY customer_id)', 'AVG(SUM(total)) OVER () after GROUP BY customer_id', 'AVG(ROW_NUMBER() OVER (ORDER BY id))', 'ROW_NUMBER() OVER (ORDER BY SUM(total) DESC) after GROUP BY customer_id'],
+      correctAnswer: 2,
+      explanation: 'A window function cannot be an input to an aggregate (or another window) in the same SELECT. Options B and D are fine because the aggregate is computed by GROUP BY first and the window runs on top.',
+    },
+    {
+      id: 'wnq20',
+      question: '`NTILE(4) OVER (ORDER BY score)` over 10 rows — what are the bucket sizes?',
+      options: ['3, 3, 2, 2', '2, 2, 3, 3', '4, 4, 2, 0', '2, 3, 2, 3'],
+      correctAnswer: 0,
+      explanation: '10 / 4 leaves a remainder of 2, and NTILE gives the extra rows to the earliest buckets, so the first two buckets get 3 rows and the last two get 2.',
     },
   ],
 };
@@ -1872,6 +2707,92 @@ SELECT * FROM users WHERE email = 'a@x'
 UNION
 SELECT * FROM users WHERE phone = '555-1212';`,
     },
+    {
+      id: 'sql-perf-5',
+      title: 'Selectivity, Clustered Indexes, and the Cost of Writes',
+      content: `**Selectivity** is the fraction of rows a predicate matches. An index pays off when it narrows the search to a small slice — an email column (one row per value) is highly selective; a boolean \`is_active\` (half the table per value) is not. The planner estimates selectivity from statistics and chooses a Seq Scan when the slice is too big, because random index lookups cost more than streaming the table.
+
+**Range on the leading column stops the walk.** For index \`(a, b)\`, \`WHERE a = 1 AND b > 5\` seeks straight to the matching leaf pages. \`WHERE a > 1 AND b = 5\` can only use \`a\` to pick a range, then must check \`b\` on every entry in it. Equality columns go first.
+
+**Clustered vs non-clustered.** A *clustered* index stores the table rows physically in index order — InnoDB's primary key and SQL Server's clustered index work this way; every secondary index then points at the primary key. Postgres tables are heaps: all indexes are separate structures with pointers to row locations, and \`CLUSTER\` only reorders once.
+
+**Random primary keys hurt clustered tables.** Inserting random UUIDs into an InnoDB table scatters writes across the whole B-tree, causing page splits and cache misses. Sequential ids or time-ordered UUIDs (v7) append at the end.
+
+**Every index is a write tax.** Each INSERT adds an entry to every index; each UPDATE of an indexed column rewrites the entry (and in Postgres defeats cheap HOT updates). Foreign-key columns deserve an index anyway: without one, deleting a parent row scans the entire child table.`,
+      codeExample: `-- Selectivity: how many distinct values per column?
+SELECT attname, n_distinct, null_frac
+FROM pg_stats
+WHERE tablename = 'users';
+-- n_distinct -1 = unique (great candidate); 2 = boolean (useless alone)
+
+-- Equality first, then the range
+CREATE INDEX idx_events_type_time ON events (event_type, occurred_at);
+SELECT * FROM events
+WHERE event_type = 'click' AND occurred_at > NOW() - INTERVAL '1 hour';
+
+-- Low-selectivity column becomes useful as a partial index
+CREATE INDEX idx_users_inactive ON users (last_login)
+WHERE is_active = FALSE;   -- only the rare rows
+
+-- Index foreign keys: parent deletes and joins both need it
+CREATE INDEX idx_orders_user_id ON orders (user_id);
+
+-- Find indexes that never get used (drop candidates)
+SELECT indexrelname, idx_scan
+FROM pg_stat_user_indexes
+WHERE idx_scan = 0
+ORDER BY pg_relation_size(indexrelid) DESC;`,
+    },
+    {
+      id: 'sql-perf-6',
+      title: 'Views and Materialized Views',
+      content: `A **view** is a saved query with a name. It stores no data — each time you SELECT from it, the database inlines the definition and plans the combined query. Use views to:
+- Hide complexity (a 5-table join becomes \`FROM customer_summary\`).
+- Restrict access (expose only some columns/rows; grant on the view, not the table).
+- Provide a stable interface while the underlying tables change.
+
+Because a view is just SQL, it is always **fresh** and costs exactly what its query costs. It cannot be indexed directly, though the indexes on underlying tables still apply.
+
+A **materialized view** runs the query once and **stores the result** like a table. Reads are instant and you can index the stored rows. The price is staleness: data only changes when you \`REFRESH MATERIALIZED VIEW\`, which re-runs the whole query. \`REFRESH ... CONCURRENTLY\` (Postgres) swaps in the new rows without blocking readers but needs a unique index on the view.
+
+**Choosing:**
+- Query is cheap or data must be current → plain view.
+- Query is expensive (heavy aggregation, many joins) and minutes-old data is fine → materialized view refreshed on a schedule.
+- Need incremental, always-current pre-aggregation → summary table maintained by triggers or the application.
+
+**Updatable views:** simple single-table views without aggregates can accept INSERT/UPDATE/DELETE; add \`WITH CHECK OPTION\` to prevent writes that would fall outside the view's WHERE.`,
+      codeExample: `-- Plain view: always current, no storage
+CREATE VIEW active_customers AS
+SELECT u.id, u.name, u.email
+FROM users u
+WHERE u.status = 'active';
+
+-- Restrict access: grant the view, not the table
+GRANT SELECT ON active_customers TO support_role;
+
+-- Materialized view: expensive aggregation, refreshed hourly
+CREATE MATERIALIZED VIEW daily_revenue AS
+SELECT
+  placed_at::date AS day,
+  country,
+  SUM(total)      AS revenue,
+  COUNT(*)        AS orders
+FROM orders
+WHERE status = 'paid'
+GROUP BY placed_at::date, country;
+
+-- Index the stored result like any table
+CREATE UNIQUE INDEX idx_daily_revenue ON daily_revenue (day, country);
+
+-- Refresh without blocking readers (requires the unique index)
+REFRESH MATERIALIZED VIEW CONCURRENTLY daily_revenue;
+
+-- Updatable view that refuses out-of-scope writes
+CREATE VIEW us_users AS
+SELECT * FROM users WHERE country = 'US'
+WITH CHECK OPTION;
+UPDATE us_users SET country = 'CA' WHERE id = 1;  -- ERROR: violates check option`,
+    },
   ],
 
   visualizations: [
@@ -1930,6 +2851,18 @@ SELECT * FROM users WHERE phone = '555-1212';`,
     { id: 'pf16', front: 'What\'s an index-only scan?', back: 'A query answered entirely by reading the index without touching the table. Requires the index to cover every column the query needs.' },
     { id: 'pf17', front: 'Why might the planner pick a Seq Scan over an Index Scan?', back: 'When the filter matches a large fraction of the table (say >5–10%), sequential I/O is cheaper than random index lookups followed by heap fetches.' },
     { id: 'pf18', front: 'How do you make an OR across two columns indexable?', back: 'Rewrite as UNION of two queries, each able to use its own index. The planner often can\'t merge two indexes for a single OR.' },
+    { id: 'pf19', front: 'What is index selectivity and why does it matter?', back: 'The fraction of rows a predicate matches. Highly selective columns (few rows per value, like email) make great indexes; low-selectivity ones (booleans, status with 3 values) rarely beat a Seq Scan on their own.' },
+    { id: 'pf20', front: 'For index (a, b), why is `WHERE a > 5 AND b = 3` slower than `WHERE a = 5 AND b > 3`?', back: 'A range on the leading column only narrows a to an interval; every entry in it must then be checked for b. An equality on the leading column jumps straight to the b range. Put equality columns before range columns.' },
+    { id: 'pf21', front: 'What is a Bitmap Heap Scan?', back: 'The index is scanned first to build a bitmap of matching heap pages, then those pages are read in physical order. Chosen for mid-selectivity predicates and for combining multiple indexes (AND/OR) in one scan.' },
+    { id: 'pf22', front: 'Clustered vs non-clustered index?', back: 'A clustered index stores the table rows physically in index order (InnoDB primary key, SQL Server). A non-clustered index is a separate structure pointing to row locations. Postgres tables are heaps — all indexes are non-clustered.' },
+    { id: 'pf23', front: 'Why are random UUID primary keys bad for InnoDB insert performance?', back: 'The primary key is the clustered index, so random keys scatter inserts across the B-tree, causing page splits and cache misses. Sequential ids or time-ordered UUIDs (v7) append to the rightmost page.' },
+    { id: 'pf24', front: 'Why can a Postgres index-only scan still fetch from the heap?', back: 'Row visibility (MVCC) is stored in the heap, not the index. The scan skips the heap only for pages marked all-visible in the visibility map, which VACUUM maintains. High "Heap Fetches" means the table needs vacuuming.' },
+    { id: 'pf25', front: 'How does an index help ORDER BY ... LIMIT N?', back: 'If the index order matches the ORDER BY, the DB walks the index (forward or backward) and stops after N rows — no sort, no full scan. Without it, every matching row must be read and sorted first.' },
+    { id: 'pf26', front: 'Can index (a ASC, b ASC) serve ORDER BY a DESC, b DESC? What about a ASC, b DESC?', back: 'Yes to the first — a B-tree can be scanned backward. No to mixed directions; you need an index declared as (a ASC, b DESC) to avoid a sort.' },
+    { id: 'pf27', front: 'Why should foreign-key columns be indexed?', back: 'Joins from parent to child use them, and deleting or updating a parent row makes the DB check the child table for references — without an index that is a full scan per parent row, and it holds locks longer.' },
+    { id: 'pf28', front: 'Why does `WHERE id::text = \'42\'` skip the index on id, but `WHERE id = \'42\'::int` uses it?', back: 'Casting the column changes the value being compared, so the index\'s sort order no longer applies. Casting the parameter leaves the column untouched. Always convert the literal, never the column.' },
+    { id: 'pf29', front: 'What does an index cost on a frequently updated column?', back: 'Every update must rewrite the index entry, and in Postgres updating an indexed column disables the cheap HOT (heap-only tuple) path, so all indexes on the table get new entries — more write I/O and bloat.' },
+    { id: 'pf30', front: 'View vs materialized view?', back: 'A view stores nothing and re-runs its query on every read — always current. A materialized view stores the result, can be indexed, and reads instantly, but is stale until REFRESH MATERIALIZED VIEW re-runs the query.' },
   ],
 
   quizQuestions: [
@@ -2002,6 +2935,76 @@ SELECT * FROM users WHERE phone = '555-1212';`,
       options: ['REINDEX', 'ANALYZE (or VACUUM ANALYZE)', 'EXPLAIN', 'DROP INDEX'],
       correctAnswer: 1,
       explanation: 'The planner is working from stale stats. ANALYZE recomputes the distributions so the optimizer makes better choices.',
+    },
+    {
+      id: 'pfq11',
+      question: 'Which column is the best candidate for a standalone B-tree index based on selectivity?',
+      options: ['is_active (boolean)', 'country (about 50 values over 10M rows)', 'email (unique)', 'gender'],
+      correctAnswer: 2,
+      explanation: 'An equality lookup on a unique column narrows to one row. Booleans and low-cardinality columns match huge slices, so the planner usually prefers a Seq Scan.',
+    },
+    {
+      id: 'pfq12',
+      question: 'Query: `WHERE status = \'pending\' AND created_at > NOW() - INTERVAL \'1 day\'`. Which composite index is better?',
+      options: ['(created_at, status)', '(status, created_at)', 'Two separate single-column indexes', 'Either order — the planner reorders columns'],
+      correctAnswer: 1,
+      explanation: 'Equality on the leading column jumps to the status block, then the range on created_at is a contiguous walk. With (created_at, status) the range comes first, and status must be checked on every entry.',
+    },
+    {
+      id: 'pfq13',
+      question: 'id is an indexed integer. Why does `WHERE id::text = \'42\'` do a Seq Scan?',
+      options: ['The column is cast, so the index on the raw integer cannot be used', 'Text comparisons never use indexes', 'The planner cannot parse the cast', 'The string literal must be quoted differently'],
+      correctAnswer: 0,
+      explanation: 'Applying a function or cast to the indexed column defeats the index, just like LOWER(email). Compare against a properly typed literal (WHERE id = 42) instead.',
+    },
+    {
+      id: 'pfq14',
+      question: 'created_at has a B-tree index. How does the planner handle `ORDER BY created_at DESC LIMIT 10`?',
+      options: ['Seq Scan then a full sort', 'Reads all rows, sorts, keeps 10', 'Uses the index only if declared DESC', 'Walks the index backward and stops after 10 rows'],
+      correctAnswer: 3,
+      explanation: 'B-trees can be scanned in either direction. The index supplies the order, so the query touches only 10 index entries and their rows.',
+    },
+    {
+      id: 'pfq15',
+      question: 'Deleting a single row from `users` takes seconds. orders.user_id references users(id). Most likely cause?',
+      options: ['Too many indexes on users', 'orders.user_id has no index, so the FK check scans the whole orders table', 'The users table needs REINDEX', 'The primary key is a UUID'],
+      correctAnswer: 1,
+      explanation: 'The DB must verify no child rows reference the deleted parent (or cascade to them). Without an index on the FK column, that is a full scan of orders for every delete.',
+    },
+    {
+      id: 'pfq16',
+      question: 'Why is a random UUID a poor primary key for an InnoDB (MySQL) table with heavy inserts?',
+      options: ['UUIDs cannot be indexed', 'UUIDs are not unique enough', 'The clustered index gets random inserts, causing page splits and cache misses', 'InnoDB requires integer keys'],
+      correctAnswer: 2,
+      explanation: 'InnoDB stores rows in primary-key order. Random keys land anywhere in the tree instead of appending at the end, so pages split and the working set no longer fits in cache.',
+    },
+    {
+      id: 'pfq17',
+      question: 'EXPLAIN shows "Bitmap Heap Scan on orders" with "Bitmap Index Scan" beneath it. What is happening?',
+      options: ['The index identifies matching pages, which are then read from the table in physical order', 'The whole table is scanned into a bitmap', 'Two tables are joined via bitmaps', 'The index is corrupt and being rebuilt'],
+      correctAnswer: 0,
+      explanation: 'A bitmap scan is the middle ground between an Index Scan and a Seq Scan: it collects matching row locations first and fetches heap pages sequentially. It also lets the planner AND/OR several indexes.',
+    },
+    {
+      id: 'pfq18',
+      question: 'Which statement about materialized views is true?',
+      options: ['They re-run the query on every read', 'They store the result and must be refreshed to see new data', 'They cannot be indexed', 'They are automatically updated on every insert'],
+      correctAnswer: 1,
+      explanation: 'A materialized view is a snapshot. It reads fast and can be indexed, but it is stale until REFRESH MATERIALIZED VIEW. A plain view is the one that re-runs its query each time.',
+    },
+    {
+      id: 'pfq19',
+      question: 'An Index Only Scan reports "Heap Fetches: 500000". What is the likely fix?',
+      options: ['Add INCLUDE columns', 'Drop the index', 'Run VACUUM so the visibility map marks pages all-visible', 'Switch to a hash index'],
+      correctAnswer: 2,
+      explanation: 'Index-only scans must check the heap for row visibility unless the page is flagged all-visible. VACUUM updates that map; after it runs, heap fetches drop toward zero.',
+    },
+    {
+      id: 'pfq20',
+      question: 'users has a plain B-tree index on email. Which predicate can use it?',
+      options: ['WHERE LOWER(email) = $1', 'WHERE email LIKE \'%\' || $1', 'WHERE email::text ILIKE $1', 'WHERE email = LOWER($1)'],
+      correctAnswer: 3,
+      explanation: 'Transforming the parameter is free — the column is compared as stored. Transforming the column (LOWER, cast) or using a leading wildcard prevents the B-tree from seeking.',
     },
   ],
 };
@@ -2212,6 +3215,97 @@ COMMIT;
 --     except DeadlockDetected:
 --       sleep(random_jitter)`,
     },
+    {
+      id: 'sql-tx-5',
+      title: 'Lost Updates, Write Skew, and Snapshot Isolation',
+      content: `The three standard read phenomena are not the whole story. Two **write** anomalies come up constantly in interviews because they bite real systems.
+
+**Lost update.** Two transactions read the same row, compute a new value in application code, and both write it back. The second write silently overwrites the first — one increment vanishes. Fixes, from simplest to strongest:
+1. Do the math in SQL: \`UPDATE ... SET balance = balance - 30\`. One atomic statement, row-locked by the database.
+2. \`SELECT ... FOR UPDATE\` before reading, so the second reader blocks.
+3. Optimistic version column.
+4. REPEATABLE READ or SERIALIZABLE in Postgres, which abort the second writer with a serialization failure.
+
+**Write skew.** Two transactions read overlapping data, each decides its own write is safe, and write *different* rows — together violating an invariant. Classic: two on-call doctors both check "at least one other doctor is on call" and both go off duty. No row was written twice, so row locks and REPEATABLE READ do not catch it. Only \`SERIALIZABLE\` (or an explicit lock on the rows you *read*) prevents it.
+
+**Snapshot isolation in practice.** Postgres REPEATABLE READ takes one snapshot at the first statement and keeps it for the whole transaction, so phantoms cannot appear either — stricter than the standard. Under READ COMMITTED each **statement** gets a fresh snapshot, so two identical SELECTs in one transaction can legitimately differ.
+
+**Postgres SERIALIZABLE** uses Serializable Snapshot Isolation: no extra blocking, but it tracks read/write dependencies and aborts a transaction whose result could not have occurred in some serial order. Always retry on SQLSTATE 40001.`,
+      codeExample: `-- Lost update: both sessions read 100, both write 70. One decrement is lost.
+-- Session A                        -- Session B
+BEGIN;                              BEGIN;
+SELECT balance FROM accounts        SELECT balance FROM accounts
+WHERE id = 1;    -- 100             WHERE id = 1;    -- 100
+UPDATE accounts SET balance = 70    UPDATE accounts SET balance = 70
+WHERE id = 1;                       WHERE id = 1;    -- waits for A
+COMMIT;                             COMMIT;          -- balance = 70, not 40
+
+-- Fix 1: let the database do the arithmetic
+UPDATE accounts SET balance = balance - 30 WHERE id = 1;
+
+-- Fix 2: lock the row on read
+BEGIN;
+SELECT balance FROM accounts WHERE id = 1 FOR UPDATE;
+UPDATE accounts SET balance = 70 WHERE id = 1;
+COMMIT;
+
+-- Write skew: each doctor checks the invariant, then breaks it together
+BEGIN ISOLATION LEVEL SERIALIZABLE;
+SELECT COUNT(*) FROM doctors WHERE on_call = TRUE;   -- both see 2
+UPDATE doctors SET on_call = FALSE WHERE id = $me;
+COMMIT;   -- under SERIALIZABLE, the second commit fails with 40001
+
+-- Snapshot per statement vs per transaction
+BEGIN;                                    -- READ COMMITTED (default)
+SELECT COUNT(*) FROM orders;              -- 100
+-- another session inserts and commits
+SELECT COUNT(*) FROM orders;              -- 101: fresh snapshot per statement
+COMMIT;`,
+    },
+    {
+      id: 'sql-tx-6',
+      title: 'UPSERT and MERGE: Atomic Insert-or-Update',
+      content: `"Insert if missing, otherwise update" written as two statements has a race: two clients both SELECT, both see nothing, both INSERT, and one fails on the unique constraint (or, without a constraint, you get duplicates). The database offers atomic forms.
+
+**INSERT ... ON CONFLICT (Postgres, SQLite).** Requires a unique index or constraint to detect the conflict. \`DO UPDATE\` lets you reference the row that would have been inserted through \`EXCLUDED\`; \`DO NOTHING\` makes the insert idempotent. Under the hood Postgres uses speculative insertion, so concurrent upserts never produce duplicate-key errors.
+
+**INSERT ... ON DUPLICATE KEY UPDATE (MySQL)** is the equivalent; \`VALUES(col)\` (older) or a row alias refers to the proposed values.
+
+**MERGE (SQL standard; Postgres 15+, SQL Server, Oracle).** Joins a source to a target and specifies actions per branch: \`WHEN MATCHED THEN UPDATE\` / \`DELETE\`, \`WHEN NOT MATCHED THEN INSERT\`. More expressive — conditional branches, deletes, bulk sync from a staging table — but in Postgres it does not take the speculative-insert path, so two concurrent MERGEs inserting the same key can still hit a unique violation. Use ON CONFLICT for hot single-row upserts and MERGE for batch synchronization.
+
+**Idempotency tip:** combine \`ON CONFLICT DO NOTHING\` with a request id column to make retried API calls safe.`,
+      codeExample: `-- Racy two-step version (do not do this)
+-- SELECT 1 FROM inventory WHERE sku = 'X';
+-- if none: INSERT ...  else: UPDATE ...
+
+-- Atomic upsert (Postgres)
+INSERT INTO inventory (sku, qty, updated_at)
+VALUES ('X', 5, NOW())
+ON CONFLICT (sku) DO UPDATE
+SET qty        = inventory.qty + EXCLUDED.qty,
+    updated_at = EXCLUDED.updated_at
+WHERE inventory.qty + EXCLUDED.qty >= 0;   -- optional guard
+
+-- Idempotent insert: retrying the same request is harmless
+INSERT INTO payments (request_id, amount)
+VALUES ('req-123', 49.99)
+ON CONFLICT (request_id) DO NOTHING;
+
+-- MySQL equivalent
+INSERT INTO inventory (sku, qty)
+VALUES ('X', 5)
+ON DUPLICATE KEY UPDATE qty = qty + VALUES(qty);
+
+-- MERGE: sync a staging table into products (Postgres 15+ / SQL Server)
+MERGE INTO products p
+USING staged_products s ON s.sku = p.sku
+WHEN MATCHED AND s.discontinued THEN
+  DELETE
+WHEN MATCHED THEN
+  UPDATE SET price = s.price, name = s.name
+WHEN NOT MATCHED THEN
+  INSERT (sku, name, price) VALUES (s.sku, s.name, s.price);`,
+    },
   ],
 
   visualizations: [
@@ -2268,6 +3362,18 @@ COMMIT;
     { id: 'tx16', front: 'What is autocommit?', back: 'Each statement runs in its own implicit transaction and commits immediately. On by default in most clients — disable or use explicit BEGIN/COMMIT for multi-statement atomicity.' },
     { id: 'tx17', front: 'Why does Postgres need VACUUM?', back: 'MVCC leaves dead row versions when UPDATEs and DELETEs happen. VACUUM (autovacuum runs automatically) reclaims that space and updates statistics.' },
     { id: 'tx18', front: 'What\'s the trade-off of higher isolation?', back: 'Stronger consistency for readers but more locking or more serialization failures, leading to lower throughput under contention.' },
+    { id: 'tx19', front: 'What is a lost update?', back: 'Two transactions read the same row, compute a new value in app code, and both write it back — the second write silently overwrites the first. Fix with an atomic UPDATE (SET x = x - 1), SELECT FOR UPDATE, a version column, or REPEATABLE READ/SERIALIZABLE.' },
+    { id: 'tx20', front: 'Why is `UPDATE accounts SET balance = balance - 30` safer than reading the balance and writing 70?', back: 'The subtraction happens inside one statement under the row lock, so concurrent decrements serialize correctly. Read-then-write in app code leaves a window where another writer\'s change is lost.' },
+    { id: 'tx21', front: 'What is write skew?', back: 'Two transactions read overlapping data, each writes a different row, and together they break an invariant (both on-call doctors go off duty). No row is written twice, so row locks miss it — only SERIALIZABLE or locking the rows you read prevents it.' },
+    { id: 'tx22', front: 'How does Postgres REPEATABLE READ differ from the SQL standard?', back: 'It is snapshot isolation: one snapshot for the entire transaction, so phantom reads are impossible too. But write skew is still possible, and updating a row another transaction changed since the snapshot raises a serialization error.' },
+    { id: 'tx23', front: 'Under READ COMMITTED, can two identical SELECTs in one transaction return different results?', back: 'Yes. Each statement takes a fresh snapshot of committed data at its start, so anything committed between the two statements is visible to the second. That is the non-repeatable read the level permits.' },
+    { id: 'tx24', front: 'What happens when T2 runs SELECT ... FOR UPDATE on a row T1 already locked?', back: 'T2 blocks until T1 commits or rolls back. Under READ COMMITTED it then re-reads the row and sees T1\'s committed changes; under REPEATABLE READ it aborts with a serialization error if the row changed.' },
+    { id: 'tx25', front: 'What is two-phase commit (2PC)?', back: 'A protocol for atomic commits across multiple databases: a coordinator asks every participant to PREPARE (make the transaction durable but uncommitted), and only if all vote yes sends COMMIT. Slow and the coordinator is a single point of failure — sagas are the common alternative.' },
+    { id: 'tx26', front: 'Why is SELECT-then-INSERT racy, and how does ON CONFLICT fix it?', back: 'Two clients can both see "no row" and both insert; one gets a unique-violation error, or you get duplicates without a constraint. INSERT ... ON CONFLICT resolves the collision atomically inside the database in a single statement.' },
+    { id: 'tx27', front: 'What does the MERGE statement do?', back: 'Joins a source to a target and applies per-branch actions: WHEN MATCHED THEN UPDATE or DELETE, WHEN NOT MATCHED THEN INSERT. Standard SQL (Postgres 15+, SQL Server, Oracle), ideal for syncing a staging table into a live one.' },
+    { id: 'tx28', front: 'How does the write-ahead log (WAL) provide durability?', back: 'Every change is appended to the log and fsynced to disk before COMMIT returns; the actual data pages are written later. After a crash, the DB replays the WAL to redo committed changes that never reached the data files.' },
+    { id: 'tx29', front: 'Why are long-running or idle-in-transaction sessions harmful under MVCC?', back: 'Their snapshot pins old row versions, so VACUUM cannot reclaim dead tuples and tables bloat. They also hold any locks they acquired, blocking DDL and writers for the whole duration.' },
+    { id: 'tx30', front: 'Lock wait vs deadlock — what\'s the difference?', back: 'A lock wait is one transaction blocking until another releases a lock; it resolves on its own. A deadlock is a cycle of waits that can never resolve, so the DB aborts one participant. lock_timeout bounds waits; deadlock detection handles cycles.' },
   ],
 
   quizQuestions: [
@@ -2340,6 +3446,76 @@ COMMIT;
       options: ['FOR UPDATE locks', 'A version column checked on UPDATE', 'Deadlock detection', 'SERIALIZABLE isolation'],
       correctAnswer: 1,
       explanation: 'No locks held during the read. On write, WHERE version = $old fails if someone else changed the row, and the app retries.',
+    },
+    {
+      id: 'txq11',
+      question: 'Two sessions each read balance = 100, then each runs `UPDATE accounts SET balance = 70 WHERE id = 1` and commits. What is the final balance?',
+      options: ['40', '70', '100', 'Deadlock error'],
+      correctAnswer: 1,
+      explanation: 'This is a lost update: the second write overwrites the first with the same stale computation. No deadlock occurs because both touch only one row in the same order.',
+    },
+    {
+      id: 'txq12',
+      question: 'Which single statement avoids the lost-update race for a decrement of 30?',
+      options: ['SELECT balance; then UPDATE SET balance = 70', 'UPDATE accounts SET balance = 70 WHERE id = 1 AND balance = 100', 'UPDATE accounts SET balance = balance - 30 WHERE id = 1', 'BEGIN; UPDATE ...; COMMIT with autocommit off'],
+      correctAnswer: 2,
+      explanation: 'Computing the new value inside the UPDATE runs under the row lock, so concurrent decrements serialize. Option B is a valid optimistic check but fails one of the writers rather than applying both.',
+    },
+    {
+      id: 'txq13',
+      question: 'Two on-call doctors each check that another doctor is on call, then each sets themselves off duty. Both transactions commit and nobody is on call. Which isolation level would have prevented this?',
+      options: ['READ COMMITTED', 'REPEATABLE READ', 'READ UNCOMMITTED', 'SERIALIZABLE'],
+      correctAnswer: 3,
+      explanation: 'This is write skew: different rows are written, so row locks and snapshot isolation do not conflict. SERIALIZABLE detects the read/write dependency and aborts one transaction.',
+    },
+    {
+      id: 'txq14',
+      question: 'Under Postgres\'s default isolation level, you run the same SELECT COUNT(*) twice in one transaction and get 100 then 101. Is this a bug?',
+      options: ['No — READ COMMITTED takes a new snapshot per statement', 'Yes — a transaction always sees one snapshot', 'Yes — it indicates a dirty read', 'No — COUNT(*) is never transactional'],
+      correctAnswer: 0,
+      explanation: 'READ COMMITTED sees everything committed before each statement starts. Use REPEATABLE READ to hold one snapshot for the whole transaction.',
+    },
+    {
+      id: 'txq15',
+      question: 'T1 holds `SELECT ... FOR UPDATE` on row 5. T2 issues the same statement. What happens to T2?',
+      options: ['It gets the row immediately with stale data', 'It fails with a deadlock error', 'It blocks until T1 commits or rolls back', 'It is skipped'],
+      correctAnswer: 2,
+      explanation: 'FOR UPDATE is an exclusive row lock. T2 waits; once T1 finishes, T2 proceeds (and under READ COMMITTED sees T1\'s committed version). SKIP LOCKED or NOWAIT would change this behavior.',
+    },
+    {
+      id: 'txq16',
+      question: 'Two API servers simultaneously try to create the same user by first SELECTing, then INSERTing. What is the robust fix?',
+      options: ['Add a retry loop around the SELECT', 'Use INSERT ... ON CONFLICT (email) DO NOTHING (or DO UPDATE)', 'Lower the isolation level', 'Run the SELECT with LIMIT 1'],
+      correctAnswer: 1,
+      explanation: 'The check-then-insert gap is the race. ON CONFLICT resolves the collision atomically in one statement against the unique constraint, so neither server errors or duplicates.',
+    },
+    {
+      id: 'txq17',
+      question: 'In a MERGE statement, which clause updates rows that already exist in the target?',
+      options: ['WHEN MATCHED THEN UPDATE', 'WHEN NOT MATCHED THEN UPDATE', 'ON CONFLICT DO UPDATE', 'WHEN EXISTS THEN UPDATE'],
+      correctAnswer: 0,
+      explanation: 'MATCHED means the source row joined to a target row. NOT MATCHED branches handle inserts. ON CONFLICT belongs to INSERT, not MERGE.',
+    },
+    {
+      id: 'txq18',
+      question: 'What must be safely on disk before COMMIT returns to guarantee durability?',
+      options: ['All modified data pages', 'The table\'s indexes', 'The WAL records for the transaction', 'A full checkpoint'],
+      correctAnswer: 2,
+      explanation: 'The write-ahead log is fsynced at commit; data pages can be flushed later because crash recovery replays the WAL. Waiting for data pages would make every commit far slower.',
+    },
+    {
+      id: 'txq19',
+      question: 'A Postgres session has been "idle in transaction" for six hours. What is the main damage?',
+      options: ['Its queries run slower', 'VACUUM cannot remove dead rows newer than its snapshot, and its locks block others', 'The transaction is auto-committed', 'The WAL is truncated'],
+      correctAnswer: 1,
+      explanation: 'The open snapshot pins old row versions, so tables bloat, and any locks the session took stay held. Set idle_in_transaction_session_timeout to kill such sessions.',
+    },
+    {
+      id: 'txq20',
+      question: 'In Postgres REPEATABLE READ, T1 reads row 5. T2 updates row 5 and commits. T1 then tries to UPDATE row 5. What happens?',
+      options: ['T1\'s update succeeds and overwrites T2\'s', 'T1 sees T2\'s value and updates on top of it', 'T1 blocks forever', 'T1 fails with "could not serialize access due to concurrent update"'],
+      correctAnswer: 3,
+      explanation: 'Snapshot isolation refuses to let a transaction modify a row that changed after its snapshot was taken. The client should retry the transaction from the start.',
     },
   ],
 };
