@@ -7,8 +7,6 @@ import {
   ScrollView,
   TextInput,
   Switch,
-  Modal,
-  Pressable,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,14 +17,13 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { TestStackParamList } from '../navigation';
 import { useTestStore } from '../store/useTestStore';
+import BottomSheetModal from '../components/BottomSheetModal';
 import {
   TestTemplate,
   SectionConfig,
   SectionKind,
   SECTION_META,
   ALL_DIFFICULTIES,
-  ALL_LANGUAGES,
-  LANGUAGE_LABELS,
   TIME_CHOICES,
   MAX_PER_SECTION,
   BUILT_IN_TEMPLATES,
@@ -40,7 +37,6 @@ import {
   isRunnable,
   topicsForKind,
   Difficulty,
-  BugFixLanguage,
 } from '../data/testMode';
 
 type Nav = NativeStackNavigationProp<TestStackParamList>;
@@ -65,7 +61,6 @@ function cloneAsNew(src: TestTemplate): TestTemplate {
       ...s,
       difficulties: [...s.difficulties],
       topics: [...s.topics],
-      languages: [...s.languages],
     })),
   };
 }
@@ -207,15 +202,7 @@ export default function TestBuilderScreen() {
       </View>
 
       {/* Topic picker */}
-      <Modal
-        visible={topicPickerKind !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setTopicPickerKind(null)}
-      >
-        <Pressable style={styles.modalBackdrop} onPress={() => setTopicPickerKind(null)}>
-          <Pressable style={styles.modalSheet} onPress={() => {}}>
-            <View style={styles.modalGrabber} />
+      <BottomSheetModal visible={topicPickerKind !== null} onClose={() => setTopicPickerKind(null)}>
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalTitle}>Topics</Text>
               <TouchableOpacity onPress={() => setTopicPickerKind(null)} hitSlop={8}>
@@ -269,9 +256,7 @@ export default function TestBuilderScreen() {
                 );
               })}
             </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </BottomSheetModal>
     </SafeAreaView>
   );
 }
@@ -385,42 +370,6 @@ function SectionEditor({
                         ]}
                       >
                         {d}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </>
-          )}
-
-          {/* Languages (bug fix) */}
-          {meta.hasLanguages && (
-            <>
-              <Text style={styles.controlLabel}>Languages</Text>
-              <View style={styles.chipWrap}>
-                {ALL_LANGUAGES.map((lang: BugFixLanguage) => {
-                  const active = cfg.languages.includes(lang);
-                  return (
-                    <TouchableOpacity
-                      key={lang}
-                      style={[
-                        styles.chip,
-                        active && {
-                          backgroundColor: `${meta.color}18`,
-                          borderColor: meta.color,
-                        },
-                      ]}
-                      onPress={() =>
-                        onChange({ languages: toggleIn(cfg.languages, lang) })
-                      }
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          active && { color: meta.color, fontWeight: '700' },
-                        ]}
-                      >
-                        {LANGUAGE_LABELS[lang]}
                       </Text>
                     </TouchableOpacity>
                   );

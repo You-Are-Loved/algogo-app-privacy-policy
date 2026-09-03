@@ -5,8 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Modal,
-  Pressable,
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +23,7 @@ import Animated, {
 import Svg, { Line } from 'react-native-svg';
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
+import BottomSheetModal from '../components/BottomSheetModal';
 import { PracticeStackParamList } from '../navigation';
 import {
   getSystemDesignProblem,
@@ -438,16 +437,9 @@ function ResultModal({
   result: TestResult | null;
   onClose: () => void;
 }) {
-  if (!result) {
-    return (
-      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} />
-    );
-  }
+  if (!result) return null;
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalSheet} onPress={() => {}}>
-          <View style={styles.modalGrabber} />
+    <BottomSheetModal visible={visible} onClose={onClose}>
           <View style={styles.modalHeaderRow}>
             <Ionicons
               name={result.pass ? 'checkmark-circle' : 'alert-circle'}
@@ -514,9 +506,7 @@ function ResultModal({
               {result.pass ? 'Nice' : 'Keep going'}
             </Text>
           </TouchableOpacity>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </BottomSheetModal>
   );
 }
 
@@ -534,10 +524,7 @@ function HintModal({
   onClose: () => void;
 }) {
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalSheet} onPress={() => {}}>
-          <View style={styles.modalGrabber} />
+    <BottomSheetModal visible={visible} onClose={onClose}>
           <View style={styles.modalHeaderRow}>
             <Ionicons name="bulb" size={26} color="#F5B400" />
             <Text style={styles.modalTitle}>Hints</Text>
@@ -575,9 +562,7 @@ function HintModal({
               <Text style={styles.modalPrimaryText}>Got it</Text>
             </TouchableOpacity>
           )}
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </BottomSheetModal>
   );
 }
 
@@ -591,10 +576,7 @@ function SolutionModal({
   onClose: () => void;
 }) {
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalSheet} onPress={() => {}}>
-          <View style={styles.modalGrabber} />
+    <BottomSheetModal visible={visible} onClose={onClose}>
           <View style={styles.modalHeaderRow}>
             <Ionicons name="book" size={26} color={colors.primary} />
             <Text style={styles.modalTitle}>Worked solution</Text>
@@ -640,9 +622,7 @@ function SolutionModal({
           >
             <Text style={styles.modalPrimaryText}>Close</Text>
           </TouchableOpacity>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </BottomSheetModal>
   );
 }
 

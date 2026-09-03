@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * Build assets/practice/ — Pyodide runtime + CodeMirror bundle.
+ * Build assets/practice/ — Pyodide runtime + sql.js (SQLite) + CodeMirror bundle.
  *
- * Run: node scripts/build-practice-assets.js
+ * Run: node scripts/build-practice-assets.js            (everything)
+ *      node scripts/build-practice-assets.js --only=sqljs (just the SQLite engine)
  *
  * Downloads the minimal Pyodide v0.27.5 file set and bundles CodeMirror via
  * esbuild so the practice WebView can load everything from local files
@@ -17,6 +18,7 @@ const { execSync } = require('child_process');
 const os = require('os');
 
 const PYODIDE_VERSION = '0.27.5';
+const SQLJS_VERSION = '1.13.0';
 const OUT_DIR = path.resolve(__dirname, '..', 'assets', 'practice');
 
 // Pyodide files we need to ship. This is the minimal set for runPython with
@@ -30,6 +32,13 @@ const PYODIDE_FILES = [
   { remote: 'pyodide.asm.wasm', bundled: 'pyodide.asm.wasm', staged: 'pyodide.asm.wasm' },
   { remote: 'pyodide-lock.json', bundled: 'pyodide-lock.bin', staged: 'pyodide-lock.json' },
   { remote: 'python_stdlib.zip', bundled: 'python_stdlib.zip', staged: 'python_stdlib.zip' },
+];
+
+// sql.js = SQLite compiled to wasm. The JS loader is saved as .bin for the
+// same Metro-collision reason as Pyodide and restored to .js when staged.
+const SQLJS_FILES = [
+  { remote: 'sql-wasm.js', bundled: 'sql-wasm.js.bin', staged: 'sql-wasm.js' },
+  { remote: 'sql-wasm.wasm', bundled: 'sql-wasm.wasm', staged: 'sql-wasm.wasm' },
 ];
 
 function ensureDir(p) {
@@ -69,6 +78,19 @@ async function fetchPyodide() {
   }
 }
 
+async function fetchSqlJs() {
+  console.log(`Fetching sql.js v${SQLJS_VERSION} into ${OUT_DIR}`);
+  ensureDir(OUT_DIR);
+  for (const file of SQLJS_FILES) {
+    const url = `https://cdn.jsdelivr.net/npm/sql.js@${SQLJS_VERSION}/dist/${file.remote}`;
+    const dest = path.join(OUT_DIR, file.bundled);
+    process.stdout.write(`  ${file.bundled} ... `);
+    await download(url, dest);
+    const size = fs.statSync(dest).size;
+    console.log(`${(size / 1024 / 1024).toFixed(2)} MB`);
+  }
+}
+
 function bundleCodeMirror() {
   console.log('Bundling CodeMirror via esbuild');
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cm-bundle-'));
@@ -83,10 +105,13 @@ function bundleCodeMirror() {
 import * as view from '@codemirror/view';
 import * as commands from '@codemirror/commands';
 import * as langPython from '@codemirror/lang-python';
+import * as langJavascript from '@codemirror/lang-javascript';
+import * as langJava from '@codemirror/lang-java';
+import * as langSql from '@codemirror/lang-sql';
 import * as themeOneDark from '@codemirror/theme-one-dark';
 import * as language from '@codemirror/language';
 import * as autocomplete from '@codemirror/autocomplete';
-globalThis.__cm__ = { state, view, commands, langPython, themeOneDark, language, autocomplete };
+globalThis.__cm__ = { state, view, commands, langPython, langJavascript, langJava, langSql, themeOneDark, language, autocomplete };
 `,
   );
   // Pin the same versions the HTML used to import from esm.sh.
@@ -98,6 +123,9 @@ globalThis.__cm__ = { state, view, commands, langPython, themeOneDark, language,
       '@codemirror/view': '6.36.2',
       '@codemirror/commands': '6.7.1',
       '@codemirror/lang-python': '6.1.7',
+      '@codemirror/lang-javascript': '6.2.2',
+      '@codemirror/lang-java': '6.0.1',
+      '@codemirror/lang-sql': '6.8.0',
       '@codemirror/theme-one-dark': '6.1.2',
       '@codemirror/language': '6.10.8',
       '@codemirror/autocomplete': '6.18.4',
@@ -137,8 +165,10 @@ globalThis.__cm__ = { state, view, commands, langPython, themeOneDark, language,
 
 (async () => {
   try {
-    await fetchPyodide();
-    bundleCodeMirror();
+    const only = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
+    if (!only || only === 'pyodide') await fetchPyodide();
+    if (!only || only === 'sqljs') await fetchSqlJs();
+    if (!only || only === 'codemirror') bundleCodeMirror();
     console.log('Done.');
   } catch (e) {
     console.error('Failed:', e);

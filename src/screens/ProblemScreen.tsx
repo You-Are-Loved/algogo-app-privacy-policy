@@ -8,8 +8,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Modal,
-  Pressable,
   Keyboard,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,19 +15,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  runOnJS,
-} from 'react-native-reanimated';
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { getProblem, Difficulty, TestCase, Blind75Problem } from '../data/blind75';
 import { PracticeStackParamList } from '../navigation';
 import { buildPracticeHtml } from '../practice/practiceHtml';
 import { ensurePracticeRuntime } from '../practice/stageAssets';
+import BottomSheetModal from '../components/BottomSheetModal';
 import {
   ExecResult,
   ConsoleOutput,
@@ -224,39 +216,11 @@ export function AlgorithmProblemView({
 
   const diffColor = DIFF_COLORS[problem.difficulty];
 
-  // Drag-to-dismiss for the problem sheet. The drag handle is the
-  // grabber + header; the examples list scrolls independently below it.
-  const sheetY = useSharedValue(0);
-  const sheetStartY = useSharedValue(0);
-
   // Slide the sheet up shortly after entry rather than popping it instantly.
   useEffect(() => {
     const t = setTimeout(() => setProblemVisible(true), 300);
     return () => clearTimeout(t);
   }, []);
-
-  useEffect(() => {
-    if (problemVisible) sheetY.value = 0;
-  }, [problemVisible, sheetY]);
-
-  const problemPan = Gesture.Pan()
-    .onStart(() => {
-      sheetStartY.value = sheetY.value;
-    })
-    .onUpdate((e) => {
-      sheetY.value = Math.max(0, sheetStartY.value + e.translationY);
-    })
-    .onEnd((e) => {
-      if (sheetY.value > 140 || e.velocityY > 800) {
-        runOnJS(setProblemVisible)(false);
-      } else {
-        sheetY.value = withSpring(0, { damping: 20, stiffness: 220 });
-      }
-    });
-
-  const problemSheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: sheetY.value }],
-  }));
 
   return (
     <View style={styles.container}>
@@ -402,18 +366,7 @@ export function AlgorithmProblemView({
 
       </KeyboardAvoidingView>
 
-      <Modal
-        visible={resultsVisible && result !== null}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setResultsVisible(false)}
-      >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => setResultsVisible(false)}
-        >
-          <Pressable style={styles.modalSheet} onPress={() => {}}>
-            <View style={styles.modalGrabber} />
+      <BottomSheetModal visible={resultsVisible && result !== null} onClose={() => setResultsVisible(false)}>
             <View style={styles.modalHeaderRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalTitle}>Results</Text>
@@ -437,22 +390,9 @@ export function AlgorithmProblemView({
               {result && <ResultBreakdown result={result} problem={problem} />}
               {result && <ConsoleOutput result={result} />}
             </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </BottomSheetModal>
 
-      <Modal
-        visible={explanationVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setExplanationVisible(false)}
-      >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => setExplanationVisible(false)}
-        >
-          <Pressable style={styles.modalSheet} onPress={() => {}}>
-            <View style={styles.modalGrabber} />
+      <BottomSheetModal visible={explanationVisible} onClose={() => setExplanationVisible(false)}>
             <View style={styles.modalHeaderRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalTitle}>How to approach it</Text>
@@ -471,25 +411,12 @@ export function AlgorithmProblemView({
             >
               <Text style={styles.modalBody}>{problem.explanation}</Text>
             </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </BottomSheetModal>
 
-      <Modal
+      <BottomSheetModal
         visible={problemVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setProblemVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setProblemVisible(false)}
-          />
-          <Animated.View style={[styles.modalSheet, problemSheetStyle]}>
-            <GestureDetector gesture={problemPan}>
-              <View>
-                <View style={styles.modalGrabber} />
+        onClose={() => setProblemVisible(false)}
+        header={
                 <View style={styles.modalHeaderRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.modalTitle}>{problem.title}</Text>
@@ -506,8 +433,8 @@ export function AlgorithmProblemView({
                     <Ionicons name="close" size={24} color={colors.inkLight} />
                   </TouchableOpacity>
                 </View>
-              </View>
-            </GestureDetector>
+        }
+      >
             <ScrollView
               style={{ maxHeight: 460 }}
               contentContainerStyle={{ paddingBottom: spacing.md }}
@@ -535,9 +462,7 @@ export function AlgorithmProblemView({
                 </View>
               ))}
             </ScrollView>
-          </Animated.View>
-        </View>
-      </Modal>
+      </BottomSheetModal>
     </View>
   );
 }

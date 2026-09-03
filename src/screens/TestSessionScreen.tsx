@@ -19,6 +19,7 @@ import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { TestStackParamList } from '../navigation';
 import { AlgorithmProblemView } from './ProblemScreen';
 import { BugFixProblemView } from './BugFixScreen';
+import { SqlProblemView } from './SqlProblemScreen';
 import { SystemDesignProblemView } from './SystemDesignScreen';
 import { useTestStore } from '../store/useTestStore';
 import {
@@ -34,6 +35,7 @@ import {
   getProblem,
   getSystemDesignProblem,
   getBugFixProblem,
+  getSqlProblem,
   getBehavioralQuestion,
   getQuizBankItem,
   BehavioralQuestion,
@@ -124,7 +126,8 @@ export default function TestSessionScreen() {
       return { ...base, status: 'failed', score: 0, detail: "Code didn't run" };
     }
     const score = tally.passed / tally.total;
-    const noun = target.kind === 'system-design' ? 'requirements' : 'tests';
+    const noun =
+      target.kind === 'system-design' ? 'requirements' : target.kind === 'sql' ? 'datasets' : 'tests';
     const detail =
       target.kind === 'quiz'
         ? score >= 1
@@ -348,11 +351,25 @@ function SessionItem({
         />
       );
     }
-    case 'bug-fix': {
+    case 'python':
+    case 'javascript':
+    case 'java': {
       const problem = getBugFixProblem(item.problemId);
       if (!problem) return <MissingProblem />;
       return (
         <BugFixProblemView
+          problem={problem}
+          embedded
+          onResult={onResult}
+          keyboardVerticalOffset={keyboardVerticalOffset}
+        />
+      );
+    }
+    case 'sql': {
+      const problem = getSqlProblem(item.problemId);
+      if (!problem) return <MissingProblem />;
+      return (
+        <SqlProblemView
           problem={problem}
           embedded
           onResult={onResult}

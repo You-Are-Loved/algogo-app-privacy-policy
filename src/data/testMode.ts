@@ -1,7 +1,7 @@
 // Test mode — "build your own mock interview".
 //
-// Users compose a timed interview out of four section kinds (Algorithms,
-// System Design, Bug Fix, Behavioral), choosing how many questions, the
+// Users compose a timed interview out of eight section kinds (Algorithms,
+// System Design, Python, JavaScript, Java, SQL, Quiz, Behavioral), choosing how many questions, the
 // difficulty/topic mix, and a per-question time budget. The structure is saved
 // as a reusable Template; at run time `buildSession` samples concrete problems
 // from the live content data so a replay stays fresh.
@@ -12,7 +12,7 @@
 // Navigation: linear + skip (no going back).
 //
 // Scoring (see scoreSession): every item resolves to a 0..1 score —
-//   • algorithms / bug-fix : passed / total test cases
+//   • algorithms / code    : passed / total test cases (datasets for SQL)
 //   • system-design        : matched / required (components + connections)
 //   • quiz                 : 1 if the correct option was picked, 0 otherwise
 //   • behavioral           : 1 if answered, 0 if not
@@ -31,6 +31,7 @@ import {
   BugFixLanguage,
   getBugFixProblem,
 } from './bugFixes';
+import { sqlProblems, SqlProblem, getSqlProblem } from './sqlProblems';
 import {
   behavioralQuestions,
   BehavioralQuestion,
@@ -49,29 +50,42 @@ export type { BugFixLanguage } from './bugFixes';
 export type SectionKind =
   | 'algorithms'
   | 'system-design'
-  | 'bug-fix'
+  | 'python'
+  | 'javascript'
+  | 'java'
+  | 'sql'
   | 'quiz'
   | 'behavioral';
 
 export const SECTION_KINDS: SectionKind[] = [
   'algorithms',
   'system-design',
-  'bug-fix',
+  'python',
+  'javascript',
+  'java',
+  'sql',
   'quiz',
   'behavioral',
 ];
+
+/** Kinds backed by the per-language debugging pool in bugFixes.ts. */
+export const DEBUG_KINDS = ['python', 'javascript', 'java'] as const;
+export type DebugKind = (typeof DEBUG_KINDS)[number];
+export const isDebugKind = (k: SectionKind): k is DebugKind =>
+  (DEBUG_KINDS as readonly string[]).includes(k);
+
+const countByLanguage = (lang: BugFixLanguage) =>
+  bugFixProblems.filter((p) => p.language === lang).length;
 
 export interface SectionMetaInfo {
   label: string;
   short: string;
   icon: string; // Ionicons name
   color: string;
-  /** Difficulty filter applies (algorithms, bug-fix). */
+  /** Difficulty filter applies (algorithms + every code kind). */
   hasDifficulty: boolean;
   /** Topic filter applies (everything except behavioral). */
   hasTopics: boolean;
-  /** Language filter applies (bug-fix only). */
-  hasLanguages: boolean;
   /** Total problems available in this section's pool. */
   poolTotal: number;
 }
@@ -84,7 +98,6 @@ export const SECTION_META: Record<SectionKind, SectionMetaInfo> = {
     color: '#8B5CF6',
     hasDifficulty: true,
     hasTopics: true,
-    hasLanguages: false,
     poolTotal: blind75.length,
   },
   'system-design': {
@@ -94,18 +107,43 @@ export const SECTION_META: Record<SectionKind, SectionMetaInfo> = {
     color: '#636E72',
     hasDifficulty: false,
     hasTopics: true,
-    hasLanguages: false,
     poolTotal: systemDesignProblems.length,
   },
-  'bug-fix': {
-    label: 'Bug Fix',
-    short: 'Bug Fix',
-    icon: 'bug-outline',
-    color: '#EF4444',
+  python: {
+    label: 'Python',
+    short: 'Python',
+    icon: 'logo-python',
+    color: '#3776AB',
     hasDifficulty: true,
     hasTopics: true,
-    hasLanguages: true,
-    poolTotal: bugFixProblems.length,
+    poolTotal: countByLanguage('python'),
+  },
+  javascript: {
+    label: 'JavaScript',
+    short: 'JS',
+    icon: 'logo-javascript',
+    color: '#C9A800',
+    hasDifficulty: true,
+    hasTopics: true,
+    poolTotal: countByLanguage('javascript'),
+  },
+  java: {
+    label: 'Java',
+    short: 'Java',
+    icon: 'cafe-outline',
+    color: '#ED8B00',
+    hasDifficulty: true,
+    hasTopics: true,
+    poolTotal: countByLanguage('java'),
+  },
+  sql: {
+    label: 'SQL',
+    short: 'SQL',
+    icon: 'grid-outline',
+    color: '#336791',
+    hasDifficulty: true,
+    hasTopics: true,
+    poolTotal: sqlProblems.length,
   },
   quiz: {
     label: 'Quiz',
@@ -114,7 +152,6 @@ export const SECTION_META: Record<SectionKind, SectionMetaInfo> = {
     color: '#A855F7',
     hasDifficulty: false,
     hasTopics: true,
-    hasLanguages: false,
     poolTotal: quizBank.length,
   },
   behavioral: {
@@ -124,7 +161,6 @@ export const SECTION_META: Record<SectionKind, SectionMetaInfo> = {
     color: '#1CB0F6',
     hasDifficulty: false,
     hasTopics: false,
-    hasLanguages: false,
     poolTotal: behavioralQuestions.length,
   },
 };
@@ -138,16 +174,14 @@ const distinctSorted = (xs: string[]): string[] =>
 
 export const ALGO_TOPICS = distinctSorted(blind75.map((p) => p.topic));
 export const SD_TOPICS = distinctSorted(systemDesignProblems.map((p) => p.topic));
-export const BUGFIX_TOPICS = distinctSorted(bugFixProblems.map((p) => p.topic));
+export const DEBUG_TOPICS: Record<DebugKind, string[]> = {
+  python: distinctSorted(bugFixProblems.filter((p) => p.language === 'python').map((p) => p.topic)),
+  javascript: distinctSorted(bugFixProblems.filter((p) => p.language === 'javascript').map((p) => p.topic)),
+  java: distinctSorted(bugFixProblems.filter((p) => p.language === 'java').map((p) => p.topic)),
+};
+export const SQL_TOPICS = distinctSorted(sqlProblems.map((p) => p.topic));
 
 export const ALL_DIFFICULTIES: Difficulty[] = ['Easy', 'Medium', 'Hard'];
-export const ALL_LANGUAGES: BugFixLanguage[] = ['python', 'javascript', 'java'];
-
-export const LANGUAGE_LABELS: Record<BugFixLanguage, string> = {
-  python: 'Python',
-  javascript: 'JavaScript',
-  java: 'Java',
-};
 
 /** Topic options for a section's topic multi-select ([] when N/A).
  *  For quiz, "topics" are the study tracks (Algorithms, iOS, SQL, …). */
@@ -157,8 +191,12 @@ export function topicsForKind(kind: SectionKind): string[] {
       return ALGO_TOPICS;
     case 'system-design':
       return SD_TOPICS;
-    case 'bug-fix':
-      return BUGFIX_TOPICS;
+    case 'python':
+    case 'javascript':
+    case 'java':
+      return DEBUG_TOPICS[kind];
+    case 'sql':
+      return SQL_TOPICS;
     case 'quiz':
       return QUIZ_TRACKS;
     default:
@@ -170,7 +208,10 @@ export function topicsForKind(kind: SectionKind): string[] {
 export const DEFAULT_SECONDS: Record<SectionKind, number> = {
   algorithms: 1200, // 20 min
   'system-design': 1500, // 25 min
-  'bug-fix': 600, // 10 min
+  python: 600, // 10 min
+  javascript: 600,
+  java: 600,
+  sql: 600,
   quiz: 90, // rapid-fire
   behavioral: 300, // 5 min
 };
@@ -189,12 +230,10 @@ export interface SectionConfig {
   enabled: boolean;
   count: number;
   secondsPerQuestion: number;
-  /** Allowed difficulties — used by algorithms & bug-fix only. */
+  /** Allowed difficulties — used by algorithms + code kinds. */
   difficulties: Difficulty[];
   /** Allowed topics — empty means "all". Ignored for behavioral. */
   topics: string[];
-  /** Allowed languages — bug-fix only. Empty means "all". */
-  languages: BugFixLanguage[];
 }
 
 export interface TestTemplate {
@@ -223,7 +262,6 @@ export function createSectionConfig(kind: SectionKind): SectionConfig {
     secondsPerQuestion: DEFAULT_SECONDS[kind],
     difficulties: [...ALL_DIFFICULTIES],
     topics: [],
-    languages: [...ALL_LANGUAGES],
   };
 }
 
@@ -249,22 +287,37 @@ export function createBlankTemplate(name = 'My mock interview'): TestTemplate {
 }
 
 /**
- * Ensure a template has a config row for every section kind. Saved templates
- * predate kinds added in later versions (e.g. quiz) — missing kinds are
- * appended disabled so old templates keep working and stay editable.
+ * Normalize a template: expand the pre-v2.4 "bug-fix" section (one pool with
+ * a language filter) into per-language sections, drop unknown kinds, and
+ * append any missing kinds disabled so old templates keep working and stay
+ * editable in the builder.
  */
 export function withAllSections(template: TestTemplate): TestTemplate {
-  const missing = SECTION_KINDS.filter(
-    (k) => !template.sections.some((s) => s.kind === k),
-  );
-  if (missing.length === 0) return template;
-  return {
-    ...template,
-    sections: [
-      ...template.sections,
-      ...missing.map((k) => ({ ...createSectionConfig(k), enabled: false })),
-    ],
-  };
+  const sections: SectionConfig[] = [];
+  for (const raw of template.sections as (SectionConfig & { languages?: string[] })[]) {
+    if ((raw.kind as string) === 'bug-fix') {
+      const langs = raw.languages && raw.languages.length > 0 ? raw.languages : [...DEBUG_KINDS];
+      for (const lang of DEBUG_KINDS) {
+        sections.push({
+          ...createSectionConfig(lang),
+          enabled: raw.enabled && langs.includes(lang),
+          count: raw.count,
+          secondsPerQuestion: raw.secondsPerQuestion,
+          difficulties: [...raw.difficulties],
+        });
+      }
+      continue;
+    }
+    if (!SECTION_KINDS.includes(raw.kind)) continue;
+    if (sections.some((s) => s.kind === raw.kind)) continue;
+    const { languages: _drop, ...rest } = raw;
+    sections.push(rest);
+  }
+  const missing = SECTION_KINDS.filter((k) => !sections.some((s) => s.kind === k));
+  for (const k of missing) sections.push({ ...createSectionConfig(k), enabled: false });
+  // Keep the canonical kind order so the builder reads the same for everyone.
+  sections.sort((a, b) => SECTION_KINDS.indexOf(a.kind) - SECTION_KINDS.indexOf(b.kind));
+  return { ...template, sections };
 }
 
 // ---------------------------------------------------------------------------
@@ -290,13 +343,22 @@ export function poolForSection(cfg: SectionConfig): string[] {
       return systemDesignProblems
         .filter((p) => matchesTopic(cfg.topics, p.topic))
         .map((p) => p.id);
-    case 'bug-fix':
+    case 'python':
+    case 'javascript':
+    case 'java':
       return bugFixProblems
         .filter(
           (p) =>
+            p.language === cfg.kind &&
             cfg.difficulties.includes(p.difficulty) &&
-            (cfg.languages.length === 0 ||
-              cfg.languages.includes(p.language)) &&
+            matchesTopic(cfg.topics, p.topic),
+        )
+        .map((p) => p.id);
+    case 'sql':
+      return sqlProblems
+        .filter(
+          (p) =>
+            cfg.difficulties.includes(p.difficulty) &&
             matchesTopic(cfg.topics, p.topic),
         )
         .map((p) => p.id);
@@ -375,8 +437,12 @@ export function itemTitle(kind: SectionKind, problemId: string): string {
       return getProblem(problemId)?.title ?? 'Problem';
     case 'system-design':
       return getSystemDesignProblem(problemId)?.title ?? 'Problem';
-    case 'bug-fix':
+    case 'python':
+    case 'javascript':
+    case 'java':
       return getBugFixProblem(problemId)?.title ?? 'Problem';
+    case 'sql':
+      return getSqlProblem(problemId)?.title ?? 'Problem';
     case 'quiz':
       return getQuizBankItem(problemId)?.question ?? 'Question';
     case 'behavioral':
@@ -418,7 +484,7 @@ export interface SessionScore {
   skipped: number;
   answered: number;
   unanswered: number;
-  objectiveItems: number; // algorithms + system-design + bug-fix
+  objectiveItems: number; // everything except behavioral
   objectivePercent: number; // average score over objective items only
 }
 
@@ -517,7 +583,7 @@ export function buildSampleSession(): TestItem[] {
   const fixed: { kind: SectionKind; problemId: string; seconds: number }[] = [
     { kind: 'algorithms', problemId: 'two-sum', seconds: 900 },
     { kind: 'system-design', problemId: 'url-shortener', seconds: 900 },
-    { kind: 'bug-fix', problemId: 'py-off-by-one-sum', seconds: 480 },
+    { kind: 'python', problemId: 'py-off-by-one-sum', seconds: 480 },
     { kind: 'quiz', problemId: 'algorithms/sliding-window/sw-q1', seconds: 90 },
     { kind: 'behavioral', problemId: 'tech-challenge', seconds: 240 },
   ];
@@ -535,14 +601,15 @@ export const BUILT_IN_TEMPLATES: TestTemplate[] = [
   preset(SAMPLE_TEMPLATE_ID, 'Sample interview', {
     algorithms: { count: 1, secondsPerQuestion: 900, difficulties: ['Easy'] },
     'system-design': { count: 1, secondsPerQuestion: 900 },
-    'bug-fix': { count: 1, secondsPerQuestion: 480 },
+    python: { count: 1, secondsPerQuestion: 480 },
     quiz: { count: 1, secondsPerQuestion: 90 },
     behavioral: { count: 1, secondsPerQuestion: 240 },
   }),
   preset('preset-balanced', 'Balanced loop', {
     algorithms: { count: 2, secondsPerQuestion: 1200 },
     'system-design': { count: 2, secondsPerQuestion: 1500 },
-    'bug-fix': { count: 2, secondsPerQuestion: 600 },
+    python: { count: 1, secondsPerQuestion: 600 },
+    sql: { count: 1, secondsPerQuestion: 600 },
     behavioral: { count: 2, secondsPerQuestion: 300 },
   }),
   preset('preset-phone-screen', 'Phone screen', {
@@ -555,7 +622,13 @@ export const BUILT_IN_TEMPLATES: TestTemplate[] = [
   }),
   preset('preset-coding-sprint', 'Coding sprint', {
     algorithms: { count: 3, secondsPerQuestion: 900 },
-    'bug-fix': { count: 3, secondsPerQuestion: 480 },
+    python: { count: 1, secondsPerQuestion: 480 },
+    javascript: { count: 1, secondsPerQuestion: 480 },
+    java: { count: 1, secondsPerQuestion: 480 },
+  }),
+  preset('preset-data-round', 'Data & SQL round', {
+    sql: { count: 3, secondsPerQuestion: 600 },
+    quiz: { count: 4, secondsPerQuestion: 60 },
   }),
   preset('preset-design-deep', 'Design deep-dive', {
     'system-design': { count: 3, secondsPerQuestion: 1500 },
@@ -570,6 +643,7 @@ export {
   getProblem,
   getSystemDesignProblem,
   getBugFixProblem,
+  getSqlProblem,
   getBehavioralQuestion,
   getQuizBankItem,
 };
@@ -577,6 +651,7 @@ export type {
   Blind75Problem,
   SystemDesignProblem,
   BugFixProblem,
+  SqlProblem,
   BehavioralQuestion,
   QuizBankItem,
 };

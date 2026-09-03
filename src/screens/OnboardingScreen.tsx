@@ -618,12 +618,13 @@ function PracticeStep() {
 }
 
 // ============================================================================
-// STEP 6 — Bug Fix (mock editor with a marked bug + diff-style fix)
+// STEP 6 — Code in four languages (mock editor with a marked bug + diff-style fix)
 // ============================================================================
 const BUGFIX_LANG_PILLS: { label: string; color: string }[] = [
   { label: 'Python', color: '#3776AB' },
-  { label: 'JavaScript', color: '#F7DF1E' },
+  { label: 'JavaScript', color: '#C9A800' },
   { label: 'Java', color: '#ED8B00' },
+  { label: 'SQL', color: '#336791' },
 ];
 
 function BugFixStep() {
@@ -632,18 +633,18 @@ function BugFixStep() {
       <View style={styles.heroIconWrap}>
         <Animated.View
           entering={ZoomIn.delay(80).springify().damping(14).mass(1.0)}
-          style={[styles.heroIcon, { backgroundColor: `${colors.error}18` }]}
+          style={[styles.heroIcon, { backgroundColor: `${colors.secondary}18` }]}
         >
-          <Ionicons name="bug-outline" size={40} color={colors.error} />
+          <Ionicons name="terminal-outline" size={40} color={colors.secondary} />
         </Animated.View>
       </View>
 
       <Animated.Text entering={FadeInDown.delay(200).duration(680)} style={styles.title}>
-        Spot the bug, fix the line
+        Code in the language you interview in
       </Animated.Text>
       <Animated.Text entering={FadeInDown.delay(300).duration(680)} style={styles.subtitle}>
-        {contentStats.bugFixProblems} broken snippets across Python, JavaScript, and Java.
-        Tap, fix, run the tests — all on-device.
+        {contentStats.bugFixProblems} debugging challenges in Python, JavaScript, and Java, plus{' '}
+        {contentStats.sqlProblems} SQL queries graded by a real SQLite engine — all on-device.
       </Animated.Text>
 
       <Animated.View

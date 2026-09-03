@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as StoreReview from 'expo-store-review';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 
@@ -66,6 +67,7 @@ export default function RatingPromptModal({ visible, onClose }: Props) {
       transparent
       onRequestClose={close}
     >
+      <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill}>
       <Pressable style={styles.backdrop} onPress={close}>
         <Animated.View
           entering={FadeInDown.springify().damping(18)}
@@ -161,6 +163,7 @@ export default function RatingPromptModal({ visible, onClose }: Props) {
           </Pressable>
         </Animated.View>
       </Pressable>
+      </BlurView>
     </Modal>
   );
 }
@@ -168,7 +171,7 @@ export default function RatingPromptModal({ visible, onClose }: Props) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 15, 25, 0.55)',
+    backgroundColor: 'rgba(15, 15, 25, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,

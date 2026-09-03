@@ -6,6 +6,7 @@ import { blind75 } from './blind75';
 import { systemDesignProblems } from './systemDesign';
 import { behavioralQuestions } from './behavioral';
 import { bugFixProblems } from './bugFixes';
+import { sqlProblems } from './sqlProblems';
 import { categories as algorithmCategoryList } from './categories';
 import { getAllCategories } from './allCategories';
 
@@ -26,6 +27,10 @@ export const contentStats = {
   systemDesignProblems: systemDesignProblems.length,
   behavioralPrompts: behavioralQuestions.length,
   bugFixProblems: bugFixProblems.length,
+  sqlProblems: sqlProblems.length,
+  /** Everything you can type code into and run: debugging + SQL. */
+  codingProblems: bugFixProblems.length + sqlProblems.length,
+  codingLanguages: ['Python', 'JavaScript', 'Java', 'SQL'],
   // Content groups surfaced as top-level tabs (Algorithms, System Design,
   // iOS, Android, Web, Backend, SQL, C++, CS Fundamentals). Hardcoded because
   // they're hand-curated.
@@ -74,8 +79,8 @@ export function getPaywallFeatures(): PaywallFeature[] {
       text: `${s.behavioralPrompts} behavioral prompts with notes that save`,
     },
     {
-      icon: 'bug-outline',
-      text: `${s.bugFixProblems} bug-fix challenges in Python, JS & Java`,
+      icon: 'terminal-outline',
+      text: `${s.codingProblems} coding challenges in ${s.codingLanguages.join(', ').replace(/, ([^,]*)$/, ' & $1')}`,
     },
     {
       icon: 'timer-outline',

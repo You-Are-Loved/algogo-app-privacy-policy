@@ -13,6 +13,7 @@ import PracticeScreen from '../screens/PracticeScreen';
 import ProblemScreen from '../screens/ProblemScreen';
 import SystemDesignScreen from '../screens/SystemDesignScreen';
 import BugFixScreen from '../screens/BugFixScreen';
+import SqlProblemScreen from '../screens/SqlProblemScreen';
 import TestHomeScreen from '../screens/TestHomeScreen';
 import TestBuilderScreen from '../screens/TestBuilderScreen';
 import TestSessionScreen from '../screens/TestSessionScreen';
@@ -34,6 +35,7 @@ export type PracticeStackParamList = {
   Problem: { problemId: string };
   SystemDesign: { problemId: string };
   BugFix: { problemId: string };
+  SqlProblem: { problemId: string };
 };
 
 export type TestStackParamList = {
@@ -118,6 +120,11 @@ function PracticeStackNavigator() {
       <PracticeStackNav.Screen
         name="BugFix"
         component={BugFixScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <PracticeStackNav.Screen
+        name="SqlProblem"
+        component={SqlProblemScreen}
         options={{ animation: 'slide_from_right' }}
       />
     </PracticeStackNav.Navigator>

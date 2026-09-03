@@ -150,6 +150,7 @@ async function main() {
     const { behavioralQuestions } = require('../src/data/behavioral');
     const { blind75 } = require('../src/data/blind75');
     const { bugFixProblems } = require('../src/data/bugFixes');
+    const { sqlProblems } = require('../src/data/sqlProblems');
     const { contentStats } = require('../src/data/stats');
 
     let grand = { learn: 0, cards: 0, quiz: 0, cats: 0 };
@@ -243,6 +244,18 @@ async function main() {
       console.log(`bugfix ${lang}=${nums.size}`);
     }
     console.log(`bugfix=${bugFixProblems.length}`);
+
+    const sqlIds = new Set<string>();
+    const sqlNums = new Set<number>();
+    for (const p of sqlProblems) {
+      if (sqlIds.has(p.id)) err(`[sql:${p.id}] duplicate id`);
+      sqlIds.add(p.id);
+      if (sqlNums.has(p.number)) err(`[sql:${p.id}] duplicate number ${p.number}`);
+      sqlNums.add(p.number);
+      if (!Array.isArray(p.datasets) || p.datasets.length < 3) err(`[sql:${p.id}] needs >= 3 datasets`);
+    }
+    for (let i = 1; i <= sqlProblems.length; i++) if (!sqlNums.has(i)) err(`sql numbering gap at ${i}`);
+    console.log(`sql=${sqlProblems.length}`);
   }
 
   for (const w of warnings) console.log('WARN', w);

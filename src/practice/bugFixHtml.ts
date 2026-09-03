@@ -12,9 +12,8 @@
  *                    rules grader (gradeJava.ts) and renders the result.
  *
  * Note: this host does NOT load Pyodide, so it shows up instantly. The
- * CodeMirror bundle still uses Python syntax highlighting — proper JS/Java
- * modes require rebuilding the CM bundle with @codemirror/lang-javascript
- * and @codemirror/lang-java added.
+ * CodeMirror bundle ships JS/Java/SQL grammars (see build-practice-assets.js);
+ * older bundles fall back to Python highlighting.
  */
 
 const escapeForTemplate = (s: string) =>
@@ -160,15 +159,19 @@ async function initEditor() {
     const { syntaxHighlighting, defaultHighlightStyle, bracketMatching, indentOnInput, indentUnit } = cm.language;
     const { closeBrackets, closeBracketsKeymap } = cm.autocomplete;
 
-    // We highlight all languages with Python mode for now — proper JS/Java
-    // grammars require rebuilding the CM bundle with their lang packages.
+    // Use the real JS/Java grammar when the bundle ships it; older bundles
+    // fall back to Python highlighting so the editor still works.
+    const langExt =
+      LANGUAGE === 'javascript' && cm.langJavascript ? cm.langJavascript.javascript()
+      : LANGUAGE === 'java' && cm.langJava ? cm.langJava.java()
+      : python();
     const startState = EditorState.create({
       doc: STARTER,
       extensions: [
         lineNumbers(), history(), drawSelection(), highlightActiveLine(),
         bracketMatching(), closeBrackets(), indentOnInput(), indentUnit.of('    '),
         keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
-        python(),
+        langExt,
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         oneDark,
         EditorView.theme({ '&': { backgroundColor: '#1e1e2e' } }),

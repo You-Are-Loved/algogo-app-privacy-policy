@@ -7,6 +7,7 @@ import {
   FlatList,
   Pressable,
 } from 'react-native';
+import Animated, { Easing, FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -17,6 +18,7 @@ import { blind75, Difficulty } from '../data/blind75';
 import { behavioralQuestions } from '../data/behavioral';
 import { systemDesignProblems } from '../data/systemDesign';
 import { bugFixProblems, BugFixLanguage } from '../data/bugFixes';
+import { sqlProblems } from '../data/sqlProblems';
 import { PracticeStackParamList } from '../navigation';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
 import UpgradeModal from '../components/UpgradeModal';
@@ -37,14 +39,17 @@ const LANG_COLORS: Record<BugFixLanguage, string> = {
   javascript: '#F7DF1E',
   java: '#ED8B00',
 };
-const LANG_LABELS: Record<BugFixLanguage, string> = {
-  python: 'Py',
-  javascript: 'JS',
-  java: 'Java',
-};
 
-type Category = 'algorithms' | 'system-design' | 'behavioral' | 'bug-fix';
-type LangFilter = 'all' | BugFixLanguage;
+type Category =
+  | 'algorithms'
+  | 'system-design'
+  | 'python'
+  | 'javascript'
+  | 'java'
+  | 'sql'
+  | 'behavioral';
+
+const SQL_COLOR = '#336791';
 
 // First N of each category are free; the rest gate behind Pro.
 const FREE_LIMIT = 2;
@@ -53,11 +58,57 @@ const CATEGORIES: {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
+  subtitle: string;
 }[] = [
-  { key: 'algorithms', label: 'Algorithms', icon: 'code-slash-outline', color: '#8B5CF6' },
-  { key: 'system-design', label: 'System Design', icon: 'server-outline', color: '#636E72' },
-  { key: 'behavioral', label: 'Behavioral', icon: 'chatbubbles-outline', color: '#EC4899' },
-  { key: 'bug-fix', label: 'Bug Fix', icon: 'bug-outline', color: '#EF4444' },
+  {
+    key: 'algorithms',
+    label: 'Algorithms',
+    icon: 'code-slash-outline',
+    color: '#8B5CF6',
+    subtitle: `${blind75.length} problems · real Python runtime`,
+  },
+  {
+    key: 'system-design',
+    label: 'System Design',
+    icon: 'server-outline',
+    color: '#636E72',
+    subtitle: `${systemDesignProblems.length} problems · self-grading canvas`,
+  },
+  {
+    key: 'python',
+    label: 'Python',
+    icon: 'logo-python',
+    color: LANG_COLORS.python,
+    subtitle: `${bugFixProblems.filter((p) => p.language === 'python').length} debugging challenges`,
+  },
+  {
+    key: 'javascript',
+    label: 'JavaScript',
+    icon: 'logo-javascript',
+    color: '#C9A800',
+    subtitle: `${bugFixProblems.filter((p) => p.language === 'javascript').length} debugging challenges`,
+  },
+  {
+    key: 'java',
+    label: 'Java',
+    icon: 'cafe-outline',
+    color: LANG_COLORS.java,
+    subtitle: `${bugFixProblems.filter((p) => p.language === 'java').length} debugging challenges`,
+  },
+  {
+    key: 'sql',
+    label: 'SQL',
+    icon: 'grid-outline',
+    color: SQL_COLOR,
+    subtitle: `${sqlProblems.length} queries · live SQLite grading`,
+  },
+  {
+    key: 'behavioral',
+    label: 'Behavioral',
+    icon: 'chatbubbles-outline',
+    color: '#EC4899',
+    subtitle: `${behavioralQuestions.length} prompts · notes that save`,
+  },
 ];
 
 const CATEGORY_MENU: AnchoredMenuItem[] = CATEGORIES.map((c) => ({
@@ -65,36 +116,11 @@ const CATEGORY_MENU: AnchoredMenuItem[] = CATEGORIES.map((c) => ({
   title: c.label,
   icon: c.icon,
   color: c.color,
-  subtitle:
-    c.key === 'algorithms'
-      ? `${blind75.length} problems · real Python runtime`
-      : c.key === 'system-design'
-        ? `${systemDesignProblems.length} problems · self-grading canvas`
-        : c.key === 'behavioral'
-          ? `${behavioralQuestions.length} prompts · notes that save`
-          : `${bugFixProblems.length} snippets · Python, JS & Java`,
+  subtitle: c.subtitle,
 }));
 
-const LANG_FILTERS: { key: LangFilter; label: string }[] = [
-  { key: 'all', label: 'All langs' },
-  { key: 'python', label: 'Python' },
-  { key: 'javascript', label: 'JavaScript' },
-  { key: 'java', label: 'Java' },
-];
-
-const LANG_MENU: AnchoredMenuItem[] = LANG_FILTERS.map((l) => {
-  const count =
-    l.key === 'all'
-      ? bugFixProblems.length
-      : bugFixProblems.filter((p) => p.language === l.key).length;
-  return {
-    key: l.key,
-    title: l.label,
-    subtitle: `${count} snippets`,
-    dotColor: l.key === 'all' ? colors.inkLighter : LANG_COLORS[l.key],
-    color: l.key === 'all' ? colors.ink : LANG_COLORS[l.key],
-  };
-});
+const isDebugCategory = (c: Category): c is BugFixLanguage =>
+  c === 'python' || c === 'javascript' || c === 'java';
 
 export default function PracticeScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -102,23 +128,16 @@ export default function PracticeScreen() {
   const [upgradeVisible, setUpgradeVisible] = useState(false);
   const [category, setCategory] = useState<Category>('algorithms');
   const [pickerVisible, setPickerVisible] = useState(false);
-  const [langFilter, setLangFilter] = useState<LangFilter>('all');
-  const [langPickerVisible, setLangPickerVisible] = useState(false);
   const categoryAnchor = useAnchor();
-  const langAnchor = useAnchor();
 
   const activeCategory = CATEGORIES.find((c) => c.key === category)!;
-  const activeLang = LANG_FILTERS.find((l) => l.key === langFilter)!;
   const problems = useMemo(
     () => (category === 'algorithms' ? blind75 : []),
     [category],
   );
   const visibleBugFixes = useMemo(
-    () =>
-      langFilter === 'all'
-        ? bugFixProblems
-        : bugFixProblems.filter((p) => p.language === langFilter),
-    [langFilter],
+    () => (isDebugCategory(category) ? bugFixProblems.filter((p) => p.language === category) : []),
+    [category],
   );
 
   const handleProblemPress = (problemId: string, number: number) => {
@@ -145,6 +164,14 @@ export default function PracticeScreen() {
     navigation.navigate('BugFix', { problemId });
   };
 
+  const handleSqlPress = (problemId: string, number: number) => {
+    if (!isSubscribed && number > FREE_LIMIT) {
+      setUpgradeVisible(true);
+      return;
+    }
+    navigation.navigate('SqlProblem', { problemId });
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -162,29 +189,16 @@ export default function PracticeScreen() {
             <Text style={styles.dropdownLabel}>{activeCategory.label}</Text>
             <DropdownChevron open={pickerVisible} color={colors.inkLight} />
           </Pressable>
-          {category === 'bug-fix' && (
-            <Pressable
-              ref={langAnchor.ref}
-              style={({ pressed }) => [styles.dropdown, pressed && styles.dropdownPressed]}
-              onPress={() => langAnchor.measure(() => setLangPickerVisible(true))}
-              accessibilityRole="button"
-              accessibilityLabel={`Language: ${activeLang.label}. Change language`}
-            >
-              {activeLang.key !== 'all' && (
-                <View
-                  style={[
-                    styles.langDot,
-                    { backgroundColor: LANG_COLORS[activeLang.key as BugFixLanguage] },
-                  ]}
-                />
-              )}
-              <Text style={styles.dropdownLabel}>{activeLang.label}</Text>
-              <DropdownChevron open={langPickerVisible} color={colors.inkLight} />
-            </Pressable>
-          )}
         </View>
       </View>
 
+      <Animated.View
+        key={category}
+        entering={FadeInDown.duration(240)
+          .easing(Easing.out(Easing.cubic))
+          .withInitialValues({ transform: [{ translateY: 14 }] })}
+        style={{ flex: 1 }}
+      >
       {category === 'algorithms' ? (
         <FlatList
           data={problems}
@@ -288,7 +302,54 @@ export default function PracticeScreen() {
           }}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
-      ) : category === 'bug-fix' ? (
+      ) : category === 'sql' ? (
+        <FlatList
+          data={sqlProblems}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => {
+            const locked = !isSubscribed && item.number > FREE_LIMIT;
+            return (
+              <TouchableOpacity
+                style={[styles.problemRow, { borderBottomColor: DIFF_COLORS[item.difficulty] }]}
+                activeOpacity={0.7}
+                onPress={() => handleSqlPress(item.id, item.number)}
+              >
+                <View style={styles.numberWrap}>
+                  <Text style={styles.numberText}>
+                    {String(item.number).padStart(2, '0')}
+                  </Text>
+                </View>
+                <View style={styles.titleCol}>
+                  <Text style={styles.problemTitle} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <Text style={styles.problemTopic}>{item.topic}</Text>
+                </View>
+                <View
+                  style={[
+                    styles.diffBadge,
+                    { backgroundColor: `${DIFF_COLORS[item.difficulty]}22` },
+                  ]}
+                >
+                  <Text
+                    style={[styles.diffBadgeText, { color: DIFF_COLORS[item.difficulty] }]}
+                  >
+                    {item.difficulty}
+                  </Text>
+                </View>
+                {locked ? (
+                  <Ionicons name="lock-closed" size={16} color={colors.inkLighter} />
+                ) : (
+                  <Ionicons name="chevron-forward" size={18} color={colors.inkLighter} />
+                )}
+              </TouchableOpacity>
+            );
+          }}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+        />
+      ) : isDebugCategory(category) ? (
         <FlatList
           data={visibleBugFixes}
           keyExtractor={(item) => item.id}
@@ -309,23 +370,13 @@ export default function PracticeScreen() {
                     { backgroundColor: `${langColor}22` },
                   ]}
                 >
-                  <Ionicons name="bug-outline" size={18} color={langColor} />
+                  <Ionicons name={activeCategory.icon} size={18} color={langColor} />
                 </View>
                 <View style={styles.titleCol}>
                   <Text style={styles.problemTitle} numberOfLines={1}>
                     {item.title}
                   </Text>
                   <Text style={styles.problemTopic}>{item.topic}</Text>
-                </View>
-                <View
-                  style={[
-                    styles.langBadge,
-                    { backgroundColor: `${langColor}22` },
-                  ]}
-                >
-                  <Text style={[styles.langBadgeText, { color: langColor }]}>
-                    {LANG_LABELS[item.language]}
-                  </Text>
                 </View>
                 <View
                   style={[
@@ -359,6 +410,8 @@ export default function PracticeScreen() {
         </View>
       )}
 
+      </Animated.View>
+
       <UpgradeModal
         visible={upgradeVisible}
         onClose={() => setUpgradeVisible(false)}
@@ -373,19 +426,9 @@ export default function PracticeScreen() {
         onSelect={(key) => setCategory(key as Category)}
         onClose={() => setPickerVisible(false)}
         align="right"
-        minWidth={280}
+        minWidth={300}
       />
 
-      <AnchoredMenu
-        visible={langPickerVisible}
-        anchor={langAnchor.anchor}
-        items={LANG_MENU}
-        selectedKey={langFilter}
-        onSelect={(key) => setLangFilter(key as LangFilter)}
-        onClose={() => setLangPickerVisible(false)}
-        align="right"
-        minWidth={220}
-      />
     </SafeAreaView>
   );
 }

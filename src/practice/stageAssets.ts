@@ -3,7 +3,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 const STAGE_DIRNAME = 'practice-runtime';
 
-// Bundled assets shipped under assets/practice/.
+// Bundled assets shipped under assets/practice/ (Pyodide, sql.js, CodeMirror).
 // The bundled file extensions (.bin) avoid colliding with Metro source
 // resolution; we copy them out with their canonical names so Pyodide and the
 // CodeMirror dynamic import can find them by URL.
@@ -14,6 +14,9 @@ const ASSETS: { module: number; staged: string }[] = [
   { module: require('../../assets/practice/pyodide-lock.bin'), staged: 'pyodide-lock.json' },
   { module: require('../../assets/practice/python_stdlib.zip'), staged: 'python_stdlib.zip' },
   { module: require('../../assets/practice/codemirror-bundle.bin'), staged: 'codemirror-bundle.js' },
+  // sql.js — SQLite compiled to wasm, for the SQL practice category.
+  { module: require('../../assets/practice/sql-wasm.js.bin'), staged: 'sql-wasm.js' },
+  { module: require('../../assets/practice/sql-wasm.wasm'), staged: 'sql-wasm.wasm' },
 ];
 
 let stagedDirPromise: Promise<string> | null = null;
