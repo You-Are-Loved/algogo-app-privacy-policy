@@ -74,9 +74,6 @@ export default function TrackDropdown({ value, onChange }: Props) {
             <Text style={styles.triggerTitle} numberOfLines={1}>
               {info.title}
             </Text>
-            <Text style={styles.triggerSubtitle} numberOfLines={1}>
-              {info.subtitle}
-            </Text>
           </View>
           <View style={styles.chevron}>
             <DropdownChevron open={open} color={info.color} size={18} />
@@ -127,11 +124,6 @@ const styles = StyleSheet.create({
   triggerTitle: {
     ...typography.headlineSmall,
     color: colors.ink,
-  },
-  triggerSubtitle: {
-    ...typography.caption,
-    color: colors.inkLight,
-    marginTop: 1,
   },
   chevron: {
     width: 32,
