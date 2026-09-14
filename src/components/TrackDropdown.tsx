@@ -7,7 +7,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from '
 import { Ionicons } from '@expo/vector-icons';
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
-import { contentTypeInfo, ContentType, getCategoriesByType } from '../data/allCategories';
+import { contentTypeInfo, ContentType } from '../data/allCategories';
 import AnchoredMenu, { AnchoredMenuItem, DropdownChevron, useAnchor } from './AnchoredMenu';
 
 const TRACKS: ContentType[] = [
@@ -40,7 +40,6 @@ export default function TrackDropdown({ value, onChange }: Props) {
         return {
           key: track,
           title: t.title,
-          subtitle: `${getCategoriesByType(track).length} topics · ${t.subtitle}`,
           icon: t.icon as keyof typeof Ionicons.glyphMap,
           color: t.color,
         };
