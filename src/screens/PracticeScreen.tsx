@@ -58,56 +58,48 @@ const CATEGORIES: {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
-  subtitle: string;
 }[] = [
   {
     key: 'algorithms',
     label: 'Algorithms',
     icon: 'code-slash-outline',
     color: '#8B5CF6',
-    subtitle: `${blind75.length} problems · real Python runtime`,
   },
   {
     key: 'system-design',
     label: 'System Design',
     icon: 'server-outline',
     color: '#636E72',
-    subtitle: `${systemDesignProblems.length} problems · self-grading canvas`,
   },
   {
     key: 'python',
     label: 'Python',
     icon: 'logo-python',
     color: LANG_COLORS.python,
-    subtitle: `${bugFixProblems.filter((p) => p.language === 'python').length} debugging challenges`,
   },
   {
     key: 'javascript',
     label: 'JavaScript',
     icon: 'logo-javascript',
     color: '#C9A800',
-    subtitle: `${bugFixProblems.filter((p) => p.language === 'javascript').length} debugging challenges`,
   },
   {
     key: 'java',
     label: 'Java',
     icon: 'cafe-outline',
     color: LANG_COLORS.java,
-    subtitle: `${bugFixProblems.filter((p) => p.language === 'java').length} debugging challenges`,
   },
   {
     key: 'sql',
     label: 'SQL',
     icon: 'grid-outline',
     color: SQL_COLOR,
-    subtitle: `${sqlProblems.length} queries · live SQLite grading`,
   },
   {
     key: 'behavioral',
     label: 'Behavioral',
     icon: 'chatbubbles-outline',
     color: '#EC4899',
-    subtitle: `${behavioralQuestions.length} prompts · notes that save`,
   },
 ];
 
@@ -116,7 +108,6 @@ const CATEGORY_MENU: AnchoredMenuItem[] = CATEGORIES.map((c) => ({
   title: c.label,
   icon: c.icon,
   color: c.color,
-  subtitle: c.subtitle,
 }));
 
 const isDebugCategory = (c: Category): c is BugFixLanguage =>
