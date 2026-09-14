@@ -247,7 +247,6 @@ export function ReactProblemView({
       <View style={[styles.langBadge, { backgroundColor: `${REACT_COLOR}22` }]}>
         <Text style={[styles.langBadgeText, { color: REACT_COLOR }]}>React</Text>
       </View>
-      <Text style={styles.topicText}>{problem.topic}</Text>
     </View>
   );
 
@@ -339,9 +338,11 @@ export function ReactProblemView({
                 </TouchableOpacity>
               </>
             ) : (
-              <Text style={styles.modeStatusText} numberOfLines={1}>
-                {runtimeReady ? `<${problem.componentName} />` : 'Loading React…'}
-              </Text>
+              !runtimeReady && (
+                <Text style={styles.modeStatusText} numberOfLines={1}>
+                  Loading React…
+                </Text>
+              )
             )}
           </View>
         </View>
@@ -734,7 +735,6 @@ const styles = StyleSheet.create({
   diffBadgeText: { ...typography.labelSmall, fontWeight: '700' },
   langBadge: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.full },
   langBadgeText: { ...typography.labelSmall, fontWeight: '700' },
-  topicText: { ...typography.labelSmall, color: colors.inkLight },
 
   modeBar: {
     flexDirection: 'row',
