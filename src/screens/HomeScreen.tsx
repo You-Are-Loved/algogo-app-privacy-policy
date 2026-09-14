@@ -422,7 +422,6 @@ export default function HomeScreen() {
           <Text style={[styles.categoryName, isLocked && styles.categoryNameLocked]} numberOfLines={2} ellipsizeMode="tail">
             {category.name}
           </Text>
-          <Text style={styles.categoryCards}>{category.flashcards.length} cards</Text>
           <View style={styles.progressBar}>
             <View
               style={[
@@ -663,12 +662,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
     height: 40,
   },
-  categoryCards: {
-    ...typography.labelSmall,
-    color: colors.inkLight,
-    marginBottom: spacing.sm,
-  },
   progressBar: {
+    marginTop: 'auto',
     height: 8,
     backgroundColor: colors.border,
     borderRadius: borderRadius.full,
