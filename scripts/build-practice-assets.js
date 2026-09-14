@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Build assets/practice/ — Pyodide runtime + sql.js (SQLite) + CodeMirror bundle.
+ * Build assets/practice/ — Pyodide runtime + sql.js (SQLite) + React sandbox libs + CodeMirror bundle.
  *
  * Run: node scripts/build-practice-assets.js            (everything)
  *      node scripts/build-practice-assets.js --only=sqljs (just the SQLite engine)
@@ -19,6 +19,8 @@ const os = require('os');
 
 const PYODIDE_VERSION = '0.27.5';
 const SQLJS_VERSION = '1.13.0';
+const REACT_VERSION = '18.3.1';
+const BABEL_VERSION = '7.26.4';
 const OUT_DIR = path.resolve(__dirname, '..', 'assets', 'practice');
 
 // Pyodide files we need to ship. This is the minimal set for runPython with
@@ -39,6 +41,16 @@ const PYODIDE_FILES = [
 const SQLJS_FILES = [
   { remote: 'sql-wasm.js', bundled: 'sql-wasm.js.bin', staged: 'sql-wasm.js' },
   { remote: 'sql-wasm.wasm', bundled: 'sql-wasm.wasm', staged: 'sql-wasm.wasm' },
+];
+
+// React sandbox (Frontend practice): React + ReactDOM UMD *development* builds
+// (production builds refuse act(); dev builds also give learners real warnings) and Babel
+// standalone for in-browser JSX. These are inlined into a sandboxed iframe at
+// runtime, so they ship as text (.bin) rather than being loaded by URL.
+const REACT_FILES = [
+  { url: `https://cdn.jsdelivr.net/npm/react@${REACT_VERSION}/umd/react.development.js`, bundled: 'react.development.js.bin', staged: 'react.development.js' },
+  { url: `https://cdn.jsdelivr.net/npm/react-dom@${REACT_VERSION}/umd/react-dom.development.js`, bundled: 'react-dom.development.js.bin', staged: 'react-dom.development.js' },
+  { url: `https://cdn.jsdelivr.net/npm/@babel/standalone@${BABEL_VERSION}/babel.min.js`, bundled: 'babel.min.js.bin', staged: 'babel.min.js' },
 ];
 
 function ensureDir(p) {
@@ -86,6 +98,18 @@ async function fetchSqlJs() {
     const dest = path.join(OUT_DIR, file.bundled);
     process.stdout.write(`  ${file.bundled} ... `);
     await download(url, dest);
+    const size = fs.statSync(dest).size;
+    console.log(`${(size / 1024 / 1024).toFixed(2)} MB`);
+  }
+}
+
+async function fetchReactSandbox() {
+  console.log(`Fetching React ${REACT_VERSION} + Babel ${BABEL_VERSION} into ${OUT_DIR}`);
+  ensureDir(OUT_DIR);
+  for (const file of REACT_FILES) {
+    const dest = path.join(OUT_DIR, file.bundled);
+    process.stdout.write(`  ${file.bundled} ... `);
+    await download(file.url, dest);
     const size = fs.statSync(dest).size;
     console.log(`${(size / 1024 / 1024).toFixed(2)} MB`);
   }
@@ -168,6 +192,7 @@ globalThis.__cm__ = { state, view, commands, langPython, langJavascript, langJav
     const only = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
     if (!only || only === 'pyodide') await fetchPyodide();
     if (!only || only === 'sqljs') await fetchSqlJs();
+    if (!only || only === 'react') await fetchReactSandbox();
     if (!only || only === 'codemirror') bundleCodeMirror();
     console.log('Done.');
   } catch (e) {

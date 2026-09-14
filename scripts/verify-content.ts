@@ -151,6 +151,7 @@ async function main() {
     const { blind75 } = require('../src/data/blind75');
     const { bugFixProblems } = require('../src/data/bugFixes');
     const { sqlProblems } = require('../src/data/sqlProblems');
+    const { reactProblems } = require('../src/data/reactProblems');
     const { contentStats } = require('../src/data/stats');
 
     let grand = { learn: 0, cards: 0, quiz: 0, cats: 0 };
@@ -256,6 +257,19 @@ async function main() {
     }
     for (let i = 1; i <= sqlProblems.length; i++) if (!sqlNums.has(i)) err(`sql numbering gap at ${i}`);
     console.log(`sql=${sqlProblems.length}`);
+
+    const rIds = new Set<string>();
+    const rNums = new Set<number>();
+    for (const p of reactProblems) {
+      if (rIds.has(p.id)) err(`[react:${p.id}] duplicate id`);
+      rIds.add(p.id);
+      if (!p.id.startsWith('react-')) err(`[react:${p.id}] id must start with "react-" (Frontend pool relies on it)`);
+      if (rNums.has(p.number)) err(`[react:${p.id}] duplicate number ${p.number}`);
+      rNums.add(p.number);
+      if (!Array.isArray(p.tests) || p.tests.length < 3) err(`[react:${p.id}] needs >= 3 tests`);
+    }
+    for (let i = 1; i <= reactProblems.length; i++) if (!rNums.has(i)) err(`react numbering gap at ${i}`);
+    console.log(`react=${reactProblems.length}`);
   }
 
   for (const w of warnings) console.log('WARN', w);

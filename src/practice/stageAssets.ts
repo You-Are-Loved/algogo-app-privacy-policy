@@ -17,6 +17,10 @@ const ASSETS: { module: number; staged: string }[] = [
   // sql.js — SQLite compiled to wasm, for the SQL practice category.
   { module: require('../../assets/practice/sql-wasm.js.bin'), staged: 'sql-wasm.js' },
   { module: require('../../assets/practice/sql-wasm.wasm'), staged: 'sql-wasm.wasm' },
+  // React sandbox — inlined into a sandboxed iframe by reactHtml.ts.
+  { module: require('../../assets/practice/react.development.js.bin'), staged: 'react.development.js' },
+  { module: require('../../assets/practice/react-dom.development.js.bin'), staged: 'react-dom.development.js' },
+  { module: require('../../assets/practice/babel.min.js.bin'), staged: 'babel.min.js' },
 ];
 
 let stagedDirPromise: Promise<string> | null = null;

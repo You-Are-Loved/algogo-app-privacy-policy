@@ -1,0 +1,8 @@
+{
+  "name": "algogo-react-verify-env",
+  "private": true,
+  "description": "Dev-only: jsdom so scripts/verify-react.ts can run the in-app React harness in node.",
+  "dependencies": {
+    "jsdom": "^25.0.1"
+  }
+}

@@ -32,6 +32,7 @@ import {
   getBugFixProblem,
 } from './bugFixes';
 import { sqlProblems, SqlProblem, getSqlProblem } from './sqlProblems';
+import { reactProblems, ReactProblem, getReactProblem } from './reactProblems';
 import {
   behavioralQuestions,
   BehavioralQuestion,
@@ -118,14 +119,15 @@ export const SECTION_META: Record<SectionKind, SectionMetaInfo> = {
     hasTopics: true,
     poolTotal: countByLanguage('python'),
   },
+  // "Frontend" = JavaScript debugging + React build problems (ids 'react-*').
   javascript: {
-    label: 'JavaScript',
-    short: 'JS',
-    icon: 'logo-javascript',
-    color: '#C9A800',
+    label: 'Frontend',
+    short: 'Frontend',
+    icon: 'logo-react',
+    color: '#0EA5E9',
     hasDifficulty: true,
     hasTopics: true,
-    poolTotal: countByLanguage('javascript'),
+    poolTotal: countByLanguage('javascript') + reactProblems.length,
   },
   java: {
     label: 'Java',
@@ -176,7 +178,10 @@ export const ALGO_TOPICS = distinctSorted(blind75.map((p) => p.topic));
 export const SD_TOPICS = distinctSorted(systemDesignProblems.map((p) => p.topic));
 export const DEBUG_TOPICS: Record<DebugKind, string[]> = {
   python: distinctSorted(bugFixProblems.filter((p) => p.language === 'python').map((p) => p.topic)),
-  javascript: distinctSorted(bugFixProblems.filter((p) => p.language === 'javascript').map((p) => p.topic)),
+  javascript: distinctSorted([
+    ...reactProblems.map((p) => p.topic),
+    ...bugFixProblems.filter((p) => p.language === 'javascript').map((p) => p.topic),
+  ]),
   java: distinctSorted(bugFixProblems.filter((p) => p.language === 'java').map((p) => p.topic)),
 };
 export const SQL_TOPICS = distinctSorted(sqlProblems.map((p) => p.topic));
@@ -345,8 +350,8 @@ export function poolForSection(cfg: SectionConfig): string[] {
         .map((p) => p.id);
     case 'python':
     case 'javascript':
-    case 'java':
-      return bugFixProblems
+    case 'java': {
+      const debug = bugFixProblems
         .filter(
           (p) =>
             p.language === cfg.kind &&
@@ -354,6 +359,16 @@ export function poolForSection(cfg: SectionConfig): string[] {
             matchesTopic(cfg.topics, p.topic),
         )
         .map((p) => p.id);
+      if (cfg.kind !== 'javascript') return debug;
+      const builds = reactProblems
+        .filter(
+          (p) =>
+            cfg.difficulties.includes(p.difficulty) &&
+            matchesTopic(cfg.topics, p.topic),
+        )
+        .map((p) => p.id);
+      return [...builds, ...debug];
+    }
     case 'sql':
       return sqlProblems
         .filter(
@@ -440,7 +455,9 @@ export function itemTitle(kind: SectionKind, problemId: string): string {
     case 'python':
     case 'javascript':
     case 'java':
-      return getBugFixProblem(problemId)?.title ?? 'Problem';
+      return (
+        getReactProblem(problemId)?.title ?? getBugFixProblem(problemId)?.title ?? 'Problem'
+      );
     case 'sql':
       return getSqlProblem(problemId)?.title ?? 'Problem';
     case 'quiz':
@@ -644,6 +661,7 @@ export {
   getSystemDesignProblem,
   getBugFixProblem,
   getSqlProblem,
+  getReactProblem,
   getBehavioralQuestion,
   getQuizBankItem,
 };
@@ -652,6 +670,7 @@ export type {
   SystemDesignProblem,
   BugFixProblem,
   SqlProblem,
+  ReactProblem,
   BehavioralQuestion,
   QuizBankItem,
 };

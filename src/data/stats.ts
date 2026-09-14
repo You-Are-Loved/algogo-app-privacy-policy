@@ -7,6 +7,7 @@ import { systemDesignProblems } from './systemDesign';
 import { behavioralQuestions } from './behavioral';
 import { bugFixProblems } from './bugFixes';
 import { sqlProblems } from './sqlProblems';
+import { reactProblems } from './reactProblems';
 import { categories as algorithmCategoryList } from './categories';
 import { getAllCategories } from './allCategories';
 
@@ -28,9 +29,10 @@ export const contentStats = {
   behavioralPrompts: behavioralQuestions.length,
   bugFixProblems: bugFixProblems.length,
   sqlProblems: sqlProblems.length,
-  /** Everything you can type code into and run: debugging + SQL. */
-  codingProblems: bugFixProblems.length + sqlProblems.length,
-  codingLanguages: ['Python', 'JavaScript', 'Java', 'SQL'],
+  reactProblems: reactProblems.length,
+  /** Everything you can type code into and run: debugging + React + SQL. */
+  codingProblems: bugFixProblems.length + sqlProblems.length + reactProblems.length,
+  codingLanguages: ['Python', 'React', 'JavaScript', 'Java', 'SQL'],
   // Content groups surfaced as top-level tabs (Algorithms, System Design,
   // iOS, Android, Web, Backend, SQL, C++, CS Fundamentals). Hardcoded because
   // they're hand-curated.

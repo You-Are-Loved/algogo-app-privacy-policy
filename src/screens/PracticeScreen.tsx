@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
+  SectionList,
   Pressable,
 } from 'react-native';
 import Animated, { Easing, FadeInDown } from 'react-native-reanimated';
@@ -19,6 +20,7 @@ import { behavioralQuestions } from '../data/behavioral';
 import { systemDesignProblems } from '../data/systemDesign';
 import { bugFixProblems, BugFixLanguage } from '../data/bugFixes';
 import { sqlProblems } from '../data/sqlProblems';
+import { reactProblems } from '../data/reactProblems';
 import { PracticeStackParamList } from '../navigation';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
 import UpgradeModal from '../components/UpgradeModal';
@@ -79,9 +81,9 @@ const CATEGORIES: {
   },
   {
     key: 'javascript',
-    label: 'JavaScript',
-    icon: 'logo-javascript',
-    color: '#C9A800',
+    label: 'Frontend',
+    icon: 'logo-react',
+    color: '#0EA5E9',
   },
   {
     key: 'java',
@@ -112,6 +114,11 @@ const CATEGORY_MENU: AnchoredMenuItem[] = CATEGORIES.map((c) => ({
 
 const isDebugCategory = (c: Category): c is BugFixLanguage =>
   c === 'python' || c === 'javascript' || c === 'java';
+
+// Frontend lists React build problems and JavaScript debugging problems in
+// one SectionList; both share this row shape.
+type FrontendRow = { id: string; number: number; title: string; topic: string; difficulty: Difficulty };
+type FrontendSection = { title: string; kind: 'react' | 'debug'; data: FrontendRow[] };
 
 export default function PracticeScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -153,6 +160,14 @@ export default function PracticeScreen() {
       return;
     }
     navigation.navigate('BugFix', { problemId });
+  };
+
+  const handleReactPress = (problemId: string, number: number) => {
+    if (!isSubscribed && number > FREE_LIMIT) {
+      setUpgradeVisible(true);
+      return;
+    }
+    navigation.navigate('ReactProblem', { problemId });
   };
 
   const handleSqlPress = (problemId: string, number: number) => {
@@ -340,6 +355,79 @@ export default function PracticeScreen() {
           }}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
+      ) : category === 'javascript' ? (
+        <SectionList<FrontendRow, FrontendSection>
+          sections={(
+            [
+              { title: 'Build with React', kind: 'react', data: reactProblems },
+              { title: 'Debug JavaScript', kind: 'debug', data: visibleBugFixes },
+            ] as FrontendSection[]
+          ).filter((sec) => sec.data.length > 0)}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          stickySectionHeadersEnabled={false}
+          renderSectionHeader={({ section }) => (
+            <View style={styles.sectionHeaderRow}>
+              <Ionicons
+                name={section.kind === 'react' ? 'logo-react' : 'logo-javascript'}
+                size={14}
+                color={section.kind === 'react' ? '#0EA5E9' : '#C9A800'}
+              />
+              <Text style={styles.sectionHeaderText}>{section.title}</Text>
+              <Text style={styles.sectionHeaderCount}>{section.data.length}</Text>
+            </View>
+          )}
+          renderItem={({ item, section }) => {
+            const locked = !isSubscribed && item.number > FREE_LIMIT;
+            const isReact = section.kind === 'react';
+            const tint = isReact ? '#0EA5E9' : LANG_COLORS.javascript;
+            return (
+              <TouchableOpacity
+                style={[styles.problemRow, { borderBottomColor: DIFF_COLORS[item.difficulty] }]}
+                activeOpacity={0.7}
+                onPress={() =>
+                  isReact
+                    ? handleReactPress(item.id, item.number)
+                    : handleBugFixPress(item.id, item.number)
+                }
+              >
+                <View style={[styles.langIconWrap, { backgroundColor: `${tint}22` }]}>
+                  <Ionicons
+                    name={isReact ? 'logo-react' : 'logo-javascript'}
+                    size={18}
+                    color={tint}
+                  />
+                </View>
+                <View style={styles.titleCol}>
+                  <Text style={styles.problemTitle} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <Text style={styles.problemTopic}>{item.topic}</Text>
+                </View>
+                <View
+                  style={[
+                    styles.diffBadge,
+                    { backgroundColor: `${DIFF_COLORS[item.difficulty]}22` },
+                  ]}
+                >
+                  <Text
+                    style={[styles.diffBadgeText, { color: DIFF_COLORS[item.difficulty] }]}
+                  >
+                    {item.difficulty}
+                  </Text>
+                </View>
+                {locked ? (
+                  <Ionicons name="lock-closed" size={16} color={colors.inkLighter} />
+                ) : (
+                  <Ionicons name="chevron-forward" size={18} color={colors.inkLighter} />
+                )}
+              </TouchableOpacity>
+            );
+          }}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          SectionSeparatorComponent={() => <View style={styles.separator} />}
+        />
       ) : isDebugCategory(category) ? (
         <FlatList
           data={visibleBugFixes}
@@ -484,6 +572,16 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   separator: { height: spacing.sm },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+    paddingHorizontal: 2,
+  },
+  sectionHeaderText: { ...typography.labelMedium, color: colors.inkLight, flex: 1 },
+  sectionHeaderCount: { ...typography.labelSmall, color: colors.inkLighter },
   numberWrap: {
     width: 36,
     height: 36,
