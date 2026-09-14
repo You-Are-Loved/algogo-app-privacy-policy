@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Svg, { Circle } from 'react-native-svg';
+import Animated, {
+  Easing,
+  useAnimatedProps,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { TestStackParamList } from '../navigation';
@@ -79,12 +87,7 @@ export default function TestResultsScreen() {
 
         {/* Score ring */}
         <View style={styles.ringWrap}>
-          <View style={[styles.ring, { borderColor: ringColor }]}>
-            <Text style={[styles.ringPercent, { color: ringColor }]}>
-              {score.percent}%
-            </Text>
-            <Text style={styles.ringCaption}>overall</Text>
-          </View>
+          <ScoreRing percent={score.percent} color={ringColor} />
           <Text style={styles.gradeLine}>{gradeLine(score.percent)}</Text>
           {hasBehavioral && score.objectiveItems > 0 && (
             <Text style={styles.objectiveLine}>
@@ -126,6 +129,76 @@ export default function TestResultsScreen() {
   );
 }
 
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const RING_SIZE = 176;
+const RING_STROKE = 12;
+const RING_R = (RING_SIZE - RING_STROKE) / 2;
+const RING_C = 2 * Math.PI * RING_R;
+const RING_MS = 1100;
+
+/** Animated arc that sweeps from the top to the score, with the number
+ *  counting up alongside it (eased, no bounce). */
+function ScoreRing({ percent, color }: { percent: number; color: string }) {
+  const progress = useSharedValue(0);
+  const [shown, setShown] = useState(0);
+
+  useEffect(() => {
+    progress.value = withDelay(
+      250,
+      withTiming(percent / 100, { duration: RING_MS, easing: Easing.out(Easing.cubic) }),
+    );
+    const start = Date.now() + 250;
+    let raf = 0;
+    const tick = () => {
+      const t = Math.min(1, Math.max(0, (Date.now() - start) / RING_MS));
+      const eased = 1 - Math.pow(1 - t, 3);
+      setShown(Math.round(percent * eased));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [percent, progress]);
+
+  const arcProps = useAnimatedProps(() => ({
+    strokeDashoffset: RING_C * (1 - progress.value),
+  }));
+
+  return (
+    <View style={styles.ring}>
+      <Svg width={RING_SIZE} height={RING_SIZE}>
+        <Circle
+          cx={RING_SIZE / 2}
+          cy={RING_SIZE / 2}
+          r={RING_R}
+          stroke={`${color}22`}
+          strokeWidth={RING_STROKE}
+          fill="none"
+        />
+        <AnimatedCircle
+          cx={RING_SIZE / 2}
+          cy={RING_SIZE / 2}
+          r={RING_R}
+          stroke={color}
+          strokeWidth={RING_STROKE}
+          strokeLinecap="round"
+          fill="none"
+          strokeDasharray={`${RING_C} ${RING_C}`}
+          animatedProps={arcProps}
+          rotation={-90}
+          origin={`${RING_SIZE / 2}, ${RING_SIZE / 2}`}
+        />
+      </Svg>
+      <View style={styles.ringCenter}>
+        <View style={styles.ringNumberRow}>
+          <Text style={[styles.ringPercent, { color }]}>{shown}</Text>
+          <Text style={[styles.ringPercentSign, { color }]}>%</Text>
+        </View>
+        <Text style={styles.ringCaption}>OVERALL</Text>
+      </View>
+    </View>
+  );
+}
+
 function OutcomeRow({ outcome, index }: { outcome: ItemOutcome; index: number }) {
   const status = STATUS_UI[outcome.status];
   const meta = SECTION_META[outcome.kind];
@@ -164,17 +237,37 @@ const styles = StyleSheet.create({
 
   ringWrap: { alignItems: 'center', marginTop: spacing.xl },
   ring: {
-    width: 148,
-    height: 148,
-    borderRadius: 74,
-    borderWidth: 10,
+    width: RING_SIZE,
+    height: RING_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.card,
-    ...shadows.sm,
   },
-  ringPercent: { ...typography.displayLarge, fontSize: 38, lineHeight: 44 },
-  ringCaption: { ...typography.labelSmall, color: colors.inkLight },
+  ringCenter: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringNumberRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  ringPercent: {
+    ...typography.displayLarge,
+    fontSize: 46,
+    lineHeight: 52,
+    fontWeight: '800',
+    letterSpacing: -1.5,
+  },
+  ringPercentSign: {
+    ...typography.headlineMedium,
+    fontWeight: '700',
+    marginTop: 8,
+    marginLeft: 2,
+    opacity: 0.8,
+  },
+  ringCaption: {
+    ...typography.labelSmall,
+    color: colors.inkLighter,
+    letterSpacing: 1.6,
+    marginTop: 2,
+  },
   gradeLine: {
     ...typography.bodyMedium,
     color: colors.ink,
