@@ -18,6 +18,8 @@ import {
 import Animated, {
   Easing,
   FadeInDown,
+  FadeOut,
+  LinearTransition,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
@@ -45,6 +47,8 @@ export interface AnchoredMenuItem {
   dotColor?: string;
   /** Accent used for the icon tint, active highlight and check badge. */
   color?: string;
+  /** When present this row is a group: tapping it expands/collapses these. */
+  children?: AnchoredMenuItem[];
 }
 
 interface Props {
@@ -122,11 +126,24 @@ export default function AnchoredMenu({
   // 0 = closed, 1 = fully open.
   const progress = useSharedValue(0);
 
+  // Groups start expanded when they contain the current selection.
+  const groupOf = (key: string) => items.find((i) => i.children?.some((c) => c.key === key))?.key;
+  const [expanded, setExpanded] = useState<string[]>(() => {
+    const g = groupOf(selectedKey);
+    return g ? [g] : [];
+  });
+
   useEffect(() => {
     if (visible) {
+      const g = groupOf(selectedKey);
+      setExpanded(g ? [g] : []);
       progress.value = withTiming(1, { duration: OPEN_MS, easing: Easing.out(Easing.cubic) });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, progress]);
+
+  const toggleGroup = (key: string) =>
+    setExpanded((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
 
   const finish = useCallback(
     (key?: string) => {
@@ -192,69 +209,48 @@ export default function AnchoredMenu({
         <Animated.View style={[styles.panel, panelStyle, { top, left, width, maxHeight }]}>
           <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
             {items.map((item, index) => {
-              const active = item.key === selectedKey;
-              const accent = item.color ?? colors.primary;
+              const isGroup = !!item.children?.length;
+              const isOpen = isGroup && expanded.includes(item.key);
+              const childSelected = isGroup && item.children!.some((c) => c.key === selectedKey);
               return (
                 <Animated.View
                   key={item.key}
+                  layout={LinearTransition.duration(200).easing(Easing.out(Easing.cubic))}
                   entering={FadeInDown.delay(index * ROW_STAGGER_MS)
                     .duration(200)
                     .easing(Easing.out(Easing.cubic))}
                 >
-                  <Pressable
-                    onPress={() => close(item.key)}
-                    accessibilityRole="menuitem"
-                    accessibilityState={{ selected: active }}
-                    style={({ pressed }) => [
-                      styles.row,
-                      active && { backgroundColor: `${accent}14` },
-                      pressed && !active && styles.rowPressed,
-                    ]}
-                  >
-                    {item.icon ? (
-                      <View
-                        style={[
-                          styles.rowIcon,
-                          { backgroundColor: active ? accent : `${accent}1A` },
-                        ]}
+                  <MenuRow
+                    item={item}
+                    active={item.key === selectedKey}
+                    highlighted={childSelected && !isOpen}
+                    depth={0}
+                    trailing={
+                      isGroup ? (
+                        <View style={styles.groupChevron}>
+                          <DropdownChevron open={isOpen} color={colors.inkLight} size={16} />
+                        </View>
+                      ) : undefined
+                    }
+                    onPress={() => (isGroup ? toggleGroup(item.key) : close(item.key))}
+                  />
+                  {isOpen &&
+                    item.children!.map((child, ci) => (
+                      <Animated.View
+                        key={child.key}
+                        entering={FadeInDown.delay(ci * ROW_STAGGER_MS)
+                          .duration(180)
+                          .easing(Easing.out(Easing.cubic))}
+                        exiting={FadeOut.duration(90)}
                       >
-                        <Ionicons
-                          name={item.icon}
-                          size={18}
-                          color={active ? colors.white : accent}
+                        <MenuRow
+                          item={child}
+                          active={child.key === selectedKey}
+                          depth={1}
+                          onPress={() => close(child.key)}
                         />
-                      </View>
-                    ) : (
-                      <View style={styles.rowIcon}>
-                        <View
-                          style={[
-                            styles.dot,
-                            { backgroundColor: item.dotColor ?? colors.inkLighter },
-                          ]}
-                        />
-                      </View>
-                    )}
-                    <View style={styles.rowText}>
-                      <Text
-                        style={[styles.rowTitle, active && { color: accent }]}
-                        numberOfLines={1}
-                      >
-                        {item.title}
-                      </Text>
-                      {item.subtitle ? (
-                        <Text style={styles.rowSubtitle} numberOfLines={1}>
-                          {item.subtitle}
-                        </Text>
-                      ) : null}
-                    </View>
-                    {active ? (
-                      <View style={[styles.check, { backgroundColor: accent }]}>
-                        <Ionicons name="checkmark" size={14} color={colors.white} />
-                      </View>
-                    ) : (
-                      <Ionicons name="chevron-forward" size={16} color={colors.inkLighter} />
-                    )}
-                  </Pressable>
+                      </Animated.View>
+                    ))}
                   {index < items.length - 1 && <View style={styles.divider} />}
                 </Animated.View>
               );
@@ -263,6 +259,74 @@ export default function AnchoredMenu({
         </Animated.View>
       )}
     </Modal>
+  );
+}
+
+function MenuRow({
+  item,
+  active,
+  highlighted,
+  depth,
+  trailing,
+  onPress,
+}: {
+  item: AnchoredMenuItem;
+  active: boolean;
+  highlighted?: boolean;
+  depth: number;
+  trailing?: React.ReactNode;
+  onPress: () => void;
+}) {
+  const accent = item.color ?? colors.primary;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="menuitem"
+      accessibilityState={{ selected: active }}
+      style={({ pressed }) => [
+        styles.row,
+        depth > 0 && styles.rowNested,
+        active && { backgroundColor: `${accent}14` },
+        pressed && !active && styles.rowPressed,
+      ]}
+    >
+      {item.icon ? (
+        <View
+          style={[
+            styles.rowIcon,
+            depth > 0 && styles.rowIconNested,
+            { backgroundColor: active ? accent : `${accent}1A` },
+          ]}
+        >
+          <Ionicons name={item.icon} size={depth > 0 ? 16 : 18} color={active ? colors.white : accent} />
+        </View>
+      ) : (
+        <View style={[styles.rowIcon, depth > 0 && styles.rowIconNested]}>
+          <View style={[styles.dot, { backgroundColor: item.dotColor ?? colors.inkLighter }]} />
+        </View>
+      )}
+      <View style={styles.rowText}>
+        <Text
+          style={[styles.rowTitle, (active || highlighted) && { color: accent }]}
+          numberOfLines={1}
+        >
+          {item.title}
+        </Text>
+        {item.subtitle ? (
+          <Text style={styles.rowSubtitle} numberOfLines={1}>
+            {item.subtitle}
+          </Text>
+        ) : null}
+      </View>
+      {trailing ??
+        (active ? (
+          <View style={[styles.check, { backgroundColor: accent }]}>
+            <Ionicons name="checkmark" size={14} color={colors.white} />
+          </View>
+        ) : (
+          <Ionicons name="chevron-forward" size={16} color={colors.inkLighter} />
+        ))}
+    </Pressable>
   );
 }
 
@@ -293,6 +357,23 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
   },
   rowPressed: {
+    backgroundColor: colors.background,
+  },
+  rowNested: {
+    marginLeft: spacing.md + 36 + spacing.xs,
+    paddingVertical: spacing.sm,
+  },
+  rowIconNested: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+  },
+  groupChevron: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.background,
   },
   rowIcon: {

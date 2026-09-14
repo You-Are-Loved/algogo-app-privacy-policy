@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  SectionList,
   Pressable,
 } from 'react-native';
 import Animated, { Easing, FadeInDown } from 'react-native-reanimated';
@@ -45,8 +44,9 @@ const LANG_COLORS: Record<BugFixLanguage, string> = {
 type Category =
   | 'algorithms'
   | 'system-design'
-  | 'python'
+  | 'react'
   | 'javascript'
+  | 'python'
   | 'java'
   | 'sql'
   | 'behavioral';
@@ -80,10 +80,16 @@ const CATEGORIES: {
     color: LANG_COLORS.python,
   },
   {
-    key: 'javascript',
-    label: 'Frontend',
+    key: 'react',
+    label: 'React',
     icon: 'logo-react',
     color: '#0EA5E9',
+  },
+  {
+    key: 'javascript',
+    label: 'JavaScript',
+    icon: 'logo-javascript',
+    color: '#C9A800',
   },
   {
     key: 'java',
@@ -105,20 +111,34 @@ const CATEGORIES: {
   },
 ];
 
-const CATEGORY_MENU: AnchoredMenuItem[] = CATEGORIES.map((c) => ({
-  key: c.key,
-  title: c.label,
-  icon: c.icon,
-  color: c.color,
-}));
+const menuItem = (key: Category): AnchoredMenuItem => {
+  const c = CATEGORIES.find((x) => x.key === key)!;
+  return { key: c.key, title: c.label, icon: c.icon, color: c.color };
+};
+
+// Frontend and Backend are groups that expand to their languages.
+const CATEGORY_MENU: AnchoredMenuItem[] = [
+  menuItem('algorithms'),
+  menuItem('system-design'),
+  {
+    key: 'group-frontend',
+    title: 'Frontend',
+    icon: 'browsers-outline',
+    color: '#0EA5E9',
+    children: [menuItem('react'), menuItem('javascript')],
+  },
+  {
+    key: 'group-backend',
+    title: 'Backend',
+    icon: 'server-outline',
+    color: '#2196F3',
+    children: [menuItem('python'), menuItem('java'), menuItem('sql')],
+  },
+  menuItem('behavioral'),
+];
 
 const isDebugCategory = (c: Category): c is BugFixLanguage =>
   c === 'python' || c === 'javascript' || c === 'java';
-
-// Frontend lists React build problems and JavaScript debugging problems in
-// one SectionList; both share this row shape.
-type FrontendRow = { id: string; number: number; title: string; topic: string; difficulty: Difficulty };
-type FrontendSection = { title: string; kind: 'react' | 'debug'; data: FrontendRow[] };
 
 export default function PracticeScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -355,49 +375,22 @@ export default function PracticeScreen() {
           }}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
-      ) : category === 'javascript' ? (
-        <SectionList<FrontendRow, FrontendSection>
-          sections={(
-            [
-              { title: 'Build with React', kind: 'react', data: reactProblems },
-              { title: 'Debug JavaScript', kind: 'debug', data: visibleBugFixes },
-            ] as FrontendSection[]
-          ).filter((sec) => sec.data.length > 0)}
+      ) : category === 'react' ? (
+        <FlatList
+          data={reactProblems}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          stickySectionHeadersEnabled={false}
-          renderSectionHeader={({ section }) => (
-            <View style={styles.sectionHeaderRow}>
-              <Ionicons
-                name={section.kind === 'react' ? 'logo-react' : 'logo-javascript'}
-                size={14}
-                color={section.kind === 'react' ? '#0EA5E9' : '#C9A800'}
-              />
-              <Text style={styles.sectionHeaderText}>{section.title}</Text>
-              <Text style={styles.sectionHeaderCount}>{section.data.length}</Text>
-            </View>
-          )}
-          renderItem={({ item, section }) => {
+          renderItem={({ item }) => {
             const locked = !isSubscribed && item.number > FREE_LIMIT;
-            const isReact = section.kind === 'react';
-            const tint = isReact ? '#0EA5E9' : LANG_COLORS.javascript;
             return (
               <TouchableOpacity
                 style={[styles.problemRow, { borderBottomColor: DIFF_COLORS[item.difficulty] }]}
                 activeOpacity={0.7}
-                onPress={() =>
-                  isReact
-                    ? handleReactPress(item.id, item.number)
-                    : handleBugFixPress(item.id, item.number)
-                }
+                onPress={() => handleReactPress(item.id, item.number)}
               >
-                <View style={[styles.langIconWrap, { backgroundColor: `${tint}22` }]}>
-                  <Ionicons
-                    name={isReact ? 'logo-react' : 'logo-javascript'}
-                    size={18}
-                    color={tint}
-                  />
+                <View style={[styles.langIconWrap, { backgroundColor: '#0EA5E922' }]}>
+                  <Ionicons name="logo-react" size={18} color="#0EA5E9" />
                 </View>
                 <View style={styles.titleCol}>
                   <Text style={styles.problemTitle} numberOfLines={1}>
@@ -426,7 +419,6 @@ export default function PracticeScreen() {
             );
           }}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
-          SectionSeparatorComponent={() => <View style={styles.separator} />}
         />
       ) : isDebugCategory(category) ? (
         <FlatList
@@ -572,16 +564,6 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   separator: { height: spacing.sm },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xs,
-    paddingHorizontal: 2,
-  },
-  sectionHeaderText: { ...typography.labelMedium, color: colors.inkLight, flex: 1 },
-  sectionHeaderCount: { ...typography.labelSmall, color: colors.inkLighter },
   numberWrap: {
     width: 36,
     height: 36,
