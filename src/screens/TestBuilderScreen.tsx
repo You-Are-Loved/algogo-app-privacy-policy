@@ -23,6 +23,7 @@ import {
   SectionConfig,
   SectionKind,
   SECTION_META,
+  SECTION_GROUPS,
   ALL_DIFFICULTIES,
   TIME_CHOICES,
   MAX_PER_SECTION,
@@ -162,13 +163,31 @@ export default function TestBuilderScreen() {
         />
 
         <Text style={styles.fieldLabel}>SECTIONS</Text>
-        {template.sections.map((cfg) => (
-          <SectionEditor
-            key={cfg.kind}
-            cfg={cfg}
-            onChange={(patch) => updateSection(cfg.kind, patch)}
-            onOpenTopics={() => setTopicPickerKind(cfg.kind)}
-          />
+        {SECTION_GROUPS.map((group, gi) => (
+          <View key={group.title ?? `group-${gi}`}>
+            {group.title && (
+              <View style={styles.groupHeader}>
+                <Ionicons
+                  name={group.title === 'Frontend' ? 'browsers-outline' : 'server-outline'}
+                  size={13}
+                  color={colors.inkLighter}
+                />
+                <Text style={styles.groupHeaderText}>{group.title.toUpperCase()}</Text>
+              </View>
+            )}
+            {group.kinds.map((kind) => {
+              const cfg = template.sections.find((s) => s.kind === kind);
+              if (!cfg) return null;
+              return (
+                <SectionEditor
+                  key={cfg.kind}
+                  cfg={cfg}
+                  onChange={(patch) => updateSection(cfg.kind, patch)}
+                  onOpenTopics={() => setTopicPickerKind(cfg.kind)}
+                />
+              );
+            })}
+          </View>
         ))}
       </ScrollView>
 
@@ -433,6 +452,19 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
 
+  groupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+    marginLeft: 2,
+  },
+  groupHeaderText: {
+    ...typography.labelSmall,
+    color: colors.inkLighter,
+    letterSpacing: 1.4,
+  },
   sectionCard: {
     backgroundColor: colors.card,
     borderRadius: borderRadius.lg,

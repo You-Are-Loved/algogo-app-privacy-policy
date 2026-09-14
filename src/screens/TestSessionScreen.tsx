@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Animated, { Easing, FadeInDown } from 'react-native-reanimated';
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { TestStackParamList } from '../navigation';
@@ -133,7 +134,7 @@ export default function TestSessionScreen() {
         ? 'requirements'
         : target.kind === 'sql'
           ? 'datasets'
-          : target.kind === 'javascript' && getReactProblem(target.problemId)
+          : target.kind === 'react'
             ? 'checks'
             : 'tests';
     const detail =
@@ -317,17 +318,24 @@ export default function TestSessionScreen() {
           });
         }}
       >
-        <SessionItem
+        <Animated.View
           key={item.uid}
-          item={item}
-          keyboardVerticalOffset={contentTopOffset}
-          answer={answers[item.uid] ?? ''}
-          onAnswerChange={(text) => {
-            answersRef.current[item.uid] = text;
-            setAnswers((prev) => ({ ...prev, [item.uid]: text }));
-          }}
-          onResult={(r) => recordResult(item.uid, r)}
-        />
+          style={{ flex: 1 }}
+          entering={FadeInDown.duration(240)
+            .easing(Easing.out(Easing.cubic))
+            .withInitialValues({ transform: [{ translateY: 14 }] })}
+        >
+          <SessionItem
+            item={item}
+            keyboardVerticalOffset={contentTopOffset}
+            answer={answers[item.uid] ?? ''}
+            onAnswerChange={(text) => {
+              answersRef.current[item.uid] = text;
+              setAnswers((prev) => ({ ...prev, [item.uid]: text }));
+            }}
+            onResult={(r) => recordResult(item.uid, r)}
+          />
+        </Animated.View>
       </View>
     </SafeAreaView>
   );
@@ -359,20 +367,21 @@ function SessionItem({
         />
       );
     }
+    case 'react': {
+      const build = getReactProblem(item.problemId);
+      if (!build) return <MissingProblem />;
+      return (
+        <ReactProblemView
+          problem={build}
+          embedded
+          onResult={onResult}
+          keyboardVerticalOffset={keyboardVerticalOffset}
+        />
+      );
+    }
     case 'python':
     case 'javascript':
     case 'java': {
-      const build = item.kind === 'javascript' ? getReactProblem(item.problemId) : undefined;
-      if (build) {
-        return (
-          <ReactProblemView
-            problem={build}
-            embedded
-            onResult={onResult}
-            keyboardVerticalOffset={keyboardVerticalOffset}
-          />
-        );
-      }
       const problem = getBugFixProblem(item.problemId);
       if (!problem) return <MissingProblem />;
       return (

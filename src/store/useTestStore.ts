@@ -53,9 +53,10 @@ export const useTestStore = create<TestStoreState>()(
       name: '@algogo_test_templates',
       storage: createJSONStorage(() => AsyncStorage),
       // v2 (2.4): the single "bug-fix" section became per-language sections
-      // (python / javascript / java) plus sql. Normalize anything persisted
-      // by older builds so SECTION_META lookups never see a stale kind.
-      version: 2,
+      // (python / javascript / java) plus sql; v3 adds react. Normalize
+      // anything persisted by older builds so SECTION_META lookups never see
+      // a stale kind.
+      version: 3,
       migrate: (persisted: any) => ({
         ...persisted,
         templates: Array.isArray(persisted?.templates)

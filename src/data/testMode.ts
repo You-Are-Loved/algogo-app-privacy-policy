@@ -51,8 +51,9 @@ export type { BugFixLanguage } from './bugFixes';
 export type SectionKind =
   | 'algorithms'
   | 'system-design'
-  | 'python'
+  | 'react'
   | 'javascript'
+  | 'python'
   | 'java'
   | 'sql'
   | 'quiz'
@@ -61,12 +62,21 @@ export type SectionKind =
 export const SECTION_KINDS: SectionKind[] = [
   'algorithms',
   'system-design',
-  'python',
+  'react',
   'javascript',
+  'python',
   'java',
   'sql',
   'quiz',
   'behavioral',
+];
+
+/** How the builder lays sections out — mirrors the Practice category menu. */
+export const SECTION_GROUPS: { title: string | null; kinds: SectionKind[] }[] = [
+  { title: null, kinds: ['algorithms', 'system-design'] },
+  { title: 'Frontend', kinds: ['react', 'javascript'] },
+  { title: 'Backend', kinds: ['python', 'java', 'sql'] },
+  { title: null, kinds: ['quiz', 'behavioral'] },
 ];
 
 /** Kinds backed by the per-language debugging pool in bugFixes.ts. */
@@ -119,15 +129,23 @@ export const SECTION_META: Record<SectionKind, SectionMetaInfo> = {
     hasTopics: true,
     poolTotal: countByLanguage('python'),
   },
-  // "Frontend" = JavaScript debugging + React build problems (ids 'react-*').
-  javascript: {
-    label: 'Frontend',
-    short: 'Frontend',
+  react: {
+    label: 'React',
+    short: 'React',
     icon: 'logo-react',
     color: '#0EA5E9',
     hasDifficulty: true,
     hasTopics: true,
-    poolTotal: countByLanguage('javascript') + reactProblems.length,
+    poolTotal: reactProblems.length,
+  },
+  javascript: {
+    label: 'JavaScript',
+    short: 'JS',
+    icon: 'logo-javascript',
+    color: '#C9A800',
+    hasDifficulty: true,
+    hasTopics: true,
+    poolTotal: countByLanguage('javascript'),
   },
   java: {
     label: 'Java',
@@ -178,13 +196,11 @@ export const ALGO_TOPICS = distinctSorted(blind75.map((p) => p.topic));
 export const SD_TOPICS = distinctSorted(systemDesignProblems.map((p) => p.topic));
 export const DEBUG_TOPICS: Record<DebugKind, string[]> = {
   python: distinctSorted(bugFixProblems.filter((p) => p.language === 'python').map((p) => p.topic)),
-  javascript: distinctSorted([
-    ...reactProblems.map((p) => p.topic),
-    ...bugFixProblems.filter((p) => p.language === 'javascript').map((p) => p.topic),
-  ]),
+  javascript: distinctSorted(bugFixProblems.filter((p) => p.language === 'javascript').map((p) => p.topic)),
   java: distinctSorted(bugFixProblems.filter((p) => p.language === 'java').map((p) => p.topic)),
 };
 export const SQL_TOPICS = distinctSorted(sqlProblems.map((p) => p.topic));
+export const REACT_TOPICS = distinctSorted(reactProblems.map((p) => p.topic));
 
 export const ALL_DIFFICULTIES: Difficulty[] = ['Easy', 'Medium', 'Hard'];
 
@@ -200,6 +216,8 @@ export function topicsForKind(kind: SectionKind): string[] {
     case 'javascript':
     case 'java':
       return DEBUG_TOPICS[kind];
+    case 'react':
+      return REACT_TOPICS;
     case 'sql':
       return SQL_TOPICS;
     case 'quiz':
@@ -213,6 +231,7 @@ export function topicsForKind(kind: SectionKind): string[] {
 export const DEFAULT_SECONDS: Record<SectionKind, number> = {
   algorithms: 1200, // 20 min
   'system-design': 1500, // 25 min
+  react: 900, // 15 min — build a component
   python: 600, // 10 min
   javascript: 600,
   java: 600,
@@ -350,8 +369,8 @@ export function poolForSection(cfg: SectionConfig): string[] {
         .map((p) => p.id);
     case 'python':
     case 'javascript':
-    case 'java': {
-      const debug = bugFixProblems
+    case 'java':
+      return bugFixProblems
         .filter(
           (p) =>
             p.language === cfg.kind &&
@@ -359,16 +378,14 @@ export function poolForSection(cfg: SectionConfig): string[] {
             matchesTopic(cfg.topics, p.topic),
         )
         .map((p) => p.id);
-      if (cfg.kind !== 'javascript') return debug;
-      const builds = reactProblems
+    case 'react':
+      return reactProblems
         .filter(
           (p) =>
             cfg.difficulties.includes(p.difficulty) &&
             matchesTopic(cfg.topics, p.topic),
         )
         .map((p) => p.id);
-      return [...builds, ...debug];
-    }
     case 'sql':
       return sqlProblems
         .filter(
@@ -455,9 +472,9 @@ export function itemTitle(kind: SectionKind, problemId: string): string {
     case 'python':
     case 'javascript':
     case 'java':
-      return (
-        getReactProblem(problemId)?.title ?? getBugFixProblem(problemId)?.title ?? 'Problem'
-      );
+      return getBugFixProblem(problemId)?.title ?? 'Problem';
+    case 'react':
+      return getReactProblem(problemId)?.title ?? 'Problem';
     case 'sql':
       return getSqlProblem(problemId)?.title ?? 'Problem';
     case 'quiz':
@@ -642,6 +659,11 @@ export const BUILT_IN_TEMPLATES: TestTemplate[] = [
     python: { count: 1, secondsPerQuestion: 480 },
     javascript: { count: 1, secondsPerQuestion: 480 },
     java: { count: 1, secondsPerQuestion: 480 },
+  }),
+  preset('preset-frontend-round', 'Frontend round', {
+    react: { count: 2, secondsPerQuestion: 900 },
+    javascript: { count: 1, secondsPerQuestion: 480 },
+    quiz: { count: 3, secondsPerQuestion: 60, topics: ['Web'] },
   }),
   preset('preset-data-round', 'Data & SQL round', {
     sql: { count: 3, secondsPerQuestion: 600 },
