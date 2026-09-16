@@ -121,7 +121,7 @@ const PHONE_W = Math.min(W * 0.64, 256);
 const PHONE_H = PHONE_W * (2622 / 1206);
 const PHONE_RADIUS = PHONE_W * 0.16;
 const BEZEL = 6;
-const FADE_H = Math.round(STAGE_H * 0.32);
+const FADE_H = Math.round(STAGE_H * 0.14);
 
 export default function OnboardingCarouselScreen() {
   const insets = useSafeAreaInsets();
@@ -295,7 +295,8 @@ function PageView({
           </View>
           <LinearGradient
             pointerEvents="none"
-            colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.9)', '#FFFFFF']}
+            colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.55)', '#FFFFFF']}
+            locations={[0, 0.6, 1]}
             style={styles.phoneFade}
           />
         </Animated.View>
