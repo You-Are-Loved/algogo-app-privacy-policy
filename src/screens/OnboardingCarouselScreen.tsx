@@ -212,9 +212,6 @@ export default function OnboardingCarouselScreen() {
             <Text style={styles.ctaText}>{isLast ? 'Get started' : 'Continue'}</Text>
             <Ionicons name={isLast ? 'sparkles' : 'arrow-forward'} size={18} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={styles.pageCounter}>
-            {index + 1} of {PAGES.length}
-          </Text>
         </View>
       </SafeAreaView>
 
@@ -643,6 +640,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
   },
   ctaText: { ...typography.labelLarge, fontSize: 17, color: '#FFFFFF' },
-  pageCounter: { ...typography.labelSmall, color: colors.inkLighter },
 });
 
