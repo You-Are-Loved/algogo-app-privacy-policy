@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { TestStackParamList } from '../navigation';
 import { useTestStore } from '../store/useTestStore';
 import BottomSheetModal from '../components/BottomSheetModal';
+import { useDemoAction } from '../dev/demo';
 import {
   TestTemplate,
   SectionConfig,
@@ -96,6 +97,8 @@ export default function TestBuilderScreen() {
     return createBlankTemplate();
   });
   const [topicPickerKind, setTopicPickerKind] = useState<SectionKind | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  useDemoAction('builder.scroll', useCallback((y: number) => scrollRef.current?.scrollTo({ y, animated: true }), []));
 
   const isEditing = !!params?.templateId;
 
@@ -147,6 +150,7 @@ export default function TestBuilderScreen() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"

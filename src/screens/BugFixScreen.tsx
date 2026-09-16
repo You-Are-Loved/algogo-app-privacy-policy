@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -36,6 +36,7 @@ import {
 } from '../practice/ResultViews';
 import { gradeJava } from '../practice/gradeJava';
 import BottomSheetModal from '../components/BottomSheetModal';
+import { useDemoAction } from '../dev/demo';
 
 type RouteP = RouteProp<PracticeStackParamList, 'BugFix'>;
 
@@ -112,6 +113,8 @@ export function BugFixProblemView({
   // transition settles (mounting it already-open pops with no animation,
   // which feels jarring) and reopens from the header.
   const [problemVisible, setProblemVisible] = useState(false);
+  useDemoAction('problem.openBrief', useCallback(() => setProblemVisible(true), []));
+  useDemoAction('problem.closeBrief', useCallback(() => setProblemVisible(false), []));
   const [pageUri, setPageUri] = useState<string | null>(null);
   const [stagedDir, setStagedDir] = useState<string | null>(null);
   const [stageError, setStageError] = useState<string | null>(null);

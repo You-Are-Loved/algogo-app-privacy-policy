@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import { buildReactHtml } from '../practice/reactHtml';
 import { ensurePracticeRuntime } from '../practice/stageAssets';
 import { ExecResult } from '../practice/ResultViews';
 import BottomSheetModal from '../components/BottomSheetModal';
+import { useDemoAction } from '../dev/demo';
 
 type RouteP = RouteProp<PracticeStackParamList, 'ReactProblem'>;
 
@@ -95,6 +96,8 @@ export function ReactProblemView({
   const [resultsVisible, setResultsVisible] = useState(false);
   const [explanationVisible, setExplanationVisible] = useState(false);
   const [problemVisible, setProblemVisible] = useState(false);
+  useDemoAction('problem.openBrief', useCallback(() => setProblemVisible(true), []));
+  useDemoAction('problem.closeBrief', useCallback(() => setProblemVisible(false), []));
   const [pageUri, setPageUri] = useState<string | null>(null);
   const [stagedDir, setStagedDir] = useState<string | null>(null);
   const [stageError, setStageError] = useState<string | null>(null);

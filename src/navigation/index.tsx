@@ -11,6 +11,7 @@ import TermsScreen from '../screens/TermsScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import OnboardingCarouselScreen from '../screens/OnboardingCarouselScreen';
 import { FLAGS } from '../config/flags';
+import { navigationRef } from './ref';
 import PracticeScreen from '../screens/PracticeScreen';
 import ProblemScreen from '../screens/ProblemScreen';
 import SystemDesignScreen from '../screens/SystemDesignScreen';
@@ -188,7 +189,7 @@ export default function Navigation() {
   const needsOnboarding = !hasSeenOnboarding && !isSubscribed;
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {needsTermsAcceptance ? (
           <Stack.Screen name="Terms" component={TermsScreen} options={{ animation: 'fade' }} />

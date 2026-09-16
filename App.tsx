@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Linking } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Navigation from './src/navigation';
@@ -8,6 +8,7 @@ import { useStore } from './src/store/useStore';
 import { colors } from './src/theme';
 import { SubscriptionProvider } from './src/context/SubscriptionContext';
 import AnimatedSplash from './src/components/AnimatedSplash';
+import { handleDemoUrl } from './src/dev/demo';
 
 function AppContent() {
   const { user, isLoading, initGuestUser, setLoading } = useStore();
@@ -26,6 +27,17 @@ function AppContent() {
     } else {
       setLoading(false);
     }
+  }, []);
+
+  // Dev-only: `com.raidea.algogo://demo?script=<name>` runs a scripted tour
+  // for screen recordings (see src/dev/demo.ts).
+  useEffect(() => {
+    if (!__DEV__) return;
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      handleDemoUrl(url);
+    });
+    Linking.getInitialURL().then((url) => handleDemoUrl(url));
+    return () => sub.remove();
   }, []);
 
   useEffect(() => {

@@ -6,8 +6,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
-  Image,
-  ImageSourcePropType,
   NativeScrollEvent,
   NativeSyntheticEvent,
   StyleSheet,
@@ -17,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -47,8 +46,8 @@ interface Page {
   title: string;
   body: string;
   accent: string;
-  /** Real screenshot shown inside the phone frame… */
-  image?: ImageSourcePropType;
+  /** Screen recording (GIF) or screenshot shown inside the phone frame… */
+  image?: number;
   /** …or a code-drawn illustration for screens that don't screenshot well. */
   mock?: 'design';
   badge?: { icon: keyof typeof Ionicons.glyphMap; label: string };
@@ -62,21 +61,21 @@ const PAGES: Page[] = [
     title: 'Study like the\ninterview is tomorrow',
     body: `${roundedPlus(s.categories, 10)} topics across ${s.tracks} tracks — algorithms, system design, iOS, Android, web, backend, SQL, C++ and CS fundamentals.`,
     accent: '#8B5CF6',
-    image: require('../../assets/onboarding/study.png'),
+    image: require('../../assets/onboarding/study.gif'),
   },
   {
     key: 'cards',
     title: 'Cards and quizzes\nthat actually stick',
     body: `${roundedPlus(s.flashcards, 100)} flashcards and ${roundedPlus(s.quizQuestions, 100)} quiz questions with explanations, plus live visualizations of every algorithm pattern.`,
     accent: '#F59E0B',
-    image: require('../../assets/onboarding/cards.png'),
+    image: require('../../assets/onboarding/cards.gif'),
   },
   {
     key: 'algorithms',
     title: 'Run real Python.\nNo wifi needed',
     body: `${s.algorithmProblems} algorithm problems with a full Python runtime on your phone — hidden tests, runtime, and a hint when you're stuck.`,
     accent: '#3776AB',
-    image: require('../../assets/onboarding/algorithms.png'),
+    image: require('../../assets/onboarding/algorithms.gif'),
     badge: { icon: 'flash-outline', label: 'On-device runtime' },
   },
   {
@@ -84,7 +83,7 @@ const PAGES: Page[] = [
     title: 'Code in the language\nyou interview in',
     body: `${s.codingProblems} build-and-debug challenges across ${s.codingLanguages.length} languages, from React components with a live preview to SQL graded by SQLite.`,
     accent: '#0EA5E9',
-    image: require('../../assets/onboarding/languages.png'),
+    image: require('../../assets/onboarding/languages.gif'),
   },
   {
     key: 'design',
@@ -98,14 +97,14 @@ const PAGES: Page[] = [
     title: 'Rehearse the\nwhole loop',
     body: `Build timed mock interviews from any mix of sections, answer ${s.behavioralPrompts} behavioral prompts, and get a scored breakdown at the end.`,
     accent: '#10B981',
-    image: require('../../assets/onboarding/interview.png'),
+    image: require('../../assets/onboarding/interview.gif'),
   },
   {
     key: 'offline',
     title: 'Everything works\noffline',
     body: 'Runtimes, content, and progress all live on your phone. Study on the train, in the air, or ten minutes before the call.',
     accent: '#EC4899',
-    image: require('../../assets/onboarding/offline.png'),
+    image: require('../../assets/onboarding/offline.gif'),
     badge: { icon: 'cloud-offline-outline', label: 'No connection required' },
   },
 ];
@@ -280,7 +279,14 @@ function PageView({
           <View style={styles.phone}>
             <View style={styles.phoneScreen}>
               {page.image ? (
-                <Image source={page.image} style={styles.phoneImage} resizeMode="cover" />
+                <Image
+                  source={page.image}
+                  style={styles.phoneImage}
+                  contentFit="cover"
+                  contentPosition="top"
+                  autoplay
+                  cachePolicy="memory"
+                />
               ) : (
                 <DesignMock accent={page.accent} />
               )}

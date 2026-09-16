@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { PracticeStackParamList } from '../navigation';
 import { buildPracticeHtml } from '../practice/practiceHtml';
 import { ensurePracticeRuntime } from '../practice/stageAssets';
 import BottomSheetModal from '../components/BottomSheetModal';
+import { useDemoAction } from '../dev/demo';
 import {
   ExecResult,
   ConsoleOutput,
@@ -106,6 +107,8 @@ export function AlgorithmProblemView({
   // screen-entry transition settles (mounting it already-open pops with no
   // animation, which feels jarring) and reopens from the header.
   const [problemVisible, setProblemVisible] = useState(false);
+  useDemoAction('problem.openBrief', useCallback(() => setProblemVisible(true), []));
+  useDemoAction('problem.closeBrief', useCallback(() => setProblemVisible(false), []));
   const [pageUri, setPageUri] = useState<string | null>(null);
   const [stagedDir, setStagedDir] = useState<string | null>(null);
   const [stageError, setStageError] = useState<string | null>(null);

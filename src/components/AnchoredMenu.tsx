@@ -29,6 +29,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
+import { useDemoAction } from '../dev/demo';
 
 export interface Anchor {
   x: number;
@@ -165,6 +166,10 @@ export default function AnchoredMenu({
     },
     [finish, progress],
   );
+
+  useDemoAction('menu.select', useCallback((key: string) => { if (visible) close(key); }, [visible, close]));
+  useDemoAction('menu.toggleGroup', useCallback((key: string) => { if (visible) toggleGroup(key); }, [visible]));
+  useDemoAction('menu.close', useCallback(() => { if (visible) close(); }, [visible, close]));
 
   const panelStyle = useAnimatedStyle(() => ({
     opacity: progress.value,

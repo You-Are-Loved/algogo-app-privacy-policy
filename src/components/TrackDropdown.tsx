@@ -1,7 +1,7 @@
 // Track switcher for the Study tab: a full-width trigger showing the active
 // track that opens the shared AnchoredMenu right underneath it.
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { contentTypeInfo, ContentType } from '../data/allCategories';
 import AnchoredMenu, { AnchoredMenuItem, DropdownChevron, useAnchor } from './AnchoredMenu';
+import { useDemoAction } from '../dev/demo';
 
 const TRACKS: ContentType[] = [
   'algorithms',
@@ -30,6 +31,8 @@ interface Props {
 export default function TrackDropdown({ value, onChange }: Props) {
   const { ref, anchor, measure } = useAnchor();
   const [open, setOpen] = useState(false);
+  useDemoAction('track.select', useCallback((t: ContentType) => onChange(t), [onChange]));
+  useDemoAction('track.open', useCallback(() => measure(() => setOpen(true)), [measure]));
   const pressScale = useSharedValue(1);
   const info = contentTypeInfo[value];
 

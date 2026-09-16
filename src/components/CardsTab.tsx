@@ -15,6 +15,7 @@ import Animated, {
   Extrapolation,
 } from 'react-native-reanimated';
 
+import { useDemoAction } from '../dev/demo';
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { Category } from '../types';
 import { useStore } from '../store/useStore';
@@ -55,6 +56,8 @@ export default function CardsTab({ category, catColors }: CardsTabProps) {
       flipProgress.value = 0;
     }
   };
+  useDemoAction('cards.flip', handleFlip);
+  useDemoAction('cards.next', handleNext);
 
   const handlePrevious = () => {
     if (currentIndex > 0) {

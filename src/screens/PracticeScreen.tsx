@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import UpgradeModal from '../components/UpgradeModal';
 import BehavioralCard from '../components/BehavioralCard';
 import { TAB_BAR_CLEARANCE } from '../components/AnimatedTabBar';
 import AnchoredMenu, { AnchoredMenuItem, DropdownChevron, useAnchor } from '../components/AnchoredMenu';
+import { useDemoAction } from '../dev/demo';
 
 type NavigationProp = NativeStackNavigationProp<PracticeStackParamList>;
 
@@ -171,6 +172,10 @@ export default function PracticeScreen() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [kindFilter, setKindFilter] = useState<KindFilter>('all');
   const categoryAnchor = useAnchor();
+  const listRef = useRef<FlatList<(typeof problems)[number]>>(null);
+  useDemoAction('practice.openMenu', useCallback(() => categoryAnchor.measure(() => setPickerVisible(true)), [categoryAnchor]));
+  useDemoAction('practice.setCategory', useCallback((c: Category) => setCategory(c), []));
+  useDemoAction('practice.scroll', useCallback((y: number) => listRef.current?.scrollToOffset({ offset: y, animated: true }), []));
 
   const activeCategory = CATEGORIES.find((c) => c.key === category)!;
   const problems = useMemo(
@@ -257,6 +262,7 @@ export default function PracticeScreen() {
       >
       {category === 'algorithms' ? (
         <FlatList
+          ref={listRef}
           data={problems}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { colors, spacing, borderRadius, typography, categoryColors, shadows } from '../theme';
+import { useDemoAction } from '../dev/demo';
 import { getCategoryBySlug, categoryHasVisualizations } from '../data/allCategories';
 import { TabStackParamList } from '../navigation';
 import CardsTab from '../components/CardsTab';
@@ -99,6 +100,7 @@ export default function CategoryScreen() {
   const route = useRoute<CategoryRouteProp>();
   const { slug } = route.params;
   const [activeTab, setActiveTab] = useState<TabType>('learn');
+  useDemoAction('category.tab', useCallback((t: TabType) => setActiveTab(t), []));
   const { isSubscribed } = useSubscriptionContext();
   const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
 

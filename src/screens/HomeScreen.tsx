@@ -38,6 +38,7 @@ import { useSubscriptionContext } from '../context/SubscriptionContext';
 import UpgradeModal from '../components/UpgradeModal';
 import RatingPromptModal from '../components/RatingPromptModal';
 import TrackDropdown from '../components/TrackDropdown';
+import { useDemoAction } from '../dev/demo';
 import { TAB_BAR_CLEARANCE } from '../components/AnimatedTabBar';
 import { Category } from '../types';
 
@@ -281,6 +282,8 @@ export default function HomeScreen() {
   const [activeTrack, setActiveTrack] = useState<ContentType>(
     route.params?.contentType || 'algorithms'
   );
+  const scrollRef = useRef<ScrollView>(null);
+  useDemoAction('home.scroll', useCallback((y: number) => scrollRef.current?.scrollTo({ y, animated: true }), []));
   const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [progressModalVisible, setProgressModalVisible] = useState(false);
@@ -438,6 +441,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE }}
       >
