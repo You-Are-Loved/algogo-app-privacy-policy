@@ -182,21 +182,6 @@ export default function OnboardingCarouselScreen() {
         style={StyleSheet.absoluteFill}
       />
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        {/* Top bar */}
-        <View style={styles.topBar}>
-          <View style={styles.brandRow}>
-            <View style={styles.brandDot} />
-            <Text style={styles.brand}>Algogo</Text>
-          </View>
-          <TouchableOpacity
-            onPress={() => setPaywallVisible(true)}
-            hitSlop={10}
-            accessibilityLabel="Skip introduction"
-          >
-            <Text style={styles.skip}>Skip</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Pages */}
         <Animated.ScrollView
           ref={scrollRef}
@@ -531,19 +516,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFFFFF' },
   safe: { flex: 1 },
 
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.sm,
-    height: 44,
-  },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  brandDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
-  brand: { ...typography.labelLarge, color: colors.ink, letterSpacing: 0.4 },
-  skip: { ...typography.labelMedium, color: colors.inkLight },
-
   page: {
     width: W,
     flex: 1,
@@ -554,7 +526,7 @@ const styles = StyleSheet.create({
     minHeight: 96,
     alignItems: 'center',
     justifyContent: 'flex-end',
-    marginTop: spacing.md,
+    marginTop: spacing['2xl'],
   },
   headlineLine: {
     flexDirection: 'row',
