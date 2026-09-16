@@ -9,6 +9,8 @@ import HomeScreen from '../screens/HomeScreen';
 import CategoryScreen from '../screens/CategoryScreen';
 import TermsScreen from '../screens/TermsScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
+import OnboardingCarouselScreen from '../screens/OnboardingCarouselScreen';
+import { FLAGS } from '../config/flags';
 import PracticeScreen from '../screens/PracticeScreen';
 import ProblemScreen from '../screens/ProblemScreen';
 import SystemDesignScreen from '../screens/SystemDesignScreen';
@@ -193,7 +195,7 @@ export default function Navigation() {
         ) : needsOnboarding ? (
           <Stack.Screen
             name="Onboarding"
-            component={OnboardingScreen}
+            component={FLAGS.newOnboarding ? OnboardingCarouselScreen : OnboardingScreen}
             options={{ animation: 'fade' }}
           />
         ) : (
