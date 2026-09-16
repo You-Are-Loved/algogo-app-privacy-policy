@@ -50,7 +50,6 @@ interface Page {
   image?: number;
   /** …or a code-drawn illustration for screens that don't screenshot well. */
   mock?: 'design';
-  badge?: { icon: keyof typeof Ionicons.glyphMap; label: string };
 }
 
 const s = contentStats;
@@ -76,7 +75,6 @@ const PAGES: Page[] = [
     body: `${s.algorithmProblems} algorithm problems with a full Python runtime on your phone — hidden tests, runtime, and a hint when you're stuck.`,
     accent: '#3776AB',
     image: require('../../assets/onboarding/algorithms.gif'),
-    badge: { icon: 'flash-outline', label: 'On-device runtime' },
   },
   {
     key: 'languages',
@@ -105,7 +103,6 @@ const PAGES: Page[] = [
     body: 'Runtimes, content, and progress all live on your phone. Study on the train, in the air, or ten minutes before the call.',
     accent: '#EC4899',
     image: require('../../assets/onboarding/offline.gif'),
-    badge: { icon: 'cloud-offline-outline', label: 'No connection required' },
   },
 ];
 
@@ -300,12 +297,6 @@ function PageView({
             style={styles.phoneFade}
           />
         </Animated.View>
-        {page.badge && (
-          <View style={[styles.badge, { borderColor: `${page.accent}66` }]}>
-            <Ionicons name={page.badge.icon} size={13} color={page.accent} />
-            <Text style={[styles.badgeText, { color: page.accent }]}>{page.badge.label}</Text>
-          </View>
-        )}
       </View>
 
       {/* Body copy */}
@@ -589,24 +580,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#0f1115',
   },
-  badge: {
-    position: 'absolute',
-    bottom: 6,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: borderRadius.full,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    shadowColor: '#0B1020',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-  },
-  badgeText: { ...typography.labelSmall, fontWeight: '700' },
 
   body: {
     ...typography.bodyMedium,
