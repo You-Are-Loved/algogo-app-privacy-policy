@@ -19,7 +19,7 @@
 const escapeForTemplate = (s: string) =>
   s.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
 
-export type BugFixHtmlLang = 'javascript' | 'java';
+export type BugFixHtmlLang = 'javascript' | 'java' | 'swift' | 'kotlin';
 
 interface BuildArgs {
   starter: string;
@@ -161,9 +161,14 @@ async function initEditor() {
 
     // Use the real JS/Java grammar when the bundle ships it; older bundles
     // fall back to Python highlighting so the editor still works.
+    const { StreamLanguage } = cm.language;
+    const legacy = cm.legacyModes || {};
     const langExt =
       LANGUAGE === 'javascript' && cm.langJavascript ? cm.langJavascript.javascript()
       : LANGUAGE === 'java' && cm.langJava ? cm.langJava.java()
+      : LANGUAGE === 'swift' && legacy.swift && StreamLanguage ? StreamLanguage.define(legacy.swift)
+      : LANGUAGE === 'kotlin' && legacy.kotlin && StreamLanguage ? StreamLanguage.define(legacy.kotlin)
+      : LANGUAGE === 'kotlin' && cm.langJava ? cm.langJava.java()
       : python();
     const startState = EditorState.create({
       doc: STARTER,
@@ -218,7 +223,17 @@ function deepEqual(a, b) {
   return false;
 }
 
-function runJsTests(fnName, tests) {
+const TEST_TIMEOUT_MS = 3000;
+function withTimeout(promise) {
+  return Promise.race([
+    promise,
+    new Promise((_, rej) => setTimeout(() => rej(new Error('Timed out after ' + TEST_TIMEOUT_MS + ' ms')), TEST_TIMEOUT_MS)),
+  ]);
+}
+
+// Sync or async: a returned promise is awaited (with a timeout) so Node-style
+// problems can use callbacks, promises and timers.
+async function runJsTests(fnName, tests) {
   if (!editorView) {
     send({ type: 'error', error: 'Editor not ready' });
     return;
@@ -257,7 +272,8 @@ function runJsTests(fnName, tests) {
   for (const t of tests) {
     const t0 = performance.now();
     try {
-      const actual = userFn.apply(null, t.input);
+      let actual = userFn.apply(null, t.input);
+      if (actual && typeof actual.then === 'function') actual = await withTimeout(actual);
       const ms = +(performance.now() - t0).toFixed(2);
       totalRuntimeMs += ms;
       const ok = deepEqual(actual, t.expected);
@@ -304,9 +320,9 @@ function handleHostMessage(rawData) {
   try { msg = JSON.parse(rawData); } catch { return; }
   if (msg.type === 'run') {
     if (LANGUAGE === 'javascript') {
-      runJsTests(msg.fnName, msg.tests);
+      runJsTests(msg.fnName, msg.tests).catch((e) => send({ type: 'error', error: (e && e.message) || String(e) }));
     } else {
-      // Java: just hand the user's code back; RN runs the rules check.
+      // Rule-graded languages: hand the user's code back; RN runs the rules check.
       if (!editorView) { send({ type: 'error', error: 'Editor not ready' }); return; }
       send({ type: 'submit', code: editorView.state.doc.toString() });
     }

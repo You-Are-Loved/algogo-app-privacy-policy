@@ -381,7 +381,10 @@ function SessionItem({
     }
     case 'python':
     case 'javascript':
-    case 'java': {
+    case 'java':
+    case 'swift':
+    case 'kotlin':
+    case 'node': {
       const problem = getBugFixProblem(item.problemId);
       if (!problem) return <MissingProblem />;
       return (

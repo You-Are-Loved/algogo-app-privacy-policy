@@ -22,6 +22,9 @@ import {
   getBugFixProblem,
   BugFixProblem,
   Difficulty,
+  isRuleGraded,
+  kindOf,
+  trackOf,
 } from '../data/bugFixes';
 import { buildPracticeHtml } from '../practice/practiceHtml';
 import { buildBugFixHtml } from '../practice/bugFixHtml';
@@ -43,17 +46,23 @@ const DIFF_COLORS: Record<Difficulty, string> = {
   Hard: colors.error,
 };
 
-const LANG_LABEL = {
+const TRACK_LABEL: Record<string, string> = {
   python: 'Python',
   javascript: 'JavaScript',
   java: 'Java',
-} as const;
+  node: 'Node.js',
+  swift: 'Swift',
+  kotlin: 'Kotlin',
+};
 
-const LANG_COLOR = {
+const TRACK_COLOR: Record<string, string> = {
   python: '#3776AB',
-  javascript: '#F7DF1E',
+  javascript: '#C9A800',
   java: '#ED8B00',
-} as const;
+  node: '#3C873A',
+  swift: '#F05138',
+  kotlin: '#7F52FF',
+};
 
 // Same shortcut bar as ProblemScreen — the symbols are useful across all three
 // languages. Pythonic words like `def` are skipped here because the bug-fix
@@ -126,7 +135,12 @@ export function BugFixProblemView({
   const [stageError, setStageError] = useState<string | null>(null);
   const [kbHeight, setKbHeight] = useState(0);
 
-  // Python uses the Pyodide page; JS/Java use the lightweight host.
+  const kind = kindOf(problem);
+  const track = trackOf(problem);
+  const ruleGraded = isRuleGraded(problem.language);
+
+  // Python uses the Pyodide page; everything else uses the lightweight host
+  // (JS runs there; rule-graded languages just hand the code back).
   const html = useMemo(() => {
     if (problem.language === 'python') {
       return buildPracticeHtml({
@@ -196,7 +210,7 @@ export function BugFixProblemView({
     if (!runtimeReady || running) return;
     setRunning(true);
     setResult(null);
-    if (problem.language === 'java') {
+    if (ruleGraded) {
       // Ask the WebView for the current code, then grade in TS.
       webRef.current?.postMessage(JSON.stringify({ type: 'run' }));
       return;
@@ -238,8 +252,8 @@ export function BugFixProblemView({
         setResultsVisible(true);
         onResult?.({ passed: msg.payload.passed, total: msg.payload.total });
       } else if (msg.type === 'submit') {
-        // Java path — grade in TS.
-        if (problem.language === 'java' && problem.rules) {
+        // Rule-graded path — grade in TS.
+        if (ruleGraded && problem.rules) {
           const graded = gradeJava(msg.code || '', problem.rules);
           setResult(graded);
           setRunning(false);
@@ -263,9 +277,9 @@ export function BugFixProblemView({
   };
 
   const diffColor = DIFF_COLORS[problem.difficulty];
-  const langColor = LANG_COLOR[problem.language];
-  const loadingLabel =
-    problem.language === 'python' ? 'Loading Python…' : 'Loading editor…';
+  const langColor = TRACK_COLOR[track] ?? colors.inkLight;
+  const langLabel = TRACK_LABEL[track] ?? problem.language;
+  const isBuild = kind === 'build';
 
   // Slide the sheet up shortly after entry rather than popping it instantly.
   useEffect(() => {
@@ -314,7 +328,7 @@ export function BugFixProblemView({
                 ]}
               >
                 <Text style={[styles.langBadgeText, { color: langColor }]}>
-                  {LANG_LABEL[problem.language]}
+                  {langLabel}
                 </Text>
               </View>
               <Text style={styles.topicText}>{problem.topic}</Text>
@@ -442,7 +456,7 @@ export function BugFixProblemView({
                 {result && (
                   <Text style={styles.modalSubtitle}>
                     {result.passed} / {result.total}{' '}
-                    {problem.language === 'java' ? 'checks' : 'tests'} passed
+                    {ruleGraded ? 'checks' : 'tests'} passed
                     {result.totalRuntimeMs > 0
                       ? ` · ${result.totalRuntimeMs} ms`
                       : ''}
@@ -461,12 +475,12 @@ export function BugFixProblemView({
               contentContainerStyle={{ paddingBottom: spacing.lg }}
               showsVerticalScrollIndicator={false}
             >
-              {result && <ResultSummary result={result} />}
-              {result && problem.language === 'java' && (
+              {result && <ResultSummary result={result} build={isBuild} />}
+              {result && ruleGraded && (
                 <RuleResultBreakdown result={result} />
               )}
               {result &&
-                problem.language !== 'java' &&
+                !ruleGraded &&
                 problem.examples && (
                   <BugFixExecBreakdown
                     result={result}
@@ -474,7 +488,7 @@ export function BugFixProblemView({
                     functionName={problem.functionName || ''}
                   />
                 )}
-              {result && problem.language !== 'java' && (
+              {result && !ruleGraded && (
                 <ConsoleOutput result={result} />
               )}
             </ScrollView>
@@ -484,7 +498,7 @@ export function BugFixProblemView({
       <BottomSheetModal visible={explanationVisible} onClose={() => setExplanationVisible(false)}>
             <View style={styles.modalHeaderRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.modalTitle}>What was the bug</Text>
+                <Text style={styles.modalTitle}>{isBuild ? 'How to build it' : 'What was the bug'}</Text>
                 <Text style={styles.modalSubtitle}>{problem.title}</Text>
               </View>
               <TouchableOpacity
@@ -505,6 +519,18 @@ export function BugFixProblemView({
                 </View>
               )}
               <Text style={styles.modalBody}>{problem.explanation}</Text>
+              {isBuild && problem.solution && (
+                <>
+                  <Text style={[styles.sectionLabel, { marginTop: spacing.lg }]}>
+                    REFERENCE SOLUTION
+                  </Text>
+                  <View style={styles.signatureCard}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <Text style={styles.signatureText}>{problem.solution.trim()}</Text>
+                    </ScrollView>
+                  </View>
+                </>
+              )}
             </ScrollView>
       </BottomSheetModal>
 
@@ -524,7 +550,7 @@ export function BugFixProblemView({
                       </View>
                       <View style={[styles.langBadge, { backgroundColor: `${langColor}22` }]}>
                         <Text style={[styles.langBadgeText, { color: langColor }]}>
-                          {LANG_LABEL[problem.language]}
+                          {langLabel}
                         </Text>
                       </View>
                       <Text style={styles.topicText}>{problem.topic}</Text>
@@ -541,7 +567,7 @@ export function BugFixProblemView({
               contentContainerStyle={{ paddingBottom: spacing.md }}
               showsVerticalScrollIndicator={false}
             >
-              <Text style={styles.sectionLabel}>FIX THE BUG</Text>
+              <Text style={styles.sectionLabel}>{isBuild ? 'BUILD IT' : 'FIX THE BUG'}</Text>
               <Text style={styles.statement}>{problem.statement}</Text>
 
               {problem.examples && problem.examples.length > 0 && (
@@ -570,7 +596,7 @@ export function BugFixProblemView({
                 </>
               )}
 
-              {problem.language === 'java' && problem.rules && (
+              {ruleGraded && problem.rules && (
                 <>
                   <Text style={[styles.sectionLabel, { marginTop: spacing.lg }]}>
                     WHAT WE CHECK
@@ -727,7 +753,7 @@ function BugFixExecBreakdown({
   );
 }
 
-function ResultSummary({ result }: { result: ExecResult }) {
+function ResultSummary({ result, build }: { result: ExecResult; build?: boolean }) {
   const allPass = result.passed === result.total && result.total > 0;
   const someFail = result.passed < result.total;
   const fatal =
@@ -745,7 +771,7 @@ function ResultSummary({ result }: { result: ExecResult }) {
     return (
       <View style={[styles.summary, styles.summaryPass]}>
         <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
-        <Text style={styles.summaryText}>Bug fixed — nice catch</Text>
+        <Text style={styles.summaryText}>{build ? 'All checks pass — ship it' : 'Bug fixed — nice catch'}</Text>
       </View>
     );
   }

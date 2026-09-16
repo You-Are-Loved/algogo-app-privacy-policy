@@ -132,10 +132,12 @@ import * as langPython from '@codemirror/lang-python';
 import * as langJavascript from '@codemirror/lang-javascript';
 import * as langJava from '@codemirror/lang-java';
 import * as langSql from '@codemirror/lang-sql';
+import { swift as legacySwift } from '@codemirror/legacy-modes/mode/swift';
+import { kotlin as legacyKotlin } from '@codemirror/legacy-modes/mode/clike';
 import * as themeOneDark from '@codemirror/theme-one-dark';
 import * as language from '@codemirror/language';
 import * as autocomplete from '@codemirror/autocomplete';
-globalThis.__cm__ = { state, view, commands, langPython, langJavascript, langJava, langSql, themeOneDark, language, autocomplete };
+globalThis.__cm__ = { state, view, commands, langPython, langJavascript, langJava, langSql, legacyModes: { swift: legacySwift, kotlin: legacyKotlin }, themeOneDark, language, autocomplete };
 `,
   );
   // Pin the same versions the HTML used to import from esm.sh.
@@ -150,6 +152,7 @@ globalThis.__cm__ = { state, view, commands, langPython, langJavascript, langJav
       '@codemirror/lang-javascript': '6.2.2',
       '@codemirror/lang-java': '6.0.1',
       '@codemirror/lang-sql': '6.8.0',
+      '@codemirror/legacy-modes': '6.4.2',
       '@codemirror/theme-one-dark': '6.1.2',
       '@codemirror/language': '6.10.8',
       '@codemirror/autocomplete': '6.18.4',

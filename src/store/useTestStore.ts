@@ -56,7 +56,7 @@ export const useTestStore = create<TestStoreState>()(
       // (python / javascript / java) plus sql; v3 adds react. Normalize
       // anything persisted by older builds so SECTION_META lookups never see
       // a stale kind.
-      version: 3,
+      version: 4,
       migrate: (persisted: any) => ({
         ...persisted,
         templates: Array.isArray(persisted?.templates)

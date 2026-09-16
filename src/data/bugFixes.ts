@@ -15,8 +15,22 @@
 //                 (mustContain / mustNotContain substrings or regexes, plus
 //                 optional accepted-fix string matches)
 
-export type BugFixLanguage = 'python' | 'javascript' | 'java';
+export type BugFixLanguage = 'python' | 'javascript' | 'java' | 'swift' | 'kotlin';
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
+
+/**
+ * Practice category a code problem belongs to. Usually equals `language`;
+ * Node.js problems are JavaScript that runs in the same engine but live in
+ * their own Backend category.
+ */
+export type CodeTrack = 'python' | 'javascript' | 'java' | 'node' | 'swift' | 'kotlin';
+export type CodeKind = 'debug' | 'build';
+
+/** Runtime story per language: tests run for python/javascript, rules grade the rest. */
+export const RULE_GRADED_LANGUAGES: BugFixLanguage[] = ['java', 'swift', 'kotlin'];
+export const isRuleGraded = (language: BugFixLanguage) => RULE_GRADED_LANGUAGES.includes(language);
+export const trackOf = (p: { language: BugFixLanguage; track?: CodeTrack }): CodeTrack => p.track ?? p.language;
+export const kindOf = (p: { kind?: CodeKind }): CodeKind => p.kind ?? 'debug';
 
 export interface BugFixTestCase {
   input: any[];
@@ -40,16 +54,22 @@ export interface BugFixRule {
 
 export interface BugFixProblem {
   id: string;
-  /** Per-language 1-based ordering. First two of each language are free. */
+  /** 1-based ordering within (track, kind). First two of each are free. */
   number: number;
   language: BugFixLanguage;
+  /** Practice category; defaults to `language`. Node.js sets 'node'. */
+  track?: CodeTrack;
+  /** 'debug' (fix the broken snippet, default) or 'build' (implement from a skeleton). */
+  kind?: CodeKind;
   title: string;
   difficulty: Difficulty;
   topic: string;
   /** What the code is supposed to do. */
   statement: string;
-  /** The broken starter shown in the editor. User edits in place to fix it. */
+  /** The starter shown in the editor: broken code (debug) or a skeleton (build). */
   buggyCode: string;
+  /** Reference implementation — shown in the explanation sheet for build problems. */
+  solution?: string;
   /** For JS / Python — the function name to call. */
   functionName?: string;
   /** Signature line displayed above the editor. */
@@ -58,7 +78,7 @@ export interface BugFixProblem {
   examples?: BugFixTestCase[];
   /** Hidden test cases (JS / Python). */
   hiddenTests?: BugFixTestCase[];
-  /** Rule list for Java grading. */
+  /** Rule list for rule-graded languages (Java, Swift, Kotlin). */
   rules?: BugFixRule[];
   /** Optional nudge shown before reveal. */
   hint?: string;
@@ -7354,13 +7374,36 @@ const javaProblems: BugFixProblem[] = [
   },
 ];
 
-// Combined catalog used by the practice list.
+// Debugging catalog (the original "bug fix" set).
 export const bugFixProblems: BugFixProblem[] = [
   ...pythonProblems,
   ...javascriptProblems,
   ...javaProblems,
 ];
 
+// Build catalogs live in their own files (type-only imports back here, so no
+// runtime cycle). `codeProblems` is everything a code editor screen can open.
+import { nodeProblems } from './nodeProblems';
+import { pythonBuildProblems } from './pythonBuildProblems';
+import { javaBuildProblems } from './javaBuildProblems';
+import { swiftProblems } from './swiftProblems';
+import { kotlinProblems } from './kotlinProblems';
+
+export const codeProblems: BugFixProblem[] = [
+  ...bugFixProblems,
+  ...pythonBuildProblems,
+  ...javaBuildProblems,
+  ...nodeProblems,
+  ...swiftProblems,
+  ...kotlinProblems,
+];
+
+/** Problems for one Practice category, build problems first. */
+export const codeProblemsForTrack = (track: CodeTrack): BugFixProblem[] => {
+  const mine = codeProblems.filter((p) => trackOf(p) === track);
+  return [...mine.filter((p) => kindOf(p) === 'build'), ...mine.filter((p) => kindOf(p) === 'debug')];
+};
+
 export function getBugFixProblem(id: string): BugFixProblem | undefined {
-  return bugFixProblems.find((p) => p.id === id);
+  return codeProblems.find((p) => p.id === id);
 }

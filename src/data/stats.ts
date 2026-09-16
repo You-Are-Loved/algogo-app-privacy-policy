@@ -5,7 +5,7 @@ import type { Ionicons } from '@expo/vector-icons';
 import { blind75 } from './blind75';
 import { systemDesignProblems } from './systemDesign';
 import { behavioralQuestions } from './behavioral';
-import { bugFixProblems } from './bugFixes';
+import { bugFixProblems, codeProblems } from './bugFixes';
 import { sqlProblems } from './sqlProblems';
 import { reactProblems } from './reactProblems';
 import { categories as algorithmCategoryList } from './categories';
@@ -28,11 +28,13 @@ export const contentStats = {
   systemDesignProblems: systemDesignProblems.length,
   behavioralPrompts: behavioralQuestions.length,
   bugFixProblems: bugFixProblems.length,
+  /** Every code-editor problem: debugging + build (Node, Python, Java, Swift, Kotlin). */
+  codeProblems: codeProblems.length,
   sqlProblems: sqlProblems.length,
   reactProblems: reactProblems.length,
-  /** Everything you can type code into and run: debugging + React + SQL. */
-  codingProblems: bugFixProblems.length + sqlProblems.length + reactProblems.length,
-  codingLanguages: ['Python', 'React', 'JavaScript', 'Java', 'SQL'],
+  /** Everything you can type code into and get graded: code + React + SQL. */
+  codingProblems: codeProblems.length + sqlProblems.length + reactProblems.length,
+  codingLanguages: ['Python', 'Node.js', 'JavaScript', 'React', 'Swift', 'Kotlin', 'Java', 'SQL'],
   // Content groups surfaced as top-level tabs (Algorithms, System Design,
   // iOS, Android, Web, Backend, SQL, C++, CS Fundamentals). Hardcoded because
   // they're hand-curated.

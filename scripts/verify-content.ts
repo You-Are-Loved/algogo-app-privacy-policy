@@ -149,7 +149,7 @@ async function main() {
     const { systemDesignProblems, componentCatalog } = require('../src/data/systemDesign');
     const { behavioralQuestions } = require('../src/data/behavioral');
     const { blind75 } = require('../src/data/blind75');
-    const { bugFixProblems } = require('../src/data/bugFixes');
+    const { bugFixProblems, codeProblems } = require('../src/data/bugFixes');
     const { sqlProblems } = require('../src/data/sqlProblems');
     const { reactProblems } = require('../src/data/reactProblems');
     const { contentStats } = require('../src/data/stats');
@@ -245,6 +245,23 @@ async function main() {
       console.log(`bugfix ${lang}=${nums.size}`);
     }
     console.log(`bugfix=${bugFixProblems.length}`);
+
+    const codeIds = new Set<string>();
+    const perKey: Record<string, Set<number>> = {};
+    for (const p of codeProblems) {
+      if (codeIds.has(p.id)) err(`[code:${p.id}] duplicate id`);
+      codeIds.add(p.id);
+      const key = `${p.track ?? p.language}/${p.kind ?? 'debug'}`;
+      perKey[key] = perKey[key] || new Set();
+      if (perKey[key].has(p.number)) err(`[code:${p.id}] duplicate number ${p.number} in ${key}`);
+      perKey[key].add(p.number);
+      if (p.kind === 'build' && !p.solution) err(`[code:${p.id}] build problem without solution`);
+    }
+    for (const [key, nums] of Object.entries(perKey)) {
+      for (let i = 1; i <= nums.size; i++) if (!nums.has(i)) err(`code ${key} numbering gap at ${i}`);
+      console.log(`code ${key}=${nums.size}`);
+    }
+    console.log(`code=${codeProblems.length}`);
 
     const sqlIds = new Set<string>();
     const sqlNums = new Set<number>();

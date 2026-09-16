@@ -17,7 +17,7 @@ import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { blind75, Difficulty } from '../data/blind75';
 import { behavioralQuestions } from '../data/behavioral';
 import { systemDesignProblems } from '../data/systemDesign';
-import { bugFixProblems, BugFixLanguage } from '../data/bugFixes';
+import { bugFixProblems, codeProblemsForTrack, kindOf, CodeTrack } from '../data/bugFixes';
 import { sqlProblems } from '../data/sqlProblems';
 import { reactProblems } from '../data/reactProblems';
 import { PracticeStackParamList } from '../navigation';
@@ -35,7 +35,7 @@ const DIFF_COLORS: Record<Difficulty, string> = {
   Hard: colors.error,
 };
 
-const LANG_COLORS: Record<BugFixLanguage, string> = {
+const LANG_COLORS: Record<string, string> = {
   python: '#3776AB',
   javascript: '#F7DF1E',
   java: '#ED8B00',
@@ -46,10 +46,15 @@ type Category =
   | 'system-design'
   | 'react'
   | 'javascript'
+  | 'swift'
+  | 'kotlin'
+  | 'node'
   | 'python'
   | 'java'
   | 'sql'
   | 'behavioral';
+
+type KindFilter = 'all' | 'build' | 'debug';
 
 const SQL_COLOR = '#336791';
 
@@ -92,6 +97,24 @@ const CATEGORIES: {
     color: '#C9A800',
   },
   {
+    key: 'swift',
+    label: 'Swift',
+    icon: 'logo-apple',
+    color: '#F05138',
+  },
+  {
+    key: 'kotlin',
+    label: 'Kotlin',
+    icon: 'logo-android',
+    color: '#7F52FF',
+  },
+  {
+    key: 'node',
+    label: 'Node.js',
+    icon: 'logo-nodejs',
+    color: '#3C873A',
+  },
+  {
     key: 'java',
     label: 'Java',
     icon: 'cafe-outline',
@@ -125,20 +148,20 @@ const CATEGORY_MENU: AnchoredMenuItem[] = [
     title: 'Frontend',
     icon: 'browsers-outline',
     color: '#0EA5E9',
-    children: [menuItem('react'), menuItem('javascript')],
+    children: [menuItem('react'), menuItem('javascript'), menuItem('swift'), menuItem('kotlin')],
   },
   {
     key: 'group-backend',
     title: 'Backend',
     icon: 'server-outline',
     color: '#2196F3',
-    children: [menuItem('python'), menuItem('java'), menuItem('sql')],
+    children: [menuItem('node'), menuItem('python'), menuItem('java'), menuItem('sql')],
   },
   menuItem('behavioral'),
 ];
 
-const isDebugCategory = (c: Category): c is BugFixLanguage =>
-  c === 'python' || c === 'javascript' || c === 'java';
+const CODE_TRACKS: Category[] = ['javascript', 'swift', 'kotlin', 'node', 'python', 'java'];
+const isCodeCategory = (c: Category): c is Category & CodeTrack => CODE_TRACKS.includes(c);
 
 export default function PracticeScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -146,6 +169,7 @@ export default function PracticeScreen() {
   const [upgradeVisible, setUpgradeVisible] = useState(false);
   const [category, setCategory] = useState<Category>('algorithms');
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [kindFilter, setKindFilter] = useState<KindFilter>('all');
   const categoryAnchor = useAnchor();
 
   const activeCategory = CATEGORIES.find((c) => c.key === category)!;
@@ -153,9 +177,15 @@ export default function PracticeScreen() {
     () => (category === 'algorithms' ? blind75 : []),
     [category],
   );
-  const visibleBugFixes = useMemo(
-    () => (isDebugCategory(category) ? bugFixProblems.filter((p) => p.language === category) : []),
+  const trackProblems = useMemo(
+    () => (isCodeCategory(category) ? codeProblemsForTrack(category) : []),
     [category],
+  );
+  const hasBothKinds =
+    trackProblems.some((p) => kindOf(p) === 'build') && trackProblems.some((p) => kindOf(p) === 'debug');
+  const visibleBugFixes = useMemo(
+    () => (kindFilter === 'all' || !hasBothKinds ? trackProblems : trackProblems.filter((p) => kindOf(p) === kindFilter)),
+    [trackProblems, kindFilter, hasBothKinds],
   );
 
   const handleProblemPress = (problemId: string, number: number) => {
@@ -420,15 +450,39 @@ export default function PracticeScreen() {
           }}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
-      ) : isDebugCategory(category) ? (
+      ) : isCodeCategory(category) ? (
         <FlatList
           data={visibleBugFixes}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            hasBothKinds ? (
+              <View style={styles.kindFilterRow}>
+                {(['all', 'build', 'debug'] as KindFilter[]).map((k) => {
+                  const active = kindFilter === k;
+                  return (
+                    <Pressable
+                      key={k}
+                      onPress={() => setKindFilter(k)}
+                      style={[
+                        styles.kindChip,
+                        active && { backgroundColor: activeCategory.color, borderColor: activeCategory.color },
+                      ]}
+                    >
+                      <Text style={[styles.kindChipText, active && styles.kindChipTextActive]}>
+                        {k === 'all' ? 'All' : k === 'build' ? 'Build' : 'Debug'}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null
+          }
           renderItem={({ item }) => {
             const locked = !isSubscribed && item.number > FREE_LIMIT;
-            const langColor = LANG_COLORS[item.language];
+            const langColor = activeCategory.color;
+            const isBuild = kindOf(item) === 'build';
             return (
               <TouchableOpacity
                 style={[styles.problemRow, { borderBottomColor: DIFF_COLORS[item.difficulty] }]}
@@ -441,7 +495,11 @@ export default function PracticeScreen() {
                     { backgroundColor: `${langColor}22` },
                   ]}
                 >
-                  <Ionicons name={activeCategory.icon} size={18} color={langColor} />
+                  <Ionicons
+                    name={isBuild ? 'hammer-outline' : 'bug-outline'}
+                    size={18}
+                    color={langColor}
+                  />
                 </View>
                 <View style={styles.titleCol}>
                   <Text style={styles.problemTitle} numberOfLines={1}>
@@ -564,6 +622,21 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   separator: { height: spacing.sm },
+  kindFilterRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    paddingBottom: spacing.sm,
+  },
+  kindChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  kindChipText: { ...typography.labelMedium, color: colors.inkLight },
+  kindChipTextActive: { color: colors.white, fontWeight: '700' },
   numberWrap: {
     width: 36,
     height: 36,

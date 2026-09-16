@@ -27,8 +27,12 @@ import {
 } from './systemDesign';
 import {
   bugFixProblems,
+  codeProblems,
+  codeProblemsForTrack,
+  trackOf,
   BugFixProblem,
   BugFixLanguage,
+  CodeTrack,
   getBugFixProblem,
 } from './bugFixes';
 import { sqlProblems, SqlProblem, getSqlProblem } from './sqlProblems';
@@ -53,6 +57,9 @@ export type SectionKind =
   | 'system-design'
   | 'react'
   | 'javascript'
+  | 'swift'
+  | 'kotlin'
+  | 'node'
   | 'python'
   | 'java'
   | 'sql'
@@ -64,6 +71,9 @@ export const SECTION_KINDS: SectionKind[] = [
   'system-design',
   'react',
   'javascript',
+  'swift',
+  'kotlin',
+  'node',
   'python',
   'java',
   'sql',
@@ -74,19 +84,20 @@ export const SECTION_KINDS: SectionKind[] = [
 /** How the builder lays sections out — mirrors the Practice category menu. */
 export const SECTION_GROUPS: { title: string | null; kinds: SectionKind[] }[] = [
   { title: null, kinds: ['algorithms', 'system-design'] },
-  { title: 'Frontend', kinds: ['react', 'javascript'] },
-  { title: 'Backend', kinds: ['python', 'java', 'sql'] },
+  { title: 'Frontend', kinds: ['react', 'javascript', 'swift', 'kotlin'] },
+  { title: 'Backend', kinds: ['node', 'python', 'java', 'sql'] },
   { title: null, kinds: ['quiz', 'behavioral'] },
 ];
 
-/** Kinds backed by the per-language debugging pool in bugFixes.ts. */
-export const DEBUG_KINDS = ['python', 'javascript', 'java'] as const;
-export type DebugKind = (typeof DEBUG_KINDS)[number];
-export const isDebugKind = (k: SectionKind): k is DebugKind =>
-  (DEBUG_KINDS as readonly string[]).includes(k);
+/** Kinds backed by the code-problem catalogs (build + debug) in bugFixes.ts. */
+export const CODE_KINDS = ['javascript', 'swift', 'kotlin', 'node', 'python', 'java'] as const;
+export type CodeKindSection = (typeof CODE_KINDS)[number];
+export const isCodeKind = (k: SectionKind): k is CodeKindSection =>
+  (CODE_KINDS as readonly string[]).includes(k);
 
-const countByLanguage = (lang: BugFixLanguage) =>
-  bugFixProblems.filter((p) => p.language === lang).length;
+const countByTrack = (track: CodeTrack) => codeProblemsForTrack(track).length;
+void bugFixProblems;
+void (null as unknown as BugFixLanguage);
 
 export interface SectionMetaInfo {
   label: string;
@@ -127,7 +138,7 @@ export const SECTION_META: Record<SectionKind, SectionMetaInfo> = {
     color: '#3776AB',
     hasDifficulty: true,
     hasTopics: true,
-    poolTotal: countByLanguage('python'),
+    poolTotal: countByTrack('python'),
   },
   react: {
     label: 'React',
@@ -145,7 +156,34 @@ export const SECTION_META: Record<SectionKind, SectionMetaInfo> = {
     color: '#C9A800',
     hasDifficulty: true,
     hasTopics: true,
-    poolTotal: countByLanguage('javascript'),
+    poolTotal: countByTrack('javascript'),
+  },
+  swift: {
+    label: 'Swift',
+    short: 'Swift',
+    icon: 'logo-apple',
+    color: '#F05138',
+    hasDifficulty: true,
+    hasTopics: true,
+    poolTotal: countByTrack('swift'),
+  },
+  kotlin: {
+    label: 'Kotlin',
+    short: 'Kotlin',
+    icon: 'logo-android',
+    color: '#7F52FF',
+    hasDifficulty: true,
+    hasTopics: true,
+    poolTotal: countByTrack('kotlin'),
+  },
+  node: {
+    label: 'Node.js',
+    short: 'Node',
+    icon: 'logo-nodejs',
+    color: '#3C873A',
+    hasDifficulty: true,
+    hasTopics: true,
+    poolTotal: countByTrack('node'),
   },
   java: {
     label: 'Java',
@@ -154,7 +192,7 @@ export const SECTION_META: Record<SectionKind, SectionMetaInfo> = {
     color: '#ED8B00',
     hasDifficulty: true,
     hasTopics: true,
-    poolTotal: countByLanguage('java'),
+    poolTotal: countByTrack('java'),
   },
   sql: {
     label: 'SQL',
@@ -194,10 +232,14 @@ const distinctSorted = (xs: string[]): string[] =>
 
 export const ALGO_TOPICS = distinctSorted(blind75.map((p) => p.topic));
 export const SD_TOPICS = distinctSorted(systemDesignProblems.map((p) => p.topic));
-export const DEBUG_TOPICS: Record<DebugKind, string[]> = {
-  python: distinctSorted(bugFixProblems.filter((p) => p.language === 'python').map((p) => p.topic)),
-  javascript: distinctSorted(bugFixProblems.filter((p) => p.language === 'javascript').map((p) => p.topic)),
-  java: distinctSorted(bugFixProblems.filter((p) => p.language === 'java').map((p) => p.topic)),
+const topicsForTrack = (track: CodeTrack) => distinctSorted(codeProblemsForTrack(track).map((p) => p.topic));
+export const CODE_TOPICS: Record<CodeKindSection, string[]> = {
+  javascript: topicsForTrack('javascript'),
+  swift: topicsForTrack('swift'),
+  kotlin: topicsForTrack('kotlin'),
+  node: topicsForTrack('node'),
+  python: topicsForTrack('python'),
+  java: topicsForTrack('java'),
 };
 export const SQL_TOPICS = distinctSorted(sqlProblems.map((p) => p.topic));
 export const REACT_TOPICS = distinctSorted(reactProblems.map((p) => p.topic));
@@ -215,7 +257,10 @@ export function topicsForKind(kind: SectionKind): string[] {
     case 'python':
     case 'javascript':
     case 'java':
-      return DEBUG_TOPICS[kind];
+    case 'swift':
+    case 'kotlin':
+    case 'node':
+      return CODE_TOPICS[kind];
     case 'react':
       return REACT_TOPICS;
     case 'sql':
@@ -234,6 +279,9 @@ export const DEFAULT_SECONDS: Record<SectionKind, number> = {
   react: 900, // 15 min — build a component
   python: 600, // 10 min
   javascript: 600,
+  swift: 600,
+  kotlin: 600,
+  node: 600,
   java: 600,
   sql: 600,
   quiz: 90, // rapid-fire
@@ -320,8 +368,9 @@ export function withAllSections(template: TestTemplate): TestTemplate {
   const sections: SectionConfig[] = [];
   for (const raw of template.sections as (SectionConfig & { languages?: string[] })[]) {
     if ((raw.kind as string) === 'bug-fix') {
-      const langs = raw.languages && raw.languages.length > 0 ? raw.languages : [...DEBUG_KINDS];
-      for (const lang of DEBUG_KINDS) {
+      const LEGACY = ['python', 'javascript', 'java'] as const;
+      const langs = raw.languages && raw.languages.length > 0 ? raw.languages : [...LEGACY];
+      for (const lang of LEGACY) {
         sections.push({
           ...createSectionConfig(lang),
           enabled: raw.enabled && langs.includes(lang),
@@ -370,10 +419,13 @@ export function poolForSection(cfg: SectionConfig): string[] {
     case 'python':
     case 'javascript':
     case 'java':
-      return bugFixProblems
+    case 'swift':
+    case 'kotlin':
+    case 'node':
+      return codeProblems
         .filter(
           (p) =>
-            p.language === cfg.kind &&
+            trackOf(p) === cfg.kind &&
             cfg.difficulties.includes(p.difficulty) &&
             matchesTopic(cfg.topics, p.topic),
         )
@@ -472,6 +524,9 @@ export function itemTitle(kind: SectionKind, problemId: string): string {
     case 'python':
     case 'javascript':
     case 'java':
+    case 'swift':
+    case 'kotlin':
+    case 'node':
       return getBugFixProblem(problemId)?.title ?? 'Problem';
     case 'react':
       return getReactProblem(problemId)?.title ?? 'Problem';
@@ -668,6 +723,17 @@ export const BUILT_IN_TEMPLATES: TestTemplate[] = [
   preset('preset-data-round', 'Data & SQL round', {
     sql: { count: 3, secondsPerQuestion: 600 },
     quiz: { count: 4, secondsPerQuestion: 60 },
+  }),
+  preset('preset-backend-round', 'Backend round', {
+    node: { count: 1, secondsPerQuestion: 600 },
+    python: { count: 1, secondsPerQuestion: 600 },
+    sql: { count: 1, secondsPerQuestion: 600 },
+    'system-design': { count: 1, secondsPerQuestion: 1500 },
+  }),
+  preset('preset-mobile-round', 'Mobile round', {
+    swift: { count: 2, secondsPerQuestion: 600 },
+    kotlin: { count: 2, secondsPerQuestion: 600 },
+    quiz: { count: 4, secondsPerQuestion: 60, topics: ['iOS', 'Android'] },
   }),
   preset('preset-design-deep', 'Design deep-dive', {
     'system-design': { count: 3, secondsPerQuestion: 1500 },

@@ -622,8 +622,11 @@ function PracticeStep() {
 // ============================================================================
 const BUGFIX_LANG_PILLS: { label: string; color: string }[] = [
   { label: 'Python', color: '#3776AB' },
+  { label: 'Node.js', color: '#3C873A' },
   { label: 'JavaScript', color: '#C9A800' },
   { label: 'React', color: '#0EA5E9' },
+  { label: 'Swift', color: '#F05138' },
+  { label: 'Kotlin', color: '#7F52FF' },
   { label: 'Java', color: '#ED8B00' },
   { label: 'SQL', color: '#336791' },
 ];
@@ -644,9 +647,9 @@ function BugFixStep() {
         Code in the language you interview in
       </Animated.Text>
       <Animated.Text entering={FadeInDown.delay(300).duration(680)} style={styles.subtitle}>
-        {contentStats.bugFixProblems} debugging challenges in Python, JavaScript, and Java,{' '}
-        {contentStats.reactProblems} React components with a live preview, and{' '}
-        {contentStats.sqlProblems} SQL queries graded by a real SQLite engine — all on-device.
+        {contentStats.codeProblems} build-and-debug challenges across Python, Node.js, JavaScript,
+        Java, Swift, and Kotlin, {contentStats.reactProblems} React components with a live preview,
+        and {contentStats.sqlProblems} SQL queries graded by a real SQLite engine — all on-device.
       </Animated.Text>
 
       <Animated.View
