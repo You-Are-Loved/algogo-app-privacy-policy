@@ -593,11 +593,6 @@ const styles = StyleSheet.create({
     borderRadius: PHONE_RADIUS,
     backgroundColor: '#0f1115',
     padding: BEZEL,
-    shadowColor: '#0B1020',
-    shadowOpacity: 0.22,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 12,
   },
   phoneFade: {
     position: 'absolute',
