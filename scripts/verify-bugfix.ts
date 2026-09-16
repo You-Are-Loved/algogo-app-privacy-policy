@@ -193,7 +193,11 @@ function normalizeCode(s: string): string {
     .join('\n')
     .replace(/[ \t]+/g, ' ');
 }
-function ruleMatches(rule: BugFixRule, code: string): boolean {
+function stripComments(s: string): string {
+  return s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:"'])\/\/.*$/gm, '$1');
+}
+function ruleMatches(rule: BugFixRule, rawCode: string): boolean {
+  const code = stripComments(rawCode);
   if (rule.type === 'acceptedFix') return normalizeCode(code) === normalizeCode(rule.pattern);
   let present: boolean;
   if (rule.regex) {

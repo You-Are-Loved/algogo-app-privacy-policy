@@ -161,7 +161,7 @@ export const SECTION_META: Record<SectionKind, SectionMetaInfo> = {
   swift: {
     label: 'Swift',
     short: 'Swift',
-    icon: 'logo-apple',
+    icon: 'phone-portrait-outline',
     color: '#F05138',
     hasDifficulty: true,
     hasTopics: true,
@@ -170,7 +170,7 @@ export const SECTION_META: Record<SectionKind, SectionMetaInfo> = {
   kotlin: {
     label: 'Kotlin',
     short: 'Kotlin',
-    icon: 'logo-android',
+    icon: 'tablet-portrait-outline',
     color: '#7F52FF',
     hasDifficulty: true,
     hasTopics: true,

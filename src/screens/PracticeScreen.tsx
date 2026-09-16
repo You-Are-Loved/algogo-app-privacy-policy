@@ -99,13 +99,13 @@ const CATEGORIES: {
   {
     key: 'swift',
     label: 'Swift',
-    icon: 'logo-apple',
+    icon: 'phone-portrait-outline',
     color: '#F05138',
   },
   {
     key: 'kotlin',
     label: 'Kotlin',
-    icon: 'logo-android',
+    icon: 'tablet-portrait-outline',
     color: '#7F52FF',
   },
   {

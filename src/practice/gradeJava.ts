@@ -24,7 +24,15 @@ function normalize(s: string): string {
     .replace(/[ \t]+/g, ' ');
 }
 
-function ruleMatches(rule: BugFixRule, code: string): boolean {
+/** Drop line comments and block comments so a check can't be
+ *  satisfied by text that never compiles into anything. String literals are
+ *  kept: some rules legitimately look for a specific returned string. */
+export function stripComments(s: string): string {
+  return s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:"'])\/\/.*$/gm, '$1');
+}
+
+function ruleMatches(rule: BugFixRule, rawCode: string): boolean {
+  const code = stripComments(rawCode);
   if (rule.type === 'acceptedFix') {
     return normalize(code) === normalize(rule.pattern);
   }
