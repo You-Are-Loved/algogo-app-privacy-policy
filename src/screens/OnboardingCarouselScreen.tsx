@@ -10,7 +10,6 @@ import {
   ImageSourcePropType,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -115,10 +114,15 @@ const PAGES: Page[] = [
 // Layout constants
 // ---------------------------------------------------------------------------
 
-const PHONE_W = Math.min(W * 0.62, 250);
+// The stage gets a fixed share of the screen; the phone is drawn at full
+// aspect but clipped by the stage and faded out along its bottom edge, so the
+// headline and body always have room.
+const STAGE_H = Math.round(H * 0.4);
+const PHONE_W = Math.min(W * 0.64, 256);
 const PHONE_H = PHONE_W * (2622 / 1206);
 const PHONE_RADIUS = PHONE_W * 0.16;
 const BEZEL = 6;
+const FADE_H = Math.round(STAGE_H * 0.32);
 
 export default function OnboardingCarouselScreen() {
   const insets = useSafeAreaInsets();
@@ -172,7 +176,7 @@ export default function OnboardingCarouselScreen() {
   return (
     <View style={styles.root}>
       <LinearGradient
-        colors={['#0B1020', '#111833', '#0B1020']}
+        colors={['#FFFFFF', '#F7F8FC', '#FFFFFF']}
         start={{ x: 0.2, y: 0 }}
         end={{ x: 0.8, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -221,7 +225,7 @@ export default function OnboardingCarouselScreen() {
         <View style={[styles.ctaWrap, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
           <TouchableOpacity style={styles.cta} activeOpacity={0.9} onPress={goNext}>
             <Text style={styles.ctaText}>{isLast ? 'Get started' : 'Continue'}</Text>
-            <Ionicons name={isLast ? 'sparkles' : 'arrow-forward'} size={18} color="#0B1020" />
+            <Ionicons name={isLast ? 'sparkles' : 'arrow-forward'} size={18} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.pageCounter}>
             {index + 1} of {PAGES.length}
@@ -250,14 +254,6 @@ function PageView({
   const lines = useMemo(() => page.title.split('\n'), [page.title]);
   // Word index runs across lines so the stagger keeps flowing.
   let wordCounter = 0;
-
-  const glowStyle = useAnimatedStyle(() => {
-    const p = (scrollX.value - index * W) / W;
-    return {
-      opacity: interpolate(Math.abs(p), [0, 1], [0.55, 0], Extrapolation.CLAMP),
-      transform: [{ scale: interpolate(Math.abs(p), [0, 1], [1, 0.7], Extrapolation.CLAMP) }],
-    };
-  });
 
   const phoneStyle = useAnimatedStyle(() => {
     const p = (scrollX.value - index * W) / W;
@@ -298,26 +294,29 @@ function PageView({
 
       {/* Phone mockup */}
       <View style={styles.stage}>
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.glow, { backgroundColor: page.accent }, glowStyle]}
-        />
-        <Animated.View style={[styles.phone, phoneStyle]}>
-          <View style={styles.phoneScreen}>
-            {page.image ? (
-              <Image source={page.image} style={styles.phoneImage} resizeMode="cover" />
-            ) : (
-              <DesignMock accent={page.accent} />
-            )}
-          </View>
-          <View style={styles.island} />
-          {page.badge && (
-            <View style={[styles.badge, { borderColor: `${page.accent}66` }]}>
-              <Ionicons name={page.badge.icon} size={13} color={page.accent} />
-              <Text style={[styles.badgeText, { color: page.accent }]}>{page.badge.label}</Text>
+        <Animated.View style={[styles.phoneClip, phoneStyle]}>
+          <View style={styles.phone}>
+            <View style={styles.phoneScreen}>
+              {page.image ? (
+                <Image source={page.image} style={styles.phoneImage} resizeMode="cover" />
+              ) : (
+                <DesignMock accent={page.accent} />
+              )}
             </View>
-          )}
+            <View style={styles.island} />
+          </View>
+          <LinearGradient
+            pointerEvents="none"
+            colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.9)', '#FFFFFF']}
+            style={styles.phoneFade}
+          />
         </Animated.View>
+        {page.badge && (
+          <View style={[styles.badge, { borderColor: `${page.accent}66` }]}>
+            <Ionicons name={page.badge.icon} size={13} color={page.accent} />
+            <Text style={[styles.badgeText, { color: page.accent }]}>{page.badge.label}</Text>
+          </View>
+        )}
       </View>
 
       {/* Body copy */}
@@ -332,11 +331,11 @@ function PageView({
 // ---------------------------------------------------------------------------
 
 const MOCK_NODES: { id: string; label: string; icon: keyof typeof Ionicons.glyphMap; color: string; x: number; y: number }[] = [
-  { id: 'client', label: 'Client', icon: 'phone-portrait-outline', color: '#8B5CF6', x: 0.5, y: 0.13 },
-  { id: 'lb', label: 'Load Balancer', icon: 'shuffle-outline', color: '#F59E0B', x: 0.5, y: 0.33 },
-  { id: 'api', label: 'API Server', icon: 'server-outline', color: '#10B981', x: 0.5, y: 0.53 },
-  { id: 'cache', label: 'Cache', icon: 'flash-outline', color: '#F43F5E', x: 0.24, y: 0.76 },
-  { id: 'db', label: 'Database', icon: 'cube-outline', color: '#2563EB', x: 0.76, y: 0.76 },
+  { id: 'client', label: 'Client', icon: 'phone-portrait-outline', color: '#8B5CF6', x: 0.5, y: 0.16 },
+  { id: 'lb', label: 'Balancer', icon: 'shuffle-outline', color: '#F59E0B', x: 0.5, y: 0.4 },
+  { id: 'api', label: 'API', icon: 'server-outline', color: '#10B981', x: 0.5, y: 0.64 },
+  { id: 'cache', label: 'Cache', icon: 'flash-outline', color: '#F43F5E', x: 0.25, y: 0.88 },
+  { id: 'db', label: 'Database', icon: 'cube-outline', color: '#2563EB', x: 0.75, y: 0.88 },
 ];
 const MOCK_EDGES: [string, string][] = [
   ['client', 'lb'],
@@ -347,8 +346,8 @@ const MOCK_EDGES: [string, string][] = [
 
 function DesignMock({ accent }: { accent: string }) {
   const [size, setSize] = useState({ w: 0, h: 0 });
-  const NODE_W = 92;
-  const NODE_H = 40;
+  const NODE_W = 88;
+  const NODE_H = 36;
   const pos = (id: string) => {
     const n = MOCK_NODES.find((m) => m.id === id)!;
     return { x: n.x * size.w, y: n.y * size.h };
@@ -413,8 +412,8 @@ function DesignMock({ accent }: { accent: string }) {
             );
           })}
         <View style={[styles.mockCheck, { backgroundColor: colors.primary }]}>
-          <Ionicons name="checkmark" size={12} color="#fff" />
-          <Text style={styles.mockCheckText}>4 / 4 connections</Text>
+          <Ionicons name="checkmark" size={11} color="#fff" />
+          <Text style={styles.mockCheckText}>4 / 4</Text>
         </View>
       </View>
       {/* palette */}
@@ -474,7 +473,7 @@ function Dot({
     return {
       width: interpolate(a, [0, 1], [24, 8], Extrapolation.CLAMP),
       opacity: interpolate(a, [0, 1], [1, 0.35], Extrapolation.CLAMP),
-      backgroundColor: interpolateColor(a, [0, 1], [accent, '#FFFFFF']),
+      backgroundColor: interpolateColor(a, [0, 1], [accent, '#9CA3AF']),
     };
   });
   return <Animated.View style={[styles.dot, style]} />;
@@ -496,7 +495,8 @@ const styles = StyleSheet.create({
   mockBack: { width: 10, height: 10, borderLeftWidth: 2, borderBottomWidth: 2, borderColor: colors.ink, transform: [{ rotate: '45deg' }], marginRight: 4 },
   mockTitle: { height: 9, borderRadius: 4, backgroundColor: colors.ink, opacity: 0.85 },
   mockRun: { width: 22, height: 22, borderRadius: 11 },
-  mockCanvas: { flex: 1, margin: 10, borderRadius: 14, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  // Sized to the part of the phone that stays visible above the fade.
+  mockCanvas: { height: STAGE_H * 0.58, margin: 10, borderRadius: 14, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   mockEdge: { position: 'absolute', height: 2, backgroundColor: colors.borderDark, borderRadius: 1 },
   mockNode: {
     position: 'absolute',
@@ -516,8 +516,8 @@ const styles = StyleSheet.create({
   mockNodeLabel: { fontSize: 9, fontWeight: '700', color: colors.ink, flex: 1 },
   mockCheck: {
     position: 'absolute',
-    bottom: 10,
-    alignSelf: 'center',
+    top: 8,
+    right: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
   mockCheckText: { fontSize: 9, fontWeight: '700', color: '#fff' },
   mockPalette: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingBottom: 14 },
   mockPaletteChip: { flex: 1, height: 34, borderRadius: 10, borderWidth: 1 },
-  root: { flex: 1, backgroundColor: '#0B1020' },
+  root: { flex: 1, backgroundColor: '#FFFFFF' },
   safe: { flex: 1 },
 
   topBar: {
@@ -541,8 +541,8 @@ const styles = StyleSheet.create({
   },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   brandDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
-  brand: { ...typography.labelLarge, color: '#E5E7EB', letterSpacing: 0.4 },
-  skip: { ...typography.labelMedium, color: 'rgba(229,231,235,0.7)' },
+  brand: { ...typography.labelLarge, color: colors.ink, letterSpacing: 0.4 },
+  skip: { ...typography.labelMedium, color: colors.inkLight },
 
   page: {
     width: W,
@@ -567,28 +567,25 @@ const styles = StyleSheet.create({
     lineHeight: 40,
     fontWeight: '800',
     letterSpacing: -0.8,
-    color: '#F8FAFC',
-    textShadowColor: 'rgba(248,250,252,0.85)',
+    color: '#111827',
+    textShadowColor: 'rgba(17,24,39,0.7)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 0,
   },
 
   stage: {
-    flex: 1,
+    height: STAGE_H,
     width: '100%',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     marginTop: spacing.lg,
   },
-  glow: {
-    position: 'absolute',
-    width: PHONE_W * 1.5,
-    height: PHONE_W * 1.5,
-    borderRadius: PHONE_W * 0.75,
-    opacity: 0.5,
-    ...(Platform.OS === 'ios'
-      ? { shadowColor: '#000', shadowOpacity: 0, shadowRadius: 0 }
-      : {}),
+  phoneClip: {
+    width: PHONE_W + 40,
+    height: STAGE_H,
+    alignItems: 'center',
+    overflow: 'hidden',
+    paddingTop: 10,
   },
   phone: {
     width: PHONE_W,
@@ -596,11 +593,18 @@ const styles = StyleSheet.create({
     borderRadius: PHONE_RADIUS,
     backgroundColor: '#0f1115',
     padding: BEZEL,
-    shadowColor: '#000',
-    shadowOpacity: 0.55,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 18 },
+    shadowColor: '#0B1020',
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 14 },
     elevation: 12,
+  },
+  phoneFade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: FADE_H,
   },
   phoneScreen: {
     flex: 1,
@@ -620,7 +624,7 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    bottom: -14,
+    bottom: 6,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
@@ -628,17 +632,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: borderRadius.full,
-    backgroundColor: '#0B1020',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
+    shadowColor: '#0B1020',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
   },
   badgeText: { ...typography.labelSmall, fontWeight: '700' },
 
   body: {
     ...typography.bodyMedium,
-    color: 'rgba(229,231,235,0.78)',
+    color: colors.inkLight,
     textAlign: 'center',
     lineHeight: 22,
-    marginTop: spacing.xl,
+    marginTop: spacing.md,
     marginBottom: spacing.sm,
     maxWidth: 340,
   },
@@ -659,12 +667,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#0B1020',
     paddingVertical: 16,
     borderRadius: borderRadius.full,
+    shadowColor: '#0B1020',
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
   },
-  ctaText: { ...typography.labelLarge, fontSize: 17, color: '#0B1020' },
-  pageCounter: { ...typography.labelSmall, color: 'rgba(229,231,235,0.45)' },
+  ctaText: { ...typography.labelLarge, fontSize: 17, color: '#FFFFFF' },
+  pageCounter: { ...typography.labelSmall, color: colors.inkLighter },
 });
 
-void H;
