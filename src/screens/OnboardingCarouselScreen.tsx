@@ -1,5 +1,5 @@
-// Fullscreen swipe onboarding. Each page: a headline whose words scatter,
-// blur and drop back in as you slide, a phone mockup showing the real screen
+// Fullscreen swipe onboarding. Each page: a headline whose words scatter
+// and drop back in as you slide, a phone mockup showing the real screen
 // for that feature, pill page dots, and a light haptic tick per page. Ends in
 // the same paywall as the original flow. Gated by FLAGS.newOnboarding.
 
@@ -429,7 +429,6 @@ function Word({
     const drift = 26 + (order % 4) * 14;
     return {
       opacity: interpolate(a, [0, 0.55, 1], [1, 0.25, 0], Extrapolation.CLAMP),
-      textShadowRadius: interpolate(a, [0, 1], [0, 16], Extrapolation.CLAMP),
       transform: [
         { translateX: p * drift * dir * -1 },
         { translateY: a * (8 + (order % 3) * 9) },
@@ -537,9 +536,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.8,
     color: '#111827',
-    textShadowColor: 'rgba(17,24,39,0.7)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 0,
   },
 
   stage: {
