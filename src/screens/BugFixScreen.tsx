@@ -24,7 +24,6 @@ import {
   Difficulty,
   isRuleGraded,
   kindOf,
-  trackOf,
 } from '../data/bugFixes';
 import { buildPracticeHtml } from '../practice/practiceHtml';
 import { buildBugFixHtml } from '../practice/bugFixHtml';
@@ -46,23 +45,6 @@ const DIFF_COLORS: Record<Difficulty, string> = {
   Hard: colors.error,
 };
 
-const TRACK_LABEL: Record<string, string> = {
-  python: 'Python',
-  javascript: 'JavaScript',
-  java: 'Java',
-  node: 'Node.js',
-  swift: 'Swift',
-  kotlin: 'Kotlin',
-};
-
-const TRACK_COLOR: Record<string, string> = {
-  python: '#3776AB',
-  javascript: '#C9A800',
-  java: '#ED8B00',
-  node: '#3C873A',
-  swift: '#F05138',
-  kotlin: '#7F52FF',
-};
 
 // Same shortcut bar as ProblemScreen — the symbols are useful across all three
 // languages. Pythonic words like `def` are skipped here because the bug-fix
@@ -136,7 +118,6 @@ export function BugFixProblemView({
   const [kbHeight, setKbHeight] = useState(0);
 
   const kind = kindOf(problem);
-  const track = trackOf(problem);
   const ruleGraded = isRuleGraded(problem.language);
 
   // Python uses the Pyodide page; everything else uses the lightweight host
@@ -277,8 +258,6 @@ export function BugFixProblemView({
   };
 
   const diffColor = DIFF_COLORS[problem.difficulty];
-  const langColor = TRACK_COLOR[track] ?? colors.inkLight;
-  const langLabel = TRACK_LABEL[track] ?? problem.language;
   const isBuild = kind === 'build';
 
   // Slide the sheet up shortly after entry rather than popping it instantly.
@@ -321,17 +300,6 @@ export function BugFixProblemView({
                   {problem.difficulty}
                 </Text>
               </View>
-              <View
-                style={[
-                  styles.langBadge,
-                  { backgroundColor: `${langColor}22` },
-                ]}
-              >
-                <Text style={[styles.langBadgeText, { color: langColor }]}>
-                  {langLabel}
-                </Text>
-              </View>
-              <Text style={styles.topicText}>{problem.topic}</Text>
             </View>
           </View>
           <TouchableOpacity
@@ -548,12 +516,6 @@ export function BugFixProblemView({
                           {problem.difficulty}
                         </Text>
                       </View>
-                      <View style={[styles.langBadge, { backgroundColor: `${langColor}22` }]}>
-                        <Text style={[styles.langBadgeText, { color: langColor }]}>
-                          {langLabel}
-                        </Text>
-                      </View>
-                      <Text style={styles.topicText}>{problem.topic}</Text>
                     </View>
                   </View>
                   <TouchableOpacity onPress={() => setProblemVisible(false)} hitSlop={8}>

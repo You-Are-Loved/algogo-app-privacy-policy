@@ -251,7 +251,6 @@ export function AlgorithmProblemView({
                   {problem.difficulty}
                 </Text>
               </View>
-              <Text style={styles.topicText}>{problem.topic}</Text>
             </View>
           </View>
           <TouchableOpacity
@@ -426,7 +425,6 @@ export function AlgorithmProblemView({
                           {problem.difficulty}
                         </Text>
                       </View>
-                      <Text style={styles.topicText}>{problem.topic}</Text>
                     </View>
                   </View>
                   <TouchableOpacity onPress={() => setProblemVisible(false)} hitSlop={8}>

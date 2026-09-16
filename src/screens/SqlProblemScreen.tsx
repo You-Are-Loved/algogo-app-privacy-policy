@@ -228,10 +228,6 @@ export function SqlProblemView({
       <View style={[styles.diffBadge, { backgroundColor: `${diffColor}22` }]}>
         <Text style={[styles.diffBadgeText, { color: diffColor }]}>{problem.difficulty}</Text>
       </View>
-      <View style={[styles.langBadge, { backgroundColor: `${SQL_COLOR}22` }]}>
-        <Text style={[styles.langBadgeText, { color: SQL_COLOR }]}>SQL</Text>
-      </View>
-      <Text style={styles.topicText}>{problem.topic}</Text>
     </View>
   );
 
