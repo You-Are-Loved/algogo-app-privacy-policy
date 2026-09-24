@@ -50,6 +50,8 @@ const tab = (tabName: 'StudyTab' | 'PracticeTab' | 'TestTab', screen?: string, p
 
 // Each script is a list of (ms since start, action). Keep them short — the
 // GIFs loop.
+const REACT_DEMO_ID = 'react-tabs';
+
 const SCRIPTS: Record<string, Step[]> = {
   study: [
     { at: 0, run: () => tab('StudyTab', 'Home') },
@@ -73,22 +75,36 @@ const SCRIPTS: Record<string, Step[]> = {
     { at: 6000, run: () => emitDemo('problem.openBrief') },
   ],
   languages: [
-    { at: 0, run: () => tab('PracticeTab', 'PracticeList') },
-    { at: 200, run: () => emitDemo('practice.setCategory', 'algorithms') },
-    { at: 900, run: () => emitDemo('practice.openMenu') },
-    { at: 2100, run: () => emitDemo('menu.toggleGroup', 'group-frontend') },
-    { at: 3300, run: () => emitDemo('menu.toggleGroup', 'group-backend') },
-    { at: 4800, run: () => emitDemo('menu.select', 'sql') },
+    { at: 0, run: () => tab('PracticeTab', 'ReactProblem', { problemId: REACT_DEMO_ID }) },
+    { at: 3500, run: () => emitDemo('problem.closeBrief') },
+    { at: 4200, run: () => emitDemo('react.loadSolution') },
+    { at: 6000, run: () => emitDemo('react.mode', 'preview') },
   ],
   design: [
     { at: 0, run: () => tab('PracticeTab', 'SystemDesign', { problemId: 'url-shortener' }) },
+    { at: 1200, run: () => emitDemo('design.clear') },
+    { at: 1400, run: () => emitDemo('design.place', { type: 'client', fx: 0.5, fy: 0.04 }) },
+    { at: 2100, run: () => emitDemo('design.place', { type: 'web_server', fx: 0.5, fy: 0.4 }) },
+    { at: 2800, run: () => emitDemo('design.place', { type: 'cache', fx: 0.08, fy: 0.78 }) },
+    { at: 3400, run: () => emitDemo('design.place', { type: 'database', fx: 0.5, fy: 0.78 }) },
+    { at: 4000, run: () => emitDemo('design.place', { type: 'id_generator', fx: 0.92, fy: 0.78 }) },
+    { at: 4800, run: () => emitDemo('design.connect', ['client', 'web_server']) },
+    { at: 5300, run: () => emitDemo('design.connect', ['web_server', 'cache']) },
+    { at: 5800, run: () => emitDemo('design.connect', ['web_server', 'database']) },
+    { at: 6300, run: () => emitDemo('design.connect', ['web_server', 'id_generator']) },
+    { at: 7300, run: () => emitDemo('design.test') },
+    { at: 9600, run: () => emitDemo('design.closeResult') },
   ],
   interview: [
     { at: 0, run: () => tab('TestTab', 'TestBuilder') },
-    { at: 200, run: () => emitDemo('builder.scroll', 0) },
-    { at: 1600, run: () => emitDemo('builder.scroll', 520) },
-    { at: 3200, run: () => emitDemo('builder.scroll', 1150) },
-    { at: 5000, run: () => emitDemo('builder.scroll', 0) },
+    { at: 300, run: () => emitDemo('builder.reset') },
+    { at: 400, run: () => emitDemo('builder.scroll', 0) },
+    { at: 1400, run: () => emitDemo('builder.section', { kind: 'algorithms', patch: { count: 3 } }) },
+    { at: 2000, run: () => emitDemo('builder.section', { kind: 'algorithms', patch: { secondsPerQuestion: 900 } }) },
+    { at: 2800, run: () => emitDemo('builder.scroll', 300) },
+    { at: 3600, run: () => emitDemo('builder.section', { kind: 'system-design', patch: { enabled: true } }) },
+    { at: 4400, run: () => emitDemo('builder.section', { kind: 'system-design', patch: { count: 1 } }) },
+    { at: 5400, run: () => emitDemo('builder.start') },
   ],
   search: [
     { at: 0, run: () => tab('PracticeTab', 'PracticeList') },
@@ -100,6 +116,12 @@ const SCRIPTS: Record<string, Step[]> = {
   ],
   'toggle-first': [
     { at: 0, run: () => emitDemo('practice.toggleComplete', 'Problem:two-sum') },
+  ],
+  'onboarding-design': [
+    { at: 0, run: () => emitDemo('onboarding.goTo', 4) },
+  ],
+  'design-close': [
+    { at: 0, run: () => emitDemo('design.closeResult') },
   ],
   'search-close': [
     { at: 0, run: () => emitDemo('practice.closeSearch') },

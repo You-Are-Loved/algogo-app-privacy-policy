@@ -26,6 +26,7 @@ import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import BottomSheetModal from '../components/BottomSheetModal';
 import { PracticeStackParamList } from '../navigation';
 import { useStore } from '../store/useStore';
+import { useDemoAction } from '../dev/demo';
 import { problemKey } from '../data/practiceIndex';
 import {
   getSystemDesignProblem,
@@ -162,6 +163,26 @@ export function SystemDesignProblemView({
     setEdges((prev) => prev.filter((e) => e.from !== id && e.to !== id));
     setSelectedId((cur) => (cur === id ? null : cur));
   }, []);
+
+  // Dev demo hooks (screen recordings): place nodes at fractional canvas
+  // coords, connect by type, run the check.
+  const nodesRef = useRef(nodes);
+  nodesRef.current = nodes;
+  useDemoAction('design.clear', useCallback(() => { setNodes([]); setEdges([]); setTestResult(null); }, []));
+  useDemoAction('design.place', useCallback((p: { type: ComponentType; fx: number; fy: number }) => {
+    const id = `n${nextIdRef.current++}`;
+    const x = Math.round(p.fx * Math.max(0, canvasSize.w - NODE_W));
+    const y = Math.round(p.fy * Math.max(0, canvasSize.h - NODE_H));
+    setNodes((prev) => [...prev, { id, type: p.type, x, y }]);
+  }, [canvasSize.w, canvasSize.h]));
+  useDemoAction('design.connect', useCallback(([a, b]: [ComponentType, ComponentType]) => {
+    const from = nodesRef.current.find((n) => n.type === a);
+    const to = nodesRef.current.find((n) => n.type === b);
+    if (!from || !to) return;
+    setEdges((prev) => (prev.some((e) => e.from === from.id && e.to === to.id) ? prev : [...prev, { from: from.id, to: to.id }]));
+  }, []));
+  useDemoAction('design.test', () => runTest());
+  useDemoAction('design.closeResult', useCallback(() => setTestResult(null), []));
 
   const runTest = () => {
     const presentTypes = new Set(nodes.map((n) => n.type));

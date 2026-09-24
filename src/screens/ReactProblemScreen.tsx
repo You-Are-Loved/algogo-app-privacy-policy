@@ -180,6 +180,9 @@ export function ReactProblemView({
     }
   };
 
+  useDemoAction('react.mode', useCallback((m: Mode) => switchMode(m), [switchMode]));
+  useDemoAction('react.loadSolution', useCallback(() => post({ type: 'reset', code: problem.solution }), [problem.solution]));
+
   const refreshPreview = () => {
     if (!runtimeReady) return;
     setPreviewState('rendering');

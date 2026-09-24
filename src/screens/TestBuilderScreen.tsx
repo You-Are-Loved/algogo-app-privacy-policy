@@ -100,6 +100,10 @@ export default function TestBuilderScreen() {
   const scrollRef = useRef<ScrollView>(null);
   useDemoAction('builder.scroll', useCallback((y: number) => scrollRef.current?.scrollTo({ y, animated: true }), []));
 
+  useDemoAction('builder.reset', useCallback(() => setTemplate(createBlankTemplate()), []));
+  useDemoAction('builder.section', useCallback((p: { kind: SectionKind; patch: Partial<SectionConfig> }) => updateSection(p.kind, p.patch), []));
+  useDemoAction('builder.start', () => handleSave(true));
+
   const isEditing = !!params?.templateId;
 
   const updateSection = (kind: SectionKind, patch: Partial<SectionConfig>) => {
