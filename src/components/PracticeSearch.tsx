@@ -14,7 +14,6 @@ import {
 import Animated, {
   Easing,
   FadeIn,
-  FadeInDown,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -155,6 +154,7 @@ export default function PracticeSearch({
           <Text style={styles.hintBody}>Try a topic like “binary search”, “joins” or “debounce”.</Text>
         </Animated.View>
       ) : (
+        <Animated.View entering={FadeIn.duration(180)} style={{ flex: 1 }}>
         <FlatList
           data={rows}
           keyExtractor={(r) => r.key}
@@ -162,18 +162,15 @@ export default function PracticeSearch({
           keyboardDismissMode="on-drag"
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item: row, index }) => {
+          renderItem={({ item: row }) => {
             if (row.type === 'header') {
               const meta = categoryMeta(row.category);
               return (
-                <Animated.View
-                  entering={FadeInDown.duration(220).delay(Math.min(index, 8) * 18).easing(Easing.out(Easing.cubic))}
-                  style={styles.sectionHeader}
-                >
+                <View style={styles.sectionHeader}>
                   <Ionicons name={meta.icon} size={14} color={meta.color} />
                   <Text style={[styles.sectionTitle, { color: meta.color }]}>{meta.label}</Text>
                   <Text style={styles.sectionCount}>{row.count}</Text>
-                </Animated.View>
+                </View>
               );
             }
             const { item } = row;
@@ -182,9 +179,7 @@ export default function PracticeSearch({
             const done = !!completed[item.key];
             const diffColor = item.difficulty ? difficultyColors[item.difficulty] : colors.borderDark;
             return (
-              <Animated.View
-                entering={FadeInDown.duration(220).delay(Math.min(index, 8) * 18).easing(Easing.out(Easing.cubic))}
-              >
+              <View>
                 <TouchableOpacity
                   style={[styles.row, { borderBottomColor: diffColor }]}
                   activeOpacity={0.7}
@@ -214,11 +209,12 @@ export default function PracticeSearch({
                     <Ionicons name="chevron-forward" size={18} color={colors.inkLighter} />
                   )}
                 </TouchableOpacity>
-              </Animated.View>
+              </View>
             );
           }}
           ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
         />
+        </Animated.View>
       )}
     </Animated.View>
   );
