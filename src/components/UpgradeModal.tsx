@@ -8,6 +8,7 @@ import {
   Linking,
   ScrollView,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +36,14 @@ interface UpgradeModalProps {
   /** Show "Continue with free version" — true when used as the onboarding finale. */
   showSkip?: boolean;
 }
+
+// Taller phones get roomier rows + slightly larger copy; the feature card
+// stretches to fill whatever is left between the headline and the plans, and
+// falls back to scrolling on short screens.
+const SCREEN_H = Dimensions.get('window').height;
+const TALL = SCREEN_H >= 840;
+const FEATURE_FONT = TALL ? 15 : 13.5;
+const FEATURE_ICON = TALL ? 32 : 28;
 
 const ease = <T extends { easing: (e: any) => T }>(a: T) => a.easing(Easing.out(Easing.cubic));
 
@@ -268,7 +277,7 @@ function PaywallFeatureRow({
   return (
     <View style={[styles.paywallFeatureRow, !last && styles.paywallFeatureRowDivider]}>
       <View style={styles.paywallFeatureIcon}>
-        <Ionicons name={icon} size={15} color="#0B1020" />
+        <Ionicons name={icon} size={TALL ? 17 : 15} color="#0B1020" />
       </View>
       <Text style={styles.paywallFeatureText}>{text}</Text>
     </View>
@@ -282,7 +291,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     // paddingTop is set inline from useSafeAreaInsets() so it tracks the
     // device's real top inset (notch / Dynamic Island) plus a small gap.
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.lg,
   },
 
   // Hero
@@ -298,6 +307,7 @@ const styles = StyleSheet.create({
 
   // Feature list
   featureCard: {
+    flexGrow: 1,
     backgroundColor: colors.card,
     borderRadius: 22,
     borderWidth: 1,
@@ -309,6 +319,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
   },
   paywallFeatureRow: {
+    flexGrow: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
@@ -319,9 +330,9 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   paywallFeatureIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
+    width: FEATURE_ICON,
+    height: FEATURE_ICON,
+    borderRadius: FEATURE_ICON * 0.32,
     backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
@@ -330,8 +341,8 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: colors.ink,
     flex: 1,
-    fontSize: 13.5,
-    lineHeight: 18,
+    fontSize: FEATURE_FONT,
+    lineHeight: FEATURE_FONT + 5,
   },
 
   // Bottom CTA bar
