@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import { useDemoAction } from '../dev/demo';
 import {
   View,
   Text,
@@ -12,7 +13,19 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { Easing, FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeInDown,
+  FadeInUp,
+  FadeOut,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
@@ -88,6 +101,14 @@ export default function UpgradeModal({
 
   const features = React.useMemo(() => getPaywallFeatures(), []);
 
+  useDemoAction('paywall.plan', useCallback((next: Plan) => { if (next !== plan) { setPlan(next); } }, [plan]));
+
+  const choosePlan = (next: Plan) => {
+    if (next === plan) return;
+    Haptics.selectionAsync().catch(() => {});
+    setPlan(next);
+  };
+
   const handlePurchase = async () => {
     setPurchasing(true);
     const result = await purchase(selectedPlan);
@@ -135,15 +156,20 @@ export default function UpgradeModal({
           <Animated.Text entering={ease(FadeInDown.delay(140).duration(420))} style={styles.title}>
             {isFreeTrial ? 'Everything.\nFree for 7 days' : 'Unlock\neverything'}
           </Animated.Text>
-          <Animated.View entering={ease(FadeInDown.delay(300).duration(420))} style={styles.featureCard}>
+          <Animated.View entering={ease(FadeInDown.delay(240).duration(420))} style={styles.featureCard}>
             {features.map((f, i) => (
-              <PaywallFeatureRow key={i} icon={f.icon} text={f.text} last={i === features.length - 1} />
+              <PaywallFeatureRow
+                key={i}
+                icon={f.icon}
+                text={f.text}
+                last={i === features.length - 1}
+                delay={340 + i * 45}
+              />
             ))}
           </Animated.View>
         </ScrollView>
 
         <Animated.View
-          entering={ease(FadeInUp.delay(380).duration(420))}
           style={styles.bottomBar}
         >
           <LinearGradient
@@ -152,13 +178,13 @@ export default function UpgradeModal({
             style={styles.bottomFade}
           />
           {showPlans ? (
-            <View style={styles.planRow}>
+            <Animated.View entering={ease(FadeInUp.delay(420).duration(420))} style={styles.planRow}>
               <PlanPill
                 title="Monthly"
                 price={`${monthlyPrice}/mo`}
                 selected={selectedPlan === 'monthly'}
                 disabled={busy}
-                onPress={() => setPlan('monthly')}
+                onPress={() => choosePlan('monthly')}
               />
               <PlanPill
                 title="Annual"
@@ -167,11 +193,12 @@ export default function UpgradeModal({
                 badge={discountPct ? `SAVE ${discountPct}%` : undefined}
                 selected={selectedPlan === 'annual'}
                 disabled={busy}
-                onPress={() => setPlan('annual')}
+                onPress={() => choosePlan('annual')}
               />
-            </View>
+            </Animated.View>
           ) : null}
 
+          <Animated.View entering={ease(FadeInUp.delay(500).duration(420))}>
           <TouchableOpacity
             style={[styles.primaryCta, busy && { opacity: 0.6 }]}
             onPress={handlePurchase}
@@ -184,7 +211,8 @@ export default function UpgradeModal({
               <>
                 <Animated.Text
                   key={ctaLabel}
-                  entering={FadeIn.duration(180)}
+                  entering={ease(FadeInDown.duration(220)).withInitialValues({ transform: [{ translateY: 6 }] })}
+                  exiting={FadeOut.duration(120)}
                   style={styles.primaryCtaText}
                 >
                   {ctaLabel}
@@ -193,7 +221,9 @@ export default function UpgradeModal({
               </>
             )}
           </TouchableOpacity>
+          </Animated.View>
 
+          <Animated.View entering={FadeIn.delay(640).duration(360)}>
           <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
             <Text style={styles.secondaryCtaText}>
               {showSkip ? 'Continue with free version' : 'Not now'}
@@ -213,12 +243,15 @@ export default function UpgradeModal({
               <Text style={styles.legalLink}>Privacy</Text>
             </TouchableOpacity>
           </View>
+          </Animated.View>
         </Animated.View>
       </SafeAreaView>
       </View>
     </Modal>
   );
 }
+
+const PLAN_MS = 220;
 
 function PlanPill({
   title,
@@ -237,31 +270,72 @@ function PlanPill({
   disabled: boolean;
   onPress: () => void;
 }) {
+  // 0 = idle, 1 = selected. Border, fill, title colour and the radio all ride
+  // this one value so the switch reads as a single motion.
+  const sel = useSharedValue(selected ? 1 : 0);
+  const press = useSharedValue(1);
+  const first = React.useRef(true);
+
+  React.useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    sel.value = withTiming(selected ? 1 : 0, { duration: PLAN_MS, easing: Easing.out(Easing.cubic) });
+    if (selected) {
+      press.value = withSequence(
+        withTiming(1.03, { duration: 120, easing: Easing.out(Easing.cubic) }),
+        withTiming(1, { duration: 160, easing: Easing.inOut(Easing.quad) }),
+      );
+    }
+  }, [selected, sel, press]);
+
+  const cardStyle = useAnimatedStyle(() => ({
+    borderColor: interpolateColor(sel.value, [0, 1], [colors.border, '#0B1020']),
+    backgroundColor: interpolateColor(sel.value, [0, 1], [colors.card, '#F9FAFC']),
+    transform: [{ scale: press.value }],
+  }));
+  const titleStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(sel.value, [0, 1], [colors.inkLight, '#111827']),
+  }));
+  const radioStyle = useAnimatedStyle(() => ({
+    borderColor: interpolateColor(sel.value, [0, 1], [colors.borderDark, '#0B1020']),
+    backgroundColor: interpolateColor(sel.value, [0, 1], ['rgba(11,16,32,0)', '#0B1020']),
+  }));
+  const checkStyle = useAnimatedStyle(() => ({
+    opacity: sel.value,
+    transform: [{ scale: 0.4 + sel.value * 0.6 }],
+  }));
+
   return (
-    <TouchableOpacity
-      style={[styles.planPill, selected && styles.planPillSelected]}
-      onPress={onPress}
-      disabled={disabled}
-      activeOpacity={0.85}
-      accessibilityRole="radio"
-      accessibilityState={{ selected }}
-    >
-      <View style={styles.planTop}>
-        <Text style={[styles.planPillTitle, selected && styles.planPillTitleSelected]}>{title}</Text>
-        <View style={[styles.planRadio, selected && styles.planRadioSelected]}>
-          {selected ? <Ionicons name="checkmark" size={12} color={colors.white} /> : null}
+    <Animated.View style={[styles.planPill, cardStyle, { flex: 1 }]}>
+      <TouchableOpacity
+        style={styles.planPillInner}
+        onPress={onPress}
+        disabled={disabled}
+        activeOpacity={0.85}
+        accessibilityRole="radio"
+        accessibilityState={{ selected }}
+      >
+        <View style={styles.planTop}>
+          <Animated.Text style={[styles.planPillTitle, titleStyle]}>{title}</Animated.Text>
+          <Animated.View style={[styles.planRadio, radioStyle]}>
+            <Animated.View style={checkStyle}>
+              <Ionicons name="checkmark" size={12} color={colors.white} />
+            </Animated.View>
+          </Animated.View>
         </View>
-      </View>
-      <Text style={styles.planPillPrice}>{price}</Text>
-      <View style={styles.planFoot}>
-        {sub ? <Text style={styles.planPillSub}>{sub}</Text> : <Text style={styles.planPillSub}> </Text>}
-        {badge ? (
-          <View style={styles.planBadge}>
-            <Text style={styles.planBadgeText}>{badge}</Text>
-          </View>
-        ) : null}
-      </View>
-    </TouchableOpacity>
+        <Text style={styles.planPillPrice}>{price}</Text>
+        <View style={styles.planFoot}>
+          {sub ? <Text style={styles.planPillSub}>{sub}</Text> : <Text style={styles.planPillSub}> </Text>}
+          {badge ? (
+            <View style={styles.planBadge}>
+              <Text style={styles.planBadgeText}>{badge}</Text>
+            </View>
+          ) : null}
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -269,18 +343,23 @@ function PaywallFeatureRow({
   icon,
   text,
   last,
+  delay,
 }: {
   icon: PaywallFeature['icon'];
   text: string;
   last?: boolean;
+  delay: number;
 }) {
   return (
-    <View style={[styles.paywallFeatureRow, !last && styles.paywallFeatureRowDivider]}>
+    <Animated.View
+      entering={ease(FadeInDown.delay(delay).duration(360)).withInitialValues({ transform: [{ translateY: 10 }] })}
+      style={[styles.paywallFeatureRow, !last && styles.paywallFeatureRowDivider]}
+    >
       <View style={styles.paywallFeatureIcon}>
         <Ionicons name={icon} size={TALL ? 17 : 15} color="#0B1020" />
       </View>
       <Text style={styles.paywallFeatureText}>{text}</Text>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -367,16 +446,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   planPill: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
     borderRadius: 18,
     borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.card,
+    overflow: 'hidden',
   },
-  planPillSelected: {
-    borderColor: '#0B1020',
+  planPillInner: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
   planTop: {
     flexDirection: 'row',
@@ -391,10 +469,6 @@ const styles = StyleSheet.create({
     borderColor: colors.borderDark,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  planRadioSelected: {
-    backgroundColor: '#0B1020',
-    borderColor: '#0B1020',
   },
   planFoot: {
     flexDirection: 'row',
@@ -420,9 +494,6 @@ const styles = StyleSheet.create({
     color: colors.inkLight,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-  },
-  planPillTitleSelected: {
-    color: '#111827',
   },
   planPillPrice: {
     fontSize: 18,

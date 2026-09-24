@@ -117,6 +117,12 @@ const SCRIPTS: Record<string, Step[]> = {
   'toggle-first': [
     { at: 0, run: () => emitDemo('practice.toggleComplete', 'Problem:two-sum') },
   ],
+  paywall: [
+    { at: 0, run: () => emitDemo('onboarding.paywall', false) },
+    { at: 600, run: () => emitDemo('onboarding.paywall', true) },
+    { at: 3000, run: () => emitDemo('paywall.plan', 'annual') },
+    { at: 4500, run: () => emitDemo('paywall.plan', 'monthly') },
+  ],
   'paywall-open': [{ at: 0, run: () => emitDemo('onboarding.paywall', true) }],
   'paywall-close': [{ at: 0, run: () => emitDemo('onboarding.paywall', false) }],
   'onboarding-design': [
