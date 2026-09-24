@@ -253,8 +253,11 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     ...typography.bodyMedium,
+    lineHeight: undefined, // let the TextInput size its own glyph box; a fixed lineHeight clips descenders on iOS
     color: colors.ink,
+    height: 44,
     paddingVertical: 0,
+    includeFontPadding: false,
   },
   cancel: { paddingVertical: spacing.sm, paddingLeft: spacing.xs },
   cancelText: { ...typography.labelLarge, color: colors.purpleDark, fontWeight: '600' },
