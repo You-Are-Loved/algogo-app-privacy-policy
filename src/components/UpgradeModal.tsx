@@ -50,7 +50,7 @@ export default function UpgradeModal({
   const insets = useSafeAreaInsets();
   // iPhone Pro Dynamic Island extends below the standard safe-area top inset
   // a touch, so we pad an extra ~16pt on top of insets.top for clearance.
-  const heroTopPadding = insets.top + spacing.sm;
+  const heroTopPadding = insets.top + spacing.lg;
 
   const monthlyProduct = products.monthly;
   const annualProduct = products.annual;
@@ -136,11 +136,6 @@ export default function UpgradeModal({
           contentContainerStyle={[styles.scrollContent, { paddingTop: heroTopPadding }]}
           bounces={false}
         >
-          <Animated.View entering={ease(FadeInDown.delay(60).duration(420))} style={styles.proPill}>
-            <Ionicons name="sparkles" size={13} color={colors.purpleDark} />
-            <Text style={styles.proPillText}>ALGOGO PRO</Text>
-          </Animated.View>
-
           <Animated.Text entering={ease(FadeInDown.delay(140).duration(420))} style={styles.title}>
             {isFreeTrial ? 'Everything.\nFree for 7 days' : 'Unlock\neverything'}
           </Animated.Text>
