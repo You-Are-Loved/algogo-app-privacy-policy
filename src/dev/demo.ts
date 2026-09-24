@@ -135,12 +135,6 @@ const SCRIPTS: Record<string, Step[]> = {
   ],
   'paywall-open': [{ at: 0, run: () => emitDemo('onboarding.paywall', true) }],
   'paywall-close': [{ at: 0, run: () => emitDemo('onboarding.paywall', false) }],
-  'onboarding-design': [
-    { at: 0, run: () => emitDemo('onboarding.goTo', 4) },
-  ],
-  'onboarding-offline': [
-    { at: 0, run: () => emitDemo('onboarding.goTo', 6) },
-  ],
   'design-close': [
     { at: 0, run: () => emitDemo('design.closeResult') },
   ],
@@ -156,6 +150,11 @@ const SCRIPTS: Record<string, Step[]> = {
     { at: 9000, run: () => emitDemo('problem.closeResults') },
   ],
 };
+
+// onboarding-0 … onboarding-6 jump straight to a carousel page.
+for (let i = 0; i < 7; i++) {
+  SCRIPTS[`onboarding-${i}`] = [{ at: 0, run: () => emitDemo('onboarding.goTo', i) }];
+}
 
 let running = false;
 export async function runDemoScript(name: string) {

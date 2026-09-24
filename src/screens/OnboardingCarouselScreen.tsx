@@ -186,6 +186,13 @@ export default function OnboardingCarouselScreen() {
         style={StyleSheet.absoluteFill}
       />
       <SafeAreaView style={styles.safe} edges={['top']}>
+        {/* Dots */}
+        <View style={styles.dots}>
+          {PAGES.map((p, i) => (
+            <Dot key={p.key} index={i} scrollX={scrollX} accent={p.accent} />
+          ))}
+        </View>
+
         {/* Pages */}
         <Animated.ScrollView
           ref={scrollRef}
@@ -202,13 +209,6 @@ export default function OnboardingCarouselScreen() {
             <PageView key={page.key} page={page} index={i} scrollX={scrollX} />
           ))}
         </Animated.ScrollView>
-
-        {/* Dots */}
-        <View style={styles.dots}>
-          {PAGES.map((p, i) => (
-            <Dot key={p.key} index={i} scrollX={scrollX} accent={p.accent} />
-          ))}
-        </View>
 
         {/* CTA */}
         <View style={[styles.ctaWrap, { paddingBottom: Math.max(insets.bottom, spacing.md) - 4 }]}>
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     minHeight: 96,
     alignItems: 'center',
     justifyContent: 'flex-end',
-    marginTop: spacing.lg,
+    marginTop: spacing.xs,
   },
   headlineLine: {
     flexDirection: 'row',
@@ -438,8 +438,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 15,
     lineHeight: 22,
-    marginTop: spacing.sm,
-    marginBottom: 0,
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
     maxWidth: 340,
   },
 
@@ -448,7 +448,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
   },
   dot: { height: 8, borderRadius: 4 },
 
