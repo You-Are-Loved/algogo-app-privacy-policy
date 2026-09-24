@@ -71,7 +71,7 @@ const PAGES: Page[] = [
   },
   {
     key: 'algorithms',
-    title: 'Run real Python.\nNo wifi needed',
+    title: 'Do real problems.\nNo wifi needed',
     body: `${s.algorithmProblems} algorithm problems with a full Python runtime on your phone — hidden tests, runtime, and a hint when you're stuck.`,
     accent: '#3776AB',
     image: require('../../assets/onboarding/algorithms.gif'),
