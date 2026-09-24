@@ -179,7 +179,7 @@ export default function OnboardingCarouselScreen() {
         end={{ x: 0.8, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.safe} edges={['top']}>
         {/* Pages */}
         <Animated.ScrollView
           ref={scrollRef}
@@ -205,7 +205,7 @@ export default function OnboardingCarouselScreen() {
         </View>
 
         {/* CTA */}
-        <View style={[styles.ctaWrap, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+        <View style={[styles.ctaWrap, { paddingBottom: Math.max(insets.bottom, spacing.md) - 4 }]}>
           <TouchableOpacity style={styles.cta} activeOpacity={0.9} onPress={goNext}>
             <Text style={styles.ctaText}>{isLast ? 'Get started' : 'Continue'}</Text>
             <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
