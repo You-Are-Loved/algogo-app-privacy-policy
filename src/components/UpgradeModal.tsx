@@ -303,24 +303,6 @@ const styles = StyleSheet.create({
   },
 
   // Hero
-  proPill: {
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: borderRadius.full,
-    backgroundColor: `${colors.purpleDark}14`,
-    marginTop: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  proPillText: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    color: colors.purpleDark,
-  },
   title: {
     fontSize: 30,
     lineHeight: 36,
