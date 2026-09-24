@@ -207,7 +207,7 @@ export default function OnboardingCarouselScreen() {
         <View style={[styles.ctaWrap, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
           <TouchableOpacity style={styles.cta} activeOpacity={0.9} onPress={goNext}>
             <Text style={styles.ctaText}>{isLast ? 'Get started' : 'Continue'}</Text>
-            <Ionicons name={isLast ? 'sparkles' : 'arrow-forward'} size={18} color="#FFFFFF" />
+            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
