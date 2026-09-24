@@ -113,7 +113,8 @@ const PAGES: Page[] = [
 // The stage takes whatever height is left between the headline and the body
 // copy; the phone is drawn at full aspect but clipped by the stage and faded
 // out along its bottom edge, so the text always has room.
-const PHONE_W = Math.min(W * 0.76, 300);
+// Phone width tracks the device: wide enough to read, capped for tablets.
+const PHONE_W = Math.min(W * 0.88, 360);
 const PHONE_H = PHONE_W * (2622 / 1206);
 const PHONE_RADIUS = PHONE_W * 0.16;
 const BEZEL = 6;
@@ -374,7 +375,7 @@ const styles = StyleSheet.create({
     minHeight: 96,
     alignItems: 'center',
     justifyContent: 'flex-end',
-    marginTop: spacing['2xl'],
+    marginTop: spacing.lg,
   },
   headlineLine: {
     flexDirection: 'row',
@@ -442,8 +443,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 15,
     lineHeight: 22,
-    marginTop: spacing.md,
-    marginBottom: spacing.xs,
+    marginTop: spacing.sm,
+    marginBottom: 0,
     maxWidth: 340,
   },
 
@@ -452,7 +453,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
   },
   dot: { height: 8, borderRadius: 4 },
 
