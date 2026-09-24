@@ -113,12 +113,18 @@ const PAGES: Page[] = [
 // The stage takes whatever height is left between the headline and the body
 // copy; the phone is drawn at full aspect but clipped by the stage and faded
 // out along its bottom edge, so the text always has room.
-// Phone width tracks the device: wide enough to read, capped for tablets.
-const PHONE_W = Math.min(W * 0.88, 360);
-const PHONE_H = PHONE_W * (2622 / 1206);
-const PHONE_RADIUS = PHONE_W * 0.16;
+// The phone is sized at runtime from the stage it sits in: full 1206×2622
+// aspect, as tall as the space between headline and body allows, never wider
+// than the device. So the whole recording is visible on every screen.
+const PHONE_ASPECT = 2622 / 1206;
+const MAX_PHONE_W = Math.min(W * 0.88, 360);
 const BEZEL = 6;
-const FADE_H = 64;
+
+function phoneSize(stageH: number) {
+  const h = Math.max(120, Math.min(stageH, MAX_PHONE_W * PHONE_ASPECT));
+  const w = h / PHONE_ASPECT;
+  return { w, h, radius: w * 0.16 };
+}
 
 export default function OnboardingCarouselScreen() {
   const insets = useSafeAreaInsets();
@@ -235,6 +241,9 @@ function PageView({
   // Word index runs across lines so the stagger keeps flowing.
   let wordCounter = 0;
 
+  const [stageH, setStageH] = useState(0);
+  const phone = phoneSize(stageH);
+
   const phoneStyle = useAnimatedStyle(() => {
     const p = (scrollX.value - index * W) / W;
     return {
@@ -273,28 +282,29 @@ function PageView({
       </View>
 
       {/* Phone mockup */}
-      <View style={styles.stage}>
-        <Animated.View style={[styles.phoneClip, phoneStyle]}>
-          <View style={styles.phone}>
-            <View style={styles.phoneScreen}>
-              <Image
-                source={page.image}
-                style={styles.phoneImage}
-                contentFit="cover"
-                contentPosition="top"
-                autoplay
-                cachePolicy="memory"
-              />
+      <View style={styles.stage} onLayout={(e) => setStageH(e.nativeEvent.layout.height)}>
+        {stageH > 0 && (
+          <Animated.View style={phoneStyle}>
+            <View
+              style={[
+                styles.phone,
+                { width: phone.w, height: phone.h, borderRadius: phone.radius },
+              ]}
+            >
+              <View style={[styles.phoneScreen, { borderRadius: phone.radius - BEZEL }]}>
+                <Image
+                  source={page.image}
+                  style={styles.phoneImage}
+                  contentFit="cover"
+                  contentPosition="top"
+                  autoplay
+                  cachePolicy="memory"
+                />
+              </View>
+              <View style={[styles.island, { width: phone.w * 0.3 }]} />
             </View>
-            <View style={styles.island} />
-          </View>
-          <LinearGradient
-            pointerEvents="none"
-            colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.55)', '#FFFFFF']}
-            locations={[0, 0.6, 1]}
-            style={styles.phoneFade}
-          />
-        </Animated.View>
+          </Animated.View>
+        )}
       </View>
 
       {/* Body copy */}
@@ -395,34 +405,20 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    marginTop: spacing.lg,
-    minHeight: 180,
-  },
-  phoneClip: {
-    width: PHONE_W + 40,
-    height: '100%',
-    alignItems: 'center',
-    overflow: 'hidden',
-    paddingTop: 10,
+    justifyContent: 'center',
+    marginTop: spacing.md,
+    minHeight: 160,
   },
   phone: {
-    width: PHONE_W,
-    height: PHONE_H,
-    borderRadius: PHONE_RADIUS,
     backgroundColor: '#0f1115',
     padding: BEZEL,
-  },
-  phoneFade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: FADE_H,
+    shadowColor: '#0B1020',
+    shadowOpacity: 0.16,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 12 },
   },
   phoneScreen: {
     flex: 1,
-    borderRadius: PHONE_RADIUS - BEZEL,
     overflow: 'hidden',
     backgroundColor: colors.background,
   },
@@ -431,7 +427,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: BEZEL + 10,
     alignSelf: 'center',
-    width: PHONE_W * 0.3,
     height: 12,
     borderRadius: 6,
     backgroundColor: '#0f1115',
