@@ -93,7 +93,7 @@ const PAGES: Page[] = [
   {
     key: 'interview',
     title: 'Rehearse the\nwhole loop',
-    body: `Build timed mock interviews from any mix of sections, answer ${s.behavioralPrompts} behavioral prompts, and get a scored breakdown at the end.`,
+    body: 'Build timed mock interviews from our massive bank of questions across topics, and get a scored breakdown at the end.',
     accent: '#10B981',
     image: require('../../assets/onboarding/interview.gif'),
   },
