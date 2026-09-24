@@ -156,10 +156,6 @@ for (let i = 0; i < 7; i++) {
   SCRIPTS[`onboarding-${i}`] = [{ at: 0, run: () => emitDemo('onboarding.goTo', i) }];
 }
 
-SCRIPTS['tab-study'] = [{ at: 0, run: () => tab('StudyTab', 'Home') }];
-SCRIPTS['tab-practice'] = [{ at: 0, run: () => tab('PracticeTab', 'PracticeList') }];
-SCRIPTS['tab-interview'] = [{ at: 0, run: () => tab('TestTab', 'TestHome') }];
-
 let running = false;
 export async function runDemoScript(name: string) {
   if (!__DEV__) return;

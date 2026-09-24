@@ -92,7 +92,10 @@ export default function TestHomeScreen() {
               style={styles.headerTitle}
               onLongPress={__DEV__ ? toggleDevSubscription : undefined}
             >
-              Interview
+              Mock Interview
+            </Text>
+            <Text style={styles.headerSub}>
+              Timed, multi-round interview simulations
             </Text>
           </View>
           {isSubscribed && (
@@ -283,10 +286,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingTop: spacing.md,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.sm,
     gap: spacing.sm,
   },
-  headerTitle: { ...typography.screenTitle },
+  headerTitle: { ...typography.displaySmall, color: colors.ink },
+  headerSub: {
+    ...typography.bodySmall,
+    color: colors.inkLight,
+    marginTop: 2,
+  },
   proBadge: {
     flexDirection: 'row',
     alignItems: 'center',

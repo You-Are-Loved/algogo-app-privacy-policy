@@ -126,15 +126,6 @@ export const typography = {
     fontWeight: '700' as const,
     lineHeight: 32,
   },
-  /** Top-of-tab screen titles (Study / Practice / Interview): the onboarding headline voice. */
-  screenTitle: {
-    fontFamily: 'System',
-    fontSize: 28,
-    fontWeight: '800' as const,
-    lineHeight: 34,
-    letterSpacing: -0.6,
-    color: '#111827',
-  },
   headlineLarge: {
     fontFamily: 'System',
     fontSize: 20,

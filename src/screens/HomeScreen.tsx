@@ -448,7 +448,7 @@ export default function HomeScreen() {
         {/* Header */}
         <Animated.View entering={hasAnimated.current ? undefined : FadeInDown.delay(100)} style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.userName}>Study</Text>
+            <Text style={styles.userName}>Welcome back!</Text>
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity
@@ -540,8 +540,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.lg,
+    paddingVertical: spacing.xl,
   },
   headerLeft: {},
   headerRight: {
@@ -550,7 +549,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   userName: {
-    ...typography.screenTitle,
+    ...typography.displaySmall,
+    color: colors.ink,
   },
   streakBadge: {
     flexDirection: 'row',
