@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerTitle: { ...typography.displaySmall, color: colors.ink },
+  headerTitle: { ...typography.screenTitle },
   dropdownRow: {
     flexDirection: 'row',
     alignItems: 'center',
