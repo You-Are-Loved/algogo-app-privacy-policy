@@ -156,10 +156,17 @@ for (let i = 0; i < 7; i++) {
   SCRIPTS[`onboarding-${i}`] = [{ at: 0, run: () => emitDemo('onboarding.goTo', i) }];
 }
 
+// Paywall price previews: prices-<monthly>-<annual>, e.g. prices-1.99-14.99
+export function pricesScript(name: string): Step[] | null {
+  const m = name.match(/^prices-([\d.]+)-([\d.]+)$/);
+  if (!m) return null;
+  return [{ at: 0, run: () => emitDemo('paywall.prices', { monthly: Number(m[1]), annual: Number(m[2]), trialDays: 7 }) }];
+}
+
 let running = false;
 export async function runDemoScript(name: string) {
   if (!__DEV__) return;
-  const steps = SCRIPTS[name];
+  const steps = SCRIPTS[name] ?? pricesScript(name);
   if (!steps) {
     console.log('[demo] unknown script', name);
     return;
@@ -183,7 +190,7 @@ export async function runDemoScript(name: string) {
 /** Handle a deep link; returns true when it was a demo URL. */
 export function handleDemoUrl(url: string | null | undefined): boolean {
   if (!__DEV__ || !url) return false;
-  const m = url.match(/demo\?script=([a-z-]+)/i);
+  const m = url.match(/demo\?script=([a-z0-9.-]+)/i);
   if (!m) return false;
   runDemoScript(m[1]);
   return true;

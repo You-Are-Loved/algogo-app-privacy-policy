@@ -66,7 +66,21 @@ export default function UpgradeModal({
   categoryName,
   showSkip = false,
 }: UpgradeModalProps) {
-  const { purchase, restore, products, isLoading } = useSubscriptionContext();
+  const { purchase, restore, products: liveProducts, isLoading } = useSubscriptionContext();
+  // Dev only: preview arbitrary StoreKit prices (`paywall.prices` demo action).
+  const [mockProducts, setMockProducts] = useState<typeof liveProducts | null>(null);
+  useDemoAction(
+    'paywall.prices',
+    useCallback((p: { monthly: number; annual: number; trialDays?: number } | null) => {
+      if (!p) return setMockProducts(null);
+      const offer = p.trialDays
+        ? { mode: 'free-trial' as const, periodCount: p.trialDays === 7 ? 1 : p.trialDays, periodUnit: p.trialDays === 7 ? ('week' as const) : ('day' as const), display: '$0.00', amount: 0 }
+        : null;
+      const mk = (id: string, amount: number) => ({ id, display: `$${amount.toFixed(2)}`, amount, currency: 'USD', title: id, description: '', introOffer: offer });
+      setMockProducts({ monthly: mk('monthly', p.monthly), annual: mk('annual', p.annual) } as typeof liveProducts);
+    }, []),
+  );
+  const products = __DEV__ && mockProducts ? mockProducts : liveProducts;
   const [purchasing, setPurchasing] = useState(false);
   const [plan, setPlan] = useState<Plan>('monthly');
   const insets = useSafeAreaInsets();
