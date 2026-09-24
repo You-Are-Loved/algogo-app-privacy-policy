@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
@@ -23,7 +24,6 @@ import {
   formatMonthlyEquivalent,
 } from '../hooks/useSubscription';
 import { getPaywallFeatures, PaywallFeature } from '../data/stats';
-import AlgogoLogo from './AlgogoLogo';
 
 const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 const PRIVACY_URL = 'https://you-are-loved.github.io/algogo-app-privacy-policy/privacy-policy.html';
@@ -35,6 +35,8 @@ interface UpgradeModalProps {
   /** Show "Continue with free version" — true when used as the onboarding finale. */
   showSkip?: boolean;
 }
+
+const ease = <T extends { easing: (e: any) => T }>(a: T) => a.easing(Easing.out(Easing.cubic));
 
 export default function UpgradeModal({
   visible,
@@ -48,7 +50,7 @@ export default function UpgradeModal({
   const insets = useSafeAreaInsets();
   // iPhone Pro Dynamic Island extends below the standard safe-area top inset
   // a touch, so we pad an extra ~16pt on top of insets.top for clearance.
-  const heroTopPadding = insets.top + spacing.lg;
+  const heroTopPadding = insets.top + spacing.sm;
 
   const monthlyProduct = products.monthly;
   const annualProduct = products.annual;
@@ -121,48 +123,47 @@ export default function UpgradeModal({
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#FFFFFF', '#F7F8FC', '#FFFFFF']}
+          start={{ x: 0.2, y: 0 }}
+          end={{ x: 0.8, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
       <SafeAreaView style={styles.container} edges={['bottom']}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.scrollContent, { paddingTop: heroTopPadding }]}
           bounces={false}
         >
-          <Animated.View
-            entering={FadeInDown.delay(100).duration(500)}
-            style={styles.heroIconWrap}
-          >
-            <View style={styles.heroIcon}>
-              <AlgogoLogo size={62} />
-            </View>
+          <Animated.View entering={ease(FadeInDown.delay(60).duration(420))} style={styles.proPill}>
+            <Ionicons name="sparkles" size={13} color={colors.purpleDark} />
+            <Text style={styles.proPillText}>ALGOGO PRO</Text>
           </Animated.View>
 
-          <Animated.Text
-            entering={FadeInDown.delay(200).duration(500)}
-            style={styles.title}
-          >
-            {isFreeTrial ? 'Try Algogo Pro free' : 'Unlock Algogo Pro'}
+          <Animated.Text entering={ease(FadeInDown.delay(140).duration(420))} style={styles.title}>
+            {isFreeTrial ? 'Everything.\nFree for 7 days' : 'Unlock\neverything'}
           </Animated.Text>
-          <Animated.Text
-            entering={FadeInDown.delay(300).duration(500)}
-            style={styles.subtitle}
-          >
-            {categoryName ? `"${categoryName}" is a Pro topic · ${subtitleLine}` : subtitleLine}
+          <Animated.Text entering={ease(FadeInDown.delay(220).duration(420))} style={styles.subtitle}>
+            {categoryName ? `"${categoryName}" is a Pro topic. ${subtitleLine}` : subtitleLine}
           </Animated.Text>
 
-          <Animated.View
-            entering={FadeInDown.delay(400).duration(400)}
-            style={styles.paywallFeatures}
-          >
+          <Animated.View entering={ease(FadeInDown.delay(300).duration(420))} style={styles.featureCard}>
             {features.map((f, i) => (
-              <PaywallFeatureRow key={i} icon={f.icon} text={f.text} />
+              <PaywallFeatureRow key={i} icon={f.icon} text={f.text} last={i === features.length - 1} />
             ))}
           </Animated.View>
         </ScrollView>
 
         <Animated.View
-          entering={FadeInUp.delay(500).duration(400)}
+          entering={ease(FadeInUp.delay(380).duration(420))}
           style={styles.bottomBar}
         >
+          <LinearGradient
+            pointerEvents="none"
+            colors={['rgba(255,255,255,0)', '#FFFFFF']}
+            style={styles.bottomFade}
+          />
           {showPlans ? (
             <View style={styles.planRow}>
               <PlanPill
@@ -194,7 +195,6 @@ export default function UpgradeModal({
               <ActivityIndicator color={colors.white} />
             ) : (
               <>
-                <Ionicons name="sparkles" size={20} color={colors.white} />
                 <Animated.Text
                   key={ctaLabel}
                   entering={FadeIn.duration(180)}
@@ -202,6 +202,7 @@ export default function UpgradeModal({
                 >
                   {ctaLabel}
                 </Animated.Text>
+                <Ionicons name="arrow-forward" size={18} color={colors.white} />
               </>
             )}
           </TouchableOpacity>
@@ -227,6 +228,7 @@ export default function UpgradeModal({
           </View>
         </Animated.View>
       </SafeAreaView>
+      </View>
     </Modal>
   );
 }
@@ -253,18 +255,25 @@ function PlanPill({
       style={[styles.planPill, selected && styles.planPillSelected]}
       onPress={onPress}
       disabled={disabled}
-      activeOpacity={0.8}
+      activeOpacity={0.85}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
     >
-      {badge ? (
-        <View style={styles.planBadge}>
-          <Text style={styles.planBadgeText}>{badge}</Text>
+      <View style={styles.planTop}>
+        <Text style={[styles.planPillTitle, selected && styles.planPillTitleSelected]}>{title}</Text>
+        <View style={[styles.planRadio, selected && styles.planRadioSelected]}>
+          {selected ? <Ionicons name="checkmark" size={12} color={colors.white} /> : null}
         </View>
-      ) : null}
-      <Text style={[styles.planPillTitle, selected && styles.planPillTitleSelected]}>
-        {title}
-      </Text>
+      </View>
       <Text style={styles.planPillPrice}>{price}</Text>
-      {sub ? <Text style={styles.planPillSub}>{sub}</Text> : null}
+      <View style={styles.planFoot}>
+        {sub ? <Text style={styles.planPillSub}>{sub}</Text> : <Text style={styles.planPillSub}> </Text>}
+        {badge ? (
+          <View style={styles.planBadge}>
+            <Text style={styles.planBadgeText}>{badge}</Text>
+          </View>
+        ) : null}
+      </View>
     </TouchableOpacity>
   );
 }
@@ -272,14 +281,16 @@ function PlanPill({
 function PaywallFeatureRow({
   icon,
   text,
+  last,
 }: {
   icon: PaywallFeature['icon'];
   text: string;
+  last?: boolean;
 }) {
   return (
-    <View style={styles.paywallFeatureRow}>
+    <View style={[styles.paywallFeatureRow, !last && styles.paywallFeatureRowDivider]}>
       <View style={styles.paywallFeatureIcon}>
-        <Ionicons name={icon} size={16} color={colors.primary} />
+        <Ionicons name={icon} size={15} color="#0B1020" />
       </View>
       <Text style={styles.paywallFeatureText}>{text}</Text>
     </View>
@@ -287,61 +298,80 @@ function PaywallFeatureRow({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
     // paddingTop is set inline from useSafeAreaInsets() so it tracks the
     // device's real top inset (notch / Dynamic Island) plus a small gap.
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.sm,
   },
 
   // Hero
-  heroIconWrap: {
+  proPill: {
+    alignSelf: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+    backgroundColor: `${colors.purpleDark}14`,
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
   },
-  heroIcon: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.lg,
+  proPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    color: colors.purpleDark,
   },
   title: {
-    ...typography.displaySmall,
-    color: colors.ink,
+    fontSize: 30,
+    lineHeight: 36,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+    color: '#111827',
     textAlign: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   subtitle: {
     ...typography.bodyMedium,
+    fontSize: 15,
+    lineHeight: 22,
     color: colors.inkLight,
     textAlign: 'center',
-    marginBottom: spacing.lg,
-    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.sm,
   },
 
   // Feature list
-  paywallFeatures: {
-    gap: spacing.xs,
+  featureCard: {
+    backgroundColor: colors.card,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    shadowColor: '#0B1020',
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
   },
   paywallFeatureRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingVertical: 3,
+    paddingVertical: 7,
+  },
+  paywallFeatureRowDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
   paywallFeatureIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: `${colors.primary}1A`,
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -349,93 +379,115 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: colors.ink,
     flex: 1,
-    fontSize: 14,
+    fontSize: 13.5,
+    lineHeight: 18,
   },
 
   // Bottom CTA bar
   bottomBar: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.background,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
+  },
+  bottomFade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: -28,
+    height: 28,
   },
 
   // Plan toggle
   planRow: {
     flexDirection: 'row',
     gap: spacing.sm,
-    // Room for the SAVE badge overlapping the annual pill's top edge.
-    marginTop: spacing.xs + 4,
+    marginTop: spacing.xs,
     marginBottom: spacing.md,
   },
   planPill: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    borderRadius: borderRadius.lg,
-    borderWidth: 2,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.card,
   },
   planPillSelected: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}0D`,
+    borderColor: '#0B1020',
+  },
+  planTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  planRadio: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: colors.borderDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  planRadioSelected: {
+    backgroundColor: '#0B1020',
+    borderColor: '#0B1020',
+  },
+  planFoot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 2,
   },
   planBadge: {
-    position: 'absolute',
-    top: -10,
-    backgroundColor: colors.primary,
+    backgroundColor: `${colors.primary}22`,
     borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: 7,
     paddingVertical: 2,
   },
   planBadgeText: {
-    ...typography.labelMedium,
-    color: colors.white,
-    fontSize: 10,
+    fontSize: 9.5,
+    fontWeight: '800',
     letterSpacing: 0.4,
-  },
-  planPillTitle: {
-    ...typography.labelMedium,
-    color: colors.inkLight,
-    fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  planPillTitleSelected: {
     color: colors.primaryDark,
   },
+  planPillTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.inkLight,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  planPillTitleSelected: {
+    color: '#111827',
+  },
   planPillPrice: {
-    ...typography.labelLarge,
-    color: colors.ink,
-    fontSize: 16,
-    marginTop: 2,
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    color: '#111827',
+    marginTop: 6,
   },
   planPillSub: {
-    ...typography.labelMedium,
-    color: colors.inkLight,
     fontSize: 11,
-    marginTop: 1,
+    fontWeight: '600',
+    color: colors.inkLight,
   },
   primaryCta: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.lg,
-    borderRadius: borderRadius.lg,
-    gap: spacing.sm,
-    ...shadows.button(colors.primaryDark),
+    gap: 8,
+    backgroundColor: '#0B1020',
+    paddingVertical: 16,
+    borderRadius: borderRadius.full,
+    shadowColor: '#0B1020',
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
   },
-  primaryCtaText: {
-    ...typography.labelLarge,
-    color: colors.white,
-    fontSize: 16,
-  },
+  primaryCtaText: { ...typography.labelLarge, fontSize: 17, color: '#FFFFFF' },
   secondaryCtaText: {
     ...typography.labelLarge,
     color: colors.inkLight,
@@ -448,13 +500,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: spacing.xs,
     gap: spacing.xs,
   },
   legalLink: {
     ...typography.labelMedium,
-    color: colors.inkLight,
-    textDecorationLine: 'underline',
+    color: colors.inkLighter,
     fontSize: 12,
   },
   legalDot: {

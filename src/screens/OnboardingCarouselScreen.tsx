@@ -126,6 +126,7 @@ export default function OnboardingCarouselScreen() {
   const [index, setIndex] = useState(0);
   const scrollRef = useRef<Animated.ScrollView>(null);
   const scrollX = useSharedValue(0);
+  useDemoAction('onboarding.paywall', useCallback((v: boolean) => setPaywallVisible(v), []));
   useDemoAction('onboarding.goTo', useCallback((i: number) => { scrollRef.current?.scrollTo({ x: i * W, animated: true }); setIndex(i); }, []));
 
   const onScroll = useAnimatedScrollHandler({

@@ -117,6 +117,8 @@ const SCRIPTS: Record<string, Step[]> = {
   'toggle-first': [
     { at: 0, run: () => emitDemo('practice.toggleComplete', 'Problem:two-sum') },
   ],
+  'paywall-open': [{ at: 0, run: () => emitDemo('onboarding.paywall', true) }],
+  'paywall-close': [{ at: 0, run: () => emitDemo('onboarding.paywall', false) }],
   'onboarding-design': [
     { at: 0, run: () => emitDemo('onboarding.goTo', 4) },
   ],
