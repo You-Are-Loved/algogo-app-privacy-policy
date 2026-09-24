@@ -110,15 +110,15 @@ const PAGES: Page[] = [
 // Layout constants
 // ---------------------------------------------------------------------------
 
-// The stage gets a fixed share of the screen; the phone is drawn at full
-// aspect but clipped by the stage and faded out along its bottom edge, so the
-// headline and body always have room.
-const STAGE_H = Math.round(H * 0.4);
-const PHONE_W = Math.min(W * 0.64, 256);
+// The stage takes whatever height is left between the headline and the body
+// copy; the phone is drawn at full aspect but clipped by the stage and faded
+// out along its bottom edge, so the text always has room.
+const PHONE_W = Math.min(W * 0.76, 300);
 const PHONE_H = PHONE_W * (2622 / 1206);
 const PHONE_RADIUS = PHONE_W * 0.16;
 const BEZEL = 6;
-const FADE_H = Math.round(STAGE_H * 0.14);
+const FADE_H = 64;
+const MOCK_CANVAS_H = Math.round(PHONE_W * 1.05);
 
 export default function OnboardingCarouselScreen() {
   const insets = useSafeAreaInsets();
@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
   mockTitle: { height: 9, borderRadius: 4, backgroundColor: colors.ink, opacity: 0.85 },
   mockRun: { width: 22, height: 22, borderRadius: 11 },
   // Sized to the part of the phone that stays visible above the fade.
-  mockCanvas: { height: STAGE_H * 0.58, margin: 10, borderRadius: 14, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  mockCanvas: { height: MOCK_CANVAS_H, margin: 10, borderRadius: 14, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   mockEdge: { position: 'absolute', height: 2, backgroundColor: colors.borderDark, borderRadius: 1 },
   mockNode: {
     position: 'absolute',
@@ -537,15 +537,16 @@ const styles = StyleSheet.create({
   },
 
   stage: {
-    height: STAGE_H,
+    flex: 1,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'flex-start',
     marginTop: spacing.lg,
+    minHeight: 180,
   },
   phoneClip: {
     width: PHONE_W + 40,
-    height: STAGE_H,
+    height: '100%',
     alignItems: 'center',
     overflow: 'hidden',
     paddingTop: 10,
@@ -585,9 +586,10 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: colors.inkLight,
     textAlign: 'center',
+    fontSize: 15,
     lineHeight: 22,
     marginTop: spacing.md,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
     maxWidth: 340,
   },
 
