@@ -17,6 +17,8 @@ interface AppState {
   hasSeenOnboarding: boolean;
   hasSeenSplash: boolean;
   themeMode: ThemeMode;
+  /** Practice problems marked done, keyed by `problemKey(...)` → ISO timestamp. */
+  completedProblems: Record<string, string>;
 
   setUser: (user: UserProgress | null) => void;
   setLoading: (loading: boolean) => void;
@@ -34,6 +36,11 @@ interface AppState {
   addXP: (amount: number) => void;
 
   initGuestUser: () => void;
+
+  /** Flip a practice problem's completed state (manual tap on the badge). */
+  toggleProblemComplete: (key: string) => void;
+  /** Mark complete (all tests passed). No-op if already complete. Returns true when newly marked. */
+  markProblemComplete: (key: string) => boolean;
 
   getCategoryProgress: (categoryId: string) => CategoryProgress;
   getTotalCardsReviewed: () => number;
@@ -70,6 +77,7 @@ export const useStore = create<AppState>()(
       hasSeenOnboarding: false,
       hasSeenSplash: false,
       themeMode: 'light',
+      completedProblems: {},
 
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       setLoading: (isLoading) => set({ isLoading }),
@@ -91,6 +99,22 @@ export const useStore = create<AppState>()(
           lastStudyDate: null,
         };
         set({ user: guestUser, isAuthenticated: true, isLoading: false });
+      },
+
+      toggleProblemComplete: (key) => {
+        const { completedProblems } = get();
+        const next = { ...completedProblems };
+        if (next[key]) delete next[key];
+        else next[key] = new Date().toISOString();
+        set({ completedProblems: next });
+      },
+
+      markProblemComplete: (key) => {
+        const { completedProblems } = get();
+        if (completedProblems[key]) return false;
+        set({ completedProblems: { ...completedProblems, [key]: new Date().toISOString() } });
+        get().updateStreak();
+        return true;
       },
 
       completeLearn: (categoryId) => {
@@ -276,7 +300,7 @@ export const useStore = create<AppState>()(
     {
       name: 'algogo-storage',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ user: state.user, hasAcceptedTerms: state.hasAcceptedTerms, acceptedTermsVersion: state.acceptedTermsVersion, hasSeenOnboarding: state.hasSeenOnboarding, hasSeenSplash: state.hasSeenSplash, themeMode: state.themeMode }),
+      partialize: (state) => ({ user: state.user, hasAcceptedTerms: state.hasAcceptedTerms, acceptedTermsVersion: state.acceptedTermsVersion, hasSeenOnboarding: state.hasSeenOnboarding, hasSeenSplash: state.hasSeenSplash, themeMode: state.themeMode, completedProblems: state.completedProblems }),
     }
   )
 );

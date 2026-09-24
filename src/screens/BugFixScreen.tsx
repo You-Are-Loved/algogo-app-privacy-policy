@@ -37,6 +37,8 @@ import {
 import { gradeJava } from '../practice/gradeJava';
 import BottomSheetModal from '../components/BottomSheetModal';
 import { useDemoAction } from '../dev/demo';
+import { useStore } from '../store/useStore';
+import { problemKey } from '../data/practiceIndex';
 
 type RouteP = RouteProp<PracticeStackParamList, 'BugFix'>;
 
@@ -602,6 +604,7 @@ export default function BugFixScreen() {
   const navigation = useNavigation();
   const { params } = useRoute<RouteP>();
   const problem = getBugFixProblem(params.problemId);
+  const markProblemComplete = useStore((st) => st.markProblemComplete);
   const insets = useSafeAreaInsets();
 
   if (!problem) {
@@ -618,6 +621,9 @@ export default function BugFixScreen() {
       <BugFixProblemView
         problem={problem}
         onBack={() => navigation.goBack()}
+        onResult={({ passed, total }) => {
+          if (total > 0 && passed === total) markProblemComplete(problemKey('BugFix', problem.id));
+        }}
         // The top SafeAreaView inset pushes this view down from the window
         // top; without matching offset the keyboard toolbar hides behind
         // the keyboard (KeyboardAvoidingView measures relative to parent).

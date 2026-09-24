@@ -24,6 +24,8 @@ import { ensurePracticeRuntime } from '../practice/stageAssets';
 import { ExecResult } from '../practice/ResultViews';
 import BottomSheetModal from '../components/BottomSheetModal';
 import { useDemoAction } from '../dev/demo';
+import { useStore } from '../store/useStore';
+import { problemKey } from '../data/practiceIndex';
 
 type RouteP = RouteProp<PracticeStackParamList, 'SqlProblem'>;
 
@@ -498,6 +500,7 @@ export default function SqlProblemScreen() {
   const navigation = useNavigation();
   const { params } = useRoute<RouteP>();
   const problem = getSqlProblem(params.problemId);
+  const markProblemComplete = useStore((st) => st.markProblemComplete);
   const insets = useSafeAreaInsets();
 
   if (!problem) {
@@ -513,6 +516,9 @@ export default function SqlProblemScreen() {
       <SqlProblemView
         problem={problem}
         onBack={() => navigation.goBack()}
+        onResult={({ passed, total }) => {
+          if (total > 0 && passed === total) markProblemComplete(problemKey('SqlProblem', problem.id));
+        }}
         keyboardVerticalOffset={insets.top}
       />
     </SafeAreaView>

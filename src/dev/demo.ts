@@ -9,7 +9,10 @@ import { useEffect } from 'react';
 import { navigationRef } from '../navigation/ref';
 
 type Handler = (payload?: any) => void;
-const handlers = new Map<string, Set<Handler>>();
+// Lives on globalThis so Fast Refresh re-evaluating this module doesn't
+// orphan the subscriptions screens registered with the previous instance.
+const g = globalThis as any;
+const handlers: Map<string, Set<Handler>> = (g.__algogoDemoHandlers ??= new Map());
 
 export function emitDemo(action: string, payload?: any) {
   const set = handlers.get(action);
@@ -86,6 +89,20 @@ const SCRIPTS: Record<string, Step[]> = {
     { at: 1600, run: () => emitDemo('builder.scroll', 520) },
     { at: 3200, run: () => emitDemo('builder.scroll', 1150) },
     { at: 5000, run: () => emitDemo('builder.scroll', 0) },
+  ],
+  search: [
+    { at: 0, run: () => tab('PracticeTab', 'PracticeList') },
+    { at: 300, run: () => emitDemo('practice.setCategory', 'algorithms') },
+    { at: 1200, run: () => emitDemo('practice.toggleComplete', 'Problem:two-sum') },
+    { at: 2600, run: () => emitDemo('practice.openSearch') },
+    { at: 3600, run: () => emitDemo('search.type', 'bin') },
+    { at: 4400, run: () => emitDemo('search.type', 'binary') },
+  ],
+  'toggle-first': [
+    { at: 0, run: () => emitDemo('practice.toggleComplete', 'Problem:two-sum') },
+  ],
+  'search-close': [
+    { at: 0, run: () => emitDemo('practice.closeSearch') },
   ],
   offline: [
     { at: 0, run: () => tab('PracticeTab', 'PracticeList') },

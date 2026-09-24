@@ -26,6 +26,8 @@ import { ensurePracticeRuntime } from '../practice/stageAssets';
 import { ExecResult } from '../practice/ResultViews';
 import BottomSheetModal from '../components/BottomSheetModal';
 import { useDemoAction } from '../dev/demo';
+import { useStore } from '../store/useStore';
+import { problemKey } from '../data/practiceIndex';
 
 type RouteP = RouteProp<PracticeStackParamList, 'ReactProblem'>;
 
@@ -554,6 +556,7 @@ export default function ReactProblemScreen() {
   const navigation = useNavigation();
   const { params } = useRoute<RouteP>();
   const problem = getReactProblem(params.problemId);
+  const markProblemComplete = useStore((st) => st.markProblemComplete);
   const insets = useSafeAreaInsets();
 
   if (!problem) {
@@ -569,6 +572,9 @@ export default function ReactProblemScreen() {
       <ReactProblemView
         problem={problem}
         onBack={() => navigation.goBack()}
+        onResult={({ passed, total }) => {
+          if (total > 0 && passed === total) markProblemComplete(problemKey('ReactProblem', problem.id));
+        }}
         keyboardVerticalOffset={insets.top}
       />
     </SafeAreaView>

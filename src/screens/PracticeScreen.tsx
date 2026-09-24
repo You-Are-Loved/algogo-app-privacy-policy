@@ -27,6 +27,10 @@ import BehavioralCard from '../components/BehavioralCard';
 import { TAB_BAR_CLEARANCE } from '../components/AnimatedTabBar';
 import AnchoredMenu, { AnchoredMenuItem, DropdownChevron, useAnchor } from '../components/AnchoredMenu';
 import { useDemoAction } from '../dev/demo';
+import { useStore } from '../store/useStore';
+import { problemKey, PracticeItem } from '../data/practiceIndex';
+import CompletionMark from '../components/CompletionMark';
+import PracticeSearch from '../components/PracticeSearch';
 
 type NavigationProp = NativeStackNavigationProp<PracticeStackParamList>;
 
@@ -171,9 +175,15 @@ export default function PracticeScreen() {
   const [category, setCategory] = useState<Category>('algorithms');
   const [pickerVisible, setPickerVisible] = useState(false);
   const [kindFilter, setKindFilter] = useState<KindFilter>('all');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const completed = useStore((s) => s.completedProblems);
+  const toggleComplete = useStore((s) => s.toggleProblemComplete);
   const categoryAnchor = useAnchor();
   const listRef = useRef<FlatList<(typeof problems)[number]>>(null);
   useDemoAction('practice.openMenu', useCallback(() => categoryAnchor.measure(() => setPickerVisible(true)), [categoryAnchor]));
+  useDemoAction('practice.openSearch', useCallback(() => setSearchOpen(true), []));
+  useDemoAction('practice.closeSearch', useCallback(() => setSearchOpen(false), []));
+  useDemoAction('practice.toggleComplete', useCallback((key: string) => toggleComplete(key), [toggleComplete]));
   useDemoAction('practice.setCategory', useCallback((c: Category) => setCategory(c), []));
   useDemoAction('practice.scroll', useCallback((y: number) => listRef.current?.scrollToOffset({ offset: y, animated: true }), []));
 
@@ -233,12 +243,30 @@ export default function PracticeScreen() {
     navigation.navigate('SqlProblem', { problemId });
   };
 
+  const handleSearchOpen = (item: PracticeItem) => {
+    if (!isSubscribed && item.number > FREE_LIMIT) {
+      setUpgradeVisible(true);
+      return;
+    }
+    setSearchOpen(false);
+    navigation.navigate(item.route, { problemId: item.id });
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Practice</Text>
         <View style={styles.dropdownRow}>
+          <Pressable
+            onPress={() => setSearchOpen(true)}
+            hitSlop={6}
+            style={({ pressed }) => [styles.searchBtn, pressed && styles.dropdownPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Search problems"
+          >
+            <Ionicons name="search" size={17} color={colors.ink} />
+          </Pressable>
           <Pressable
             ref={categoryAnchor.ref}
             style={({ pressed }) => [styles.dropdown, pressed && styles.dropdownPressed]}
@@ -276,11 +304,16 @@ export default function PracticeScreen() {
                   activeOpacity={0.7}
                   onPress={() => handleProblemPress(item.id, item.number)}
                 >
-                  <View style={styles.numberWrap}>
-                    <Text style={styles.numberText}>
-                      {String(item.number).padStart(2, '0')}
-                    </Text>
-                  </View>
+                  <CompletionMark
+                    complete={!!completed[problemKey('Problem', item.id)]}
+                    onToggle={() => toggleComplete(problemKey('Problem', item.id))}
+                  >
+                    <View style={styles.numberWrap}>
+                      <Text style={styles.numberText}>
+                        {String(item.number).padStart(2, '0')}
+                      </Text>
+                    </View>
+                  </CompletionMark>
                   <View style={styles.titleCol}>
                     <Text style={styles.problemTitle} numberOfLines={1}>
                       {item.title}
@@ -343,11 +376,16 @@ export default function PracticeScreen() {
                 activeOpacity={0.7}
                 onPress={() => handleSystemDesignPress(item.id, item.number)}
               >
-                <View style={styles.numberWrap}>
-                  <Text style={styles.numberText}>
-                    {String(item.number).padStart(2, '0')}
-                  </Text>
-                </View>
+                <CompletionMark
+                  complete={!!completed[problemKey('SystemDesign', item.id)]}
+                  onToggle={() => toggleComplete(problemKey('SystemDesign', item.id))}
+                >
+                  <View style={styles.numberWrap}>
+                    <Text style={styles.numberText}>
+                      {String(item.number).padStart(2, '0')}
+                    </Text>
+                  </View>
+                </CompletionMark>
                 <View style={styles.titleCol}>
                   <Text style={styles.problemTitle} numberOfLines={1}>
                     {item.title}
@@ -378,11 +416,16 @@ export default function PracticeScreen() {
                 activeOpacity={0.7}
                 onPress={() => handleSqlPress(item.id, item.number)}
               >
-                <View style={styles.numberWrap}>
-                  <Text style={styles.numberText}>
-                    {String(item.number).padStart(2, '0')}
-                  </Text>
-                </View>
+                <CompletionMark
+                  complete={!!completed[problemKey('SqlProblem', item.id)]}
+                  onToggle={() => toggleComplete(problemKey('SqlProblem', item.id))}
+                >
+                  <View style={styles.numberWrap}>
+                    <Text style={styles.numberText}>
+                      {String(item.number).padStart(2, '0')}
+                    </Text>
+                  </View>
+                </CompletionMark>
                 <View style={styles.titleCol}>
                   <Text style={styles.problemTitle} numberOfLines={1}>
                     {item.title}
@@ -425,9 +468,14 @@ export default function PracticeScreen() {
                 activeOpacity={0.7}
                 onPress={() => handleReactPress(item.id, item.number)}
               >
-                <View style={[styles.langIconWrap, { backgroundColor: '#0EA5E922' }]}>
-                  <Ionicons name="logo-react" size={18} color="#0EA5E9" />
-                </View>
+                <CompletionMark
+                  complete={!!completed[problemKey('ReactProblem', item.id)]}
+                  onToggle={() => toggleComplete(problemKey('ReactProblem', item.id))}
+                >
+                  <View style={[styles.langIconWrap, { backgroundColor: '#0EA5E922' }]}>
+                    <Ionicons name="logo-react" size={18} color="#0EA5E9" />
+                  </View>
+                </CompletionMark>
                 <View style={styles.titleCol}>
                   <Text style={styles.problemTitle} numberOfLines={1}>
                     {item.title}
@@ -495,18 +543,18 @@ export default function PracticeScreen() {
                 activeOpacity={0.7}
                 onPress={() => handleBugFixPress(item.id, item.number)}
               >
-                <View
-                  style={[
-                    styles.langIconWrap,
-                    { backgroundColor: `${langColor}22` },
-                  ]}
+                <CompletionMark
+                  complete={!!completed[problemKey('BugFix', item.id)]}
+                  onToggle={() => toggleComplete(problemKey('BugFix', item.id))}
                 >
-                  <Ionicons
-                    name={isBuild ? 'hammer-outline' : 'bug-outline'}
-                    size={18}
-                    color={langColor}
-                  />
-                </View>
+                  <View style={[styles.langIconWrap, { backgroundColor: `${langColor}22` }]}>
+                    <Ionicons
+                      name={isBuild ? 'hammer-outline' : 'bug-outline'}
+                      size={18}
+                      color={langColor}
+                    />
+                  </View>
+                </CompletionMark>
                 <View style={styles.titleCol}>
                   <Text style={styles.problemTitle} numberOfLines={1}>
                     {item.title}
@@ -547,6 +595,15 @@ export default function PracticeScreen() {
 
       </Animated.View>
 
+      <PracticeSearch
+        visible={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onOpen={handleSearchOpen}
+        isLocked={(item) => !isSubscribed && item.number > FREE_LIMIT}
+        completed={completed}
+        onToggleComplete={toggleComplete}
+      />
+
       <UpgradeModal
         visible={upgradeVisible}
         onClose={() => setUpgradeVisible(false)}
@@ -584,6 +641,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     flexShrink: 1,
+  },
+  searchBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dropdown: {
     flexDirection: 'row',

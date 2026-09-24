@@ -25,6 +25,8 @@ import Svg, { Line } from 'react-native-svg';
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
 import BottomSheetModal from '../components/BottomSheetModal';
 import { PracticeStackParamList } from '../navigation';
+import { useStore } from '../store/useStore';
+import { problemKey } from '../data/practiceIndex';
 import {
   getSystemDesignProblem,
   componentCatalog,
@@ -59,6 +61,7 @@ export default function SystemDesignScreen() {
   const navigation = useNavigation();
   const { params } = useRoute<RouteP>();
   const problem = getSystemDesignProblem(params.problemId);
+  const markProblemComplete = useStore((st) => st.markProblemComplete);
 
   if (!problem) {
     return (
@@ -70,7 +73,13 @@ export default function SystemDesignScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <SystemDesignProblemView problem={problem} onBack={() => navigation.goBack()} />
+      <SystemDesignProblemView
+        problem={problem}
+        onBack={() => navigation.goBack()}
+        onResult={({ passed, total }) => {
+          if (total > 0 && passed === total) markProblemComplete(problemKey('SystemDesign', problem.id));
+        }}
+      />
     </SafeAreaView>
   );
 }
