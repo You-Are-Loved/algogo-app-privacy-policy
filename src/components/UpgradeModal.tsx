@@ -93,11 +93,6 @@ export default function UpgradeModal({
 
   const priceUnit = selectedPlan === 'annual' ? 'yr' : 'mo';
   const selectedPrice = selectedPlan === 'annual' ? annualPrice : monthlyPrice;
-  // Renewal price in words, with the annual price restated per month.
-  const renewalPhrase = selectedPlan === 'annual'
-    ? `${annualPrice}/year${monthlyEquivalent ? ` — just ${monthlyEquivalent}/month` : ''}`
-    : `${monthlyPrice}/month`;
-
   const ctaLabel = !offer
     ? `Subscribe · ${selectedPrice}/${priceUnit}`
     : isFreeTrial
@@ -105,14 +100,6 @@ export default function UpgradeModal({
       : offer.mode === 'pay-as-you-go'
         ? `Subscribe · ${offer.display}/${priceUnit} first ${offerPeriod}`
         : `Subscribe · ${offer.display} first ${offerPeriod}`;
-
-  const subtitleLine = !offer
-    ? `${renewalPhrase}. Cancel anytime.`
-    : isFreeTrial
-      ? `${trialDuration === '7-day' ? '7 days' : trialDuration} free, then ${renewalPhrase}. Cancel anytime.`
-      : offer.mode === 'pay-as-you-go'
-        ? `${offer.display} for your first ${offerPeriod}, then ${renewalPhrase}. Cancel anytime.`
-        : `${offer.display} for your first ${offerPeriod}, then ${renewalPhrase}. Cancel anytime.`;
 
   const busy = isLoading || purchasing;
 
@@ -139,10 +126,6 @@ export default function UpgradeModal({
           <Animated.Text entering={ease(FadeInDown.delay(140).duration(420))} style={styles.title}>
             {isFreeTrial ? 'Everything.\nFree for 7 days' : 'Unlock\neverything'}
           </Animated.Text>
-          <Animated.Text entering={ease(FadeInDown.delay(220).duration(420))} style={styles.subtitle}>
-            {categoryName ? `"${categoryName}" is a Pro topic. ${subtitleLine}` : subtitleLine}
-          </Animated.Text>
-
           <Animated.View entering={ease(FadeInDown.delay(300).duration(420))} style={styles.featureCard}>
             {features.map((f, i) => (
               <PaywallFeatureRow key={i} icon={f.icon} text={f.text} last={i === features.length - 1} />
@@ -310,16 +293,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
     color: '#111827',
     textAlign: 'center',
-    marginBottom: spacing.xs,
-  },
-  subtitle: {
-    ...typography.bodyMedium,
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.inkLight,
-    textAlign: 'center',
-    marginBottom: spacing.md,
-    paddingHorizontal: spacing.sm,
+    marginBottom: spacing.lg,
   },
 
   // Feature list
