@@ -52,6 +52,16 @@ const tab = (tabName: 'StudyTab' | 'PracticeTab' | 'TestTab', screen?: string, p
 // GIFs loop.
 const REACT_DEMO_ID = 'react-tabs';
 
+const TWO_SUM_SOLUTION = `# Write your solution below. Do not rename the function.
+def two_sum(nums: list[int], target: int) -> list[int]:
+    seen = {}
+    for i, n in enumerate(nums):
+        if target - n in seen:
+            return [seen[target - n], i]
+        seen[n] = i
+    return []
+`;
+
 const SCRIPTS: Record<string, Step[]> = {
   study: [
     { at: 0, run: () => tab('StudyTab', 'Home') },
@@ -128,18 +138,22 @@ const SCRIPTS: Record<string, Step[]> = {
   'onboarding-design': [
     { at: 0, run: () => emitDemo('onboarding.goTo', 4) },
   ],
+  'onboarding-offline': [
+    { at: 0, run: () => emitDemo('onboarding.goTo', 6) },
+  ],
   'design-close': [
     { at: 0, run: () => emitDemo('design.closeResult') },
   ],
   'search-close': [
     { at: 0, run: () => emitDemo('practice.closeSearch') },
   ],
+  // Record with the sim status bar overridden to no wifi / no cellular.
   offline: [
-    { at: 0, run: () => tab('PracticeTab', 'PracticeList') },
-    { at: 200, run: () => emitDemo('practice.setCategory', 'algorithms') },
-    { at: 1200, run: () => emitDemo('practice.scroll', 700) },
-    { at: 3000, run: () => emitDemo('practice.scroll', 1500) },
-    { at: 4800, run: () => emitDemo('practice.scroll', 0) },
+    { at: 0, run: () => tab('PracticeTab', 'Problem', { problemId: 'two-sum' }) },
+    { at: 2600, run: () => emitDemo('problem.closeBrief') },
+    { at: 3400, run: () => emitDemo('problem.setCode', TWO_SUM_SOLUTION) },
+    { at: 4600, run: () => emitDemo('problem.run') },
+    { at: 9000, run: () => emitDemo('problem.closeResults') },
   ],
 };
 

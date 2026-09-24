@@ -187,6 +187,10 @@ export function AlgorithmProblemView({
     );
   };
 
+  useDemoAction('problem.setCode', useCallback((code: string) => webRef.current?.postMessage(JSON.stringify({ type: 'reset', code })), []));
+  useDemoAction('problem.run', () => handleRun());
+  useDemoAction('problem.closeResults', useCallback(() => setResultsVisible(false), []));
+
   const handleReset = () => {
     webRef.current?.postMessage(JSON.stringify({ type: 'reset', code: problem.starter }));
     setResult(null);
