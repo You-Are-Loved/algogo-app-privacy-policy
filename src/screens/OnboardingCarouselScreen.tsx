@@ -86,7 +86,7 @@ const PAGES: Page[] = [
   {
     key: 'design',
     title: 'Design systems\non a real canvas',
-    body: `${s.systemDesignProblems} system-design problems. Drag components, wire them up, and get graded on the architecture — not a quiz.`,
+    body: `${s.systemDesignProblems} system-design problems. Drag components, wire them up, and get graded on the architecture.`,
     accent: '#636E72',
     image: require('../../assets/onboarding/design.gif'),
   },
