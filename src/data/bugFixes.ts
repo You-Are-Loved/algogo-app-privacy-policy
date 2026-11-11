@@ -332,17 +332,17 @@ const pythonProblems: BugFixProblem[] = [
     difficulty: 'Medium',
     topic: 'Arithmetic',
     statement:
-      'Return True if `x` is approximately equal to 1.0 (within 1e-9). The current implementation uses `==`, which fails because 0.1 + 0.9 isn\'t exactly 1.0 in floating point.',
+      'Return True if `x` is approximately equal to 1.0 (within 1e-9). The current implementation uses `==`, which fails because sums like 0.1 + 0.2 + 0.7 come out as 0.9999999999999999 in floating point.',
     functionName: 'is_one',
     functionSignature: 'def is_one(x: float) -> bool:',
     buggyCode:
       'def is_one(x: float) -> bool:\n    return x == 1.0\n',
     hint: 'Float arithmetic accumulates tiny errors. Compare with a tolerance.',
     explanation:
-      'Use `abs(x - 1.0) < 1e-9`. Direct equality on floats fails for results of arithmetic — 0.1 + 0.9 is 0.9999999999999999, not 1.0. The standard library also has `math.isclose()`.',
+      'Use `abs(x - 1.0) < 1e-9`. Direct equality on floats fails for results of arithmetic — 0.1 + 0.2 + 0.7 is 0.9999999999999999, not 1.0. The standard library also has `math.isclose()`.',
     examples: [
       { input: [1.0], expected: true },
-      { input: [0.1 + 0.9], expected: true },
+      { input: [0.1 + 0.2 + 0.7], expected: true },
       { input: [1.5], expected: false },
     ],
     hiddenTests: [
@@ -886,6 +886,7 @@ const pythonProblems: BugFixProblem[] = [
       { input: ["statement", "st"], expected: "atement" },
       { input: ["noon", "no"], expected: "on" },
       { input: ["raw", "tom"], expected: "raw" },
+      { input: ["banana", "na"], expected: "banana" },
     ],
   },
   {
@@ -1392,6 +1393,7 @@ const pythonProblems: BugFixProblem[] = [
     hiddenTests: [
       { input: [[1,2],[3,4]], expected: [] },
       { input: [[5,6,5,7],[5,7]], expected: [5,7] },
+      { input: [[3,1,3,2],[2,3,1]], expected: [3,1,2] },
     ],
   },
   {
@@ -1721,7 +1723,7 @@ const pythonProblems: BugFixProblem[] = [
       "The // operator does floor (integer) division, so a true average like 4.666... comes back as 4. Using / performs true division and returns the correct float.",
     examples: [
       { input: [[2,6,5]], expected: 4 },
-      { input: [[2,4,6]], expected: 4 },
+      { input: [[4,6,8,12]], expected: 7.5 },
       { input: [[1,3,5]], expected: 0 },
     ],
     hiddenTests: [
@@ -2501,6 +2503,7 @@ const pythonProblems: BugFixProblem[] = [
     hiddenTests: [
       { input: [[['x', 'p'], ['y', 'q'], ['x', 'r'], ['y', 's']]], expected: { x: ['p', 'r'], y: ['q', 's'] } },
       { input: [[['b', '1'], ['a', '2'], ['b', '3']]], expected: { b: ['1', '3'], a: ['2'] } },
+      { input: [[['x', 'b'], ['y', 'q'], ['x', 'a']]], expected: { x: ['b', 'a'], y: ['q'] } },
       { input: [[]], expected: {} },
     ],
   },
@@ -2681,7 +2684,7 @@ const javascriptProblems: BugFixProblem[] = [
       'function isExactlyZero(x) {\n  return x == 0;\n}\n',
     hint: 'The loose equality operator does type coercion before comparing.',
     explanation:
-      '`==` coerces both sides to the same type, so `"0" == 0`, `false == 0`, `[] == 0`, and `null == 0` are all considered equal. Use `===` for strict equality.',
+      '`==` coerces both sides to the same type, so `"0" == 0`, `false == 0`, and `[] == 0` are all considered equal. Use `===` for strict equality.',
     examples: [
       { input: [0], expected: true },
       { input: ['0'], expected: false },
@@ -2689,7 +2692,7 @@ const javascriptProblems: BugFixProblem[] = [
     ],
     hiddenTests: [
       { input: [null], expected: false },
-      { input: [undefined], expected: false },
+      { input: [''], expected: false },
       { input: [1], expected: false },
       { input: [[]], expected: false },
     ],
@@ -2728,14 +2731,14 @@ const javascriptProblems: BugFixProblem[] = [
     difficulty: 'Easy',
     topic: 'Numbers',
     statement:
-      'Parse a string as a base-10 integer. Strings that look like hex ("0x..") should not be parsed as hex — return NaN-equivalent (or a sane base-10 result of 0).',
+      'Parse a string as a base-10 integer. Strings that look like hex ("0x..") should not be parsed as hex: only the leading base-10 digits count, so "0x10" gives 0.',
     functionName: 'parseDecimal',
     functionSignature: 'function parseDecimal(s: string): number',
     buggyCode:
       'function parseDecimal(s) {\n  return parseInt(s);\n}\n',
     hint: 'parseInt has an optional second argument — the radix.',
     explanation:
-      'Without a radix, `parseInt("0x10")` parses as hexadecimal (16). Always pass an explicit base: `parseInt(s, 10)`. Modern code often prefers `Number(s)` which is stricter about junk suffixes.',
+      'Without a radix, `parseInt("0x10")` parses as hexadecimal (16). Always pass an explicit base: `parseInt(s, 10)`. (`Number(s)` is not a drop-in replacement here: it still reads "0x10" as 16 and returns NaN for "42abc".)',
     examples: [
       { input: ['10'], expected: 10 },
       { input: ['0x10'], expected: 0 },
@@ -2888,7 +2891,7 @@ const javascriptProblems: BugFixProblem[] = [
     difficulty: 'Medium',
     topic: 'Numbers',
     statement:
-      'Return true if `x` is approximately equal to 1 (within 1e-9). Direct `===` fails because 0.1 + 0.9 isn\'t exactly 1 in IEEE-754.',
+      'Return true if `x` is approximately equal to 1 (within 1e-9). Direct `===` fails because sums like 0.1 + 0.2 + 0.7 come out as 0.9999999999999999 in IEEE-754.',
     functionName: 'isCloseToOne',
     functionSignature: 'function isCloseToOne(x: number): boolean',
     buggyCode:
@@ -2898,7 +2901,7 @@ const javascriptProblems: BugFixProblem[] = [
       'Compare with a tolerance: `Math.abs(x - 1) < 1e-9`. Float math is inexact — `0.1 + 0.2` is `0.30000000000000004`. Strict equality on derived floats is almost always wrong.',
     examples: [
       { input: [1], expected: true },
-      { input: [0.1 + 0.9], expected: true },
+      { input: [0.1 + 0.2 + 0.7], expected: true },
       { input: [1.5], expected: false },
     ],
     hiddenTests: [
@@ -4164,7 +4167,8 @@ const javascriptProblems: BugFixProblem[] = [
       { input: [0.1], expected: 0.1 },
     ],
     hiddenTests: [
-      { input: [1.005], expected: 1 },
+      { input: [3.14159], expected: 3.14 },
+      { input: [19.999], expected: 20 },
     ],
   },
   {
@@ -4335,7 +4339,7 @@ const javascriptProblems: BugFixProblem[] = [
       "function maxOf(...nums) {\n  return Math.max(nums);\n}\n",
     hint: "`Math.max` takes separate arguments, not one array — and think about the empty case.",
     explanation:
-      "`Math.max(nums)` passes a single array; `Math.max` then coerces it to a number, which is `NaN` for arrays of length !== 1, so the result is wrong. Spread the array into separate arguments with `Math.max(...nums)`. Also guard the empty case: `Math.max()` returns `-Infinity`, so return 0 first when `nums.length === 0`.",
+      "`Math.max(nums)` passes a single array; `Math.max` then coerces it to a number, which is `NaN` for arrays of two or more elements (and 0 for an empty one), so the result is wrong. Spread the array into separate arguments with `Math.max(...nums)`. Also guard the empty case: `Math.max()` returns `-Infinity`, so return 0 first when `nums.length === 0`.",
     examples: [
       { input: [1,2,3], expected: 3 },
       { input: [5], expected: 5 },
@@ -4530,6 +4534,7 @@ const javascriptProblems: BugFixProblem[] = [
       { input: ["abc", 2], expected: "ab*" },
       { input: ["password", 0], expected: "*assword" },
       { input: ["12345", 4], expected: "1234*" },
+      { input: ["hello", 3], expected: "hel*o" },
     ],
   },
   {
@@ -4929,7 +4934,7 @@ const javascriptProblems: BugFixProblem[] = [
     ],
     hiddenTests: [
       { input: [['a'], []], expected: ['a'] },
-      { input: [[1], [2], [3]], expected: [1, 2] },
+      { input: [[1], [2, 3]], expected: [1, 2, 3] },
       { input: [[], []], expected: [] },
     ],
   },
