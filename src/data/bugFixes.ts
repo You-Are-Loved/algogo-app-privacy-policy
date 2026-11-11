@@ -7393,6 +7393,16 @@ import { pythonBuildProblems } from './pythonBuildProblems';
 import { javaBuildProblems } from './javaBuildProblems';
 import { swiftProblems } from './swiftProblems';
 import { kotlinProblems } from './kotlinProblems';
+// Later batches live in ./more; their reference fixes are in scripts/fixtures.
+import { problems as pyDebug2 } from './more/py-debug-2';
+import { problems as pyBuild2 } from './more/py-build-2';
+import { problems as jsDebug2 } from './more/js-debug-2';
+import { problems as jsDebug3 } from './more/js-debug-3';
+import { problems as nodeBuild2 } from './more/node-build-2';
+import { problems as nodeBuild3 } from './more/node-build-3';
+import { problems as javaDebug2 } from './more/java-debug-2';
+import { problems as javaBuild2 } from './more/java-build-2';
+import { problems as kotlinBuild2 } from './more/kotlin-build-2';
 
 export const codeProblems: BugFixProblem[] = [
   ...bugFixProblems,
@@ -7401,6 +7411,15 @@ export const codeProblems: BugFixProblem[] = [
   ...nodeProblems,
   ...swiftProblems,
   ...kotlinProblems,
+  ...pyDebug2,
+  ...pyBuild2,
+  ...jsDebug2,
+  ...jsDebug3,
+  ...nodeBuild2,
+  ...nodeBuild3,
+  ...javaDebug2,
+  ...javaBuild2,
+  ...kotlinBuild2,
 ];
 
 /** Problems for one Practice category, build problems first. */

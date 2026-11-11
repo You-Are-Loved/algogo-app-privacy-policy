@@ -9148,6 +9148,17 @@ export const blind75: Blind75Problem[] = [
   },
 ];
 
+// Problems 351+ live in ./more (type-only imports back here, so no runtime
+// cycle). Their reference solutions are in scripts/fixtures.
+import { problems as algosA1 } from './more/algos-a1';
+import { problems as algosA2 } from './more/algos-a2';
+import { problems as algosA3 } from './more/algos-a3';
+import { problems as algosA4 } from './more/algos-a4';
+import { problems as algosA5 } from './more/algos-a5';
+import { problems as algosA6 } from './more/algos-a6';
+import { problems as algosA7 } from './more/algos-a7';
+blind75.push(...algosA1, ...algosA2, ...algosA3, ...algosA4, ...algosA5, ...algosA6, ...algosA7);
+
 // Group by topic for filter UI
 export const blind75Topics: string[] = Array.from(
   new Set(blind75.map((p) => p.topic))

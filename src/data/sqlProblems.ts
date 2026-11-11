@@ -4867,5 +4867,10 @@ ORDER BY meter_id, read_on;`,
   },
 ];
 
+// Problems 101+ live in ./more; solutions and traps are in scripts/fixtures.
+import { problems as sql2 } from './more/sql-2';
+import { problems as sql3 } from './more/sql-3';
+sqlProblems.push(...sql2, ...sql3);
+
 export const getSqlProblem = (id: string): SqlProblem | undefined =>
   sqlProblems.find((p) => p.id === id);

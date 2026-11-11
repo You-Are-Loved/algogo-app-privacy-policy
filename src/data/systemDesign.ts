@@ -1735,5 +1735,9 @@ export const systemDesignProblems: SystemDesignProblem[] = [
   },
 ];
 
+// Problems 61+ live in ./more.
+import { problems as sd2 } from './more/sd-2';
+systemDesignProblems.push(...sd2);
+
 export const getSystemDesignProblem = (id: string) =>
   systemDesignProblems.find((p) => p.id === id);

@@ -5240,5 +5240,10 @@ expect(getByRole('button', { name: 'Pause' })).toBeTruthy();`,
   },
 ];
 
+// Problems 51+ live in ./more; traps are in scripts/fixtures.
+import { problems as react2 } from './more/react-2';
+import { problems as react3 } from './more/react-3';
+reactProblems.push(...react2, ...react3);
+
 export const getReactProblem = (id: string): ReactProblem | undefined =>
   reactProblems.find((p) => p.id === id);
