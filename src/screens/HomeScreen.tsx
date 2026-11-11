@@ -288,6 +288,7 @@ export default function HomeScreen() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [progressModalVisible, setProgressModalVisible] = useState(false);
   const [ratingPromptVisible, setRatingPromptVisible] = useState(false);
+  useDemoAction('home.ratingPrompt', useCallback(() => setRatingPromptVisible(true), []));
 
   // Track if initial animation has played to prevent re-animation on tab switch
   const hasAnimated = useRef(false);

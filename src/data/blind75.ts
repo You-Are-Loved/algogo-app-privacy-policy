@@ -7,6 +7,8 @@
 //   - hiddenTests: graded test cases (not shown to user; live in IPA so not
 //     cryptographically hidden, but invisible in the practice flow)
 // Tests evaluate user_fn(...args) and compare equality with expected.
+// Tree and linked-list problems set `structs` so the function receives real
+// TreeNode / ListNode objects (see StructSpec) instead of the raw arrays.
 // Problems whose statement allows the answer in any order MUST set
 // compare: 'unordered' — the grader then treats the top-level list as a
 // multiset (element order ignored, nested order still enforced).
@@ -20,6 +22,25 @@ export interface TestCase {
   input: any[]; // positional args for the function
   expected: any; // expected return value
   // Optional toleranceless equality is fine for numbers, strings, lists, dicts.
+}
+
+/**
+ * Marks which positional inputs the grader turns into real node objects before
+ * calling the user's function, and how a returned node is flattened back so it
+ * can be compared with `expected`. Tests stay plain JSON either way.
+ *   'tree'  - level-order array (null = missing child) -> TreeNode
+ *   'list'  - array of values -> ListNode chain
+ *   'cycle' - consumes TWO inputs (values, pos) -> one ListNode chain whose
+ *             tail links back to index `pos` (-1 = no cycle)
+ * returns:
+ *   'tree' / 'list' - a returned node (or None) becomes an array again
+ *   'node_index'    - a returned node becomes its index in the input list
+ *                     (None -> -1); pairs with a 'cycle' input
+ */
+export type StructKind = 'tree' | 'list' | 'cycle' | null;
+export interface StructSpec {
+  args?: StructKind[];
+  returns?: 'tree' | 'list' | 'node_index';
 }
 
 export interface Blind75Problem {
@@ -36,6 +57,7 @@ export interface Blind75Problem {
   examples: TestCase[]; // visible
   hiddenTests: TestCase[]; // graded
   compare?: CompareMode; // default 'exact'; 'unordered' when the statement says any order is fine
+  structs?: StructSpec; // set on tree / linked-list problems so users get real nodes
 }
 
 const STARTER_HEADER = '# Write your solution below. Do not rename the function.\n';
@@ -889,13 +911,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Easy',
     topic: 'Linked List',
     statement:
-      "Given the values of a singly linked list (represented here as a regular Python list), produce the values in reverse order. Return the result as a Python list.",
+      "Given the `head` of a singly linked list, reverse the list and return the new head.\n\nExamples show each list as its values in order.",
     explanation:
-      "Since the input is a flat list, the trivial answer is `list(reversed(head))` or `head[::-1]`. The interesting version of this problem assumes a real linked-list of `Node` objects.\n\nFor the real version, use the three-pointer iterative pattern:\n\n1. Keep `prev = None`, `cur = head`.\n2. While `cur` is not `None`: save `next_node = cur.next`, point `cur.next = prev`, advance `prev = cur`, then `cur = next_node`.\n3. When the loop ends, `prev` is the new head.\n\nO(n) time, O(1) space. The recursive form also exists but burns stack proportional to list length.",
+      "Use the three-pointer iterative pattern:\n\n1. Keep `prev = None`, `cur = head`.\n2. While `cur` is not `None`: save `next_node = cur.next`, point `cur.next = prev`, advance `prev = cur`, then `cur = next_node`.\n3. When the loop ends, `prev` is the new head.\n\nO(n) time, O(1) space. The recursive form also exists but burns stack proportional to list length.",
     functionName: 'reverse_list',
-    functionSignature: 'def reverse_list(head: list[int]) -> list[int]:',
+    functionSignature: "def reverse_list(head: Optional[ListNode]) -> Optional[ListNode]:",
     starter:
-      STARTER_HEADER + 'def reverse_list(head: list[int]) -> list[int]:\n    pass\n',
+      STARTER_HEADER +
+      "# ListNode has .val, .next. Make one with ListNode(val). Empty list is None.\ndef reverse_list(head: Optional[ListNode]) -> Optional[ListNode]:\n    pass\n",
+    structs: { args: ['list'], returns: 'list' },
     examples: [
       { input: [[1, 2, 3, 4, 5]], expected: [5, 4, 3, 2, 1] },
       { input: [[1, 2]], expected: [2, 1] },
@@ -913,14 +937,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Easy',
     topic: 'Linked List',
     statement:
-      "You're given the node values of a singly linked list and an integer `pos`. If `pos >= 0`, the list's tail node is wired back to the node at index `pos`, forming a cycle. If `pos == -1`, the list has no cycle. Return `True` if a cycle exists, `False` otherwise.",
+      "Given the `head` of a singly linked list, return `True` if the list contains a cycle (following `next` pointers eventually revisits a node) and `False` otherwise.\n\nExamples show the list's values plus `pos`, the index of the node the tail links back to (`-1` means no cycle). Your function only receives `head`.",
     explanation:
-      "Since you're given `pos` directly, you could just return `pos != -1`. But the algorithmic point is Floyd's tortoise-and-hare for an actual linked structure.\n\n**Floyd's cycle detection**: keep two pointers, `slow` and `fast`, both starting at the head. Each step, advance `slow` by one node and `fast` by two. If `fast` ever reaches `None`, there's no cycle. If `slow` and `fast` ever land on the same node, you've detected a cycle (the fast pointer eventually laps the slow one inside the loop).\n\nO(n) time, O(1) space. The alternative — hashing every visited node — works but uses O(n) memory.",
+      "**Floyd's cycle detection**: keep two pointers, `slow` and `fast`, both starting at the head. Each step, advance `slow` by one node and `fast` by two. If `fast` ever reaches `None`, there's no cycle. If `slow` and `fast` ever land on the same node, you've detected a cycle (the fast pointer eventually laps the slow one inside the loop).\n\nO(n) time, O(1) space. The alternative — hashing every visited node — works but uses O(n) memory.",
     functionName: 'has_cycle',
-    functionSignature: 'def has_cycle(values: list[int], pos: int) -> bool:',
+    functionSignature: "def has_cycle(head: Optional[ListNode]) -> bool:",
     starter:
       STARTER_HEADER +
-      'def has_cycle(values: list[int], pos: int) -> bool:\n    pass\n',
+      "# ListNode has .val, .next. Make one with ListNode(val). Empty list is None.\ndef has_cycle(head: Optional[ListNode]) -> bool:\n    pass\n",
+    structs: { args: ['cycle'] },
     examples: [
       { input: [[3, 2, 0, -4], 1], expected: true },
       { input: [[1, 2], 0], expected: true },
@@ -939,15 +964,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Easy',
     topic: 'Linked List',
     statement:
-      'Two non-decreasing lists `l1` and `l2` are given as Python lists. Combine them into a single non-decreasing list and return it.',
+      "You are given the heads of two sorted (non-decreasing) linked lists, `l1` and `l2`. Merge them into one sorted linked list and return its head. Either list may be empty.\n\nExamples show each list as its values in order.",
     explanation:
-      "Two-pointer merge — the same step used inside merge sort.\n\nKeep `i = 0` for `l1` and `j = 0` for `l2`. While both indices are in range, compare `l1[i]` and `l2[j]`. Append the smaller to your result and advance that pointer. Once one list is exhausted, append the remainder of the other.\n\nO(n + m) time, O(n + m) for the result. With real linked-list nodes, the same logic works with a dummy head node and a `tail` pointer, splicing nodes one at a time without allocating new ones.",
+      "Two-pointer merge — the same step used inside merge sort.\n\nCreate a dummy node and a `tail` pointer starting at it. While both `l1` and `l2` are non-`None`, compare `l1.val` and `l2.val`, attach the smaller node to `tail.next`, then advance that list and `tail`. Once one list runs out, attach whatever remains of the other.\n\nReturn `dummy.next`. O(n + m) time, O(1) extra space since nodes are spliced rather than copied.",
     functionName: 'merge_two_lists',
-    functionSignature:
-      'def merge_two_lists(l1: list[int], l2: list[int]) -> list[int]:',
+    functionSignature: "def merge_two_lists(l1: Optional[ListNode], l2: Optional[ListNode]) -> Optional[ListNode]:",
     starter:
       STARTER_HEADER +
-      'def merge_two_lists(l1: list[int], l2: list[int]) -> list[int]:\n    pass\n',
+      "# ListNode has .val, .next. Make one with ListNode(val). Empty list is None.\ndef merge_two_lists(l1: Optional[ListNode], l2: Optional[ListNode]) -> Optional[ListNode]:\n    pass\n",
+    structs: { args: ['list', 'list'], returns: 'list' },
     examples: [
       { input: [[1, 2, 4], [1, 3, 4]], expected: [1, 1, 2, 3, 4, 4] },
       { input: [[], []], expected: [] },
@@ -965,15 +990,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Linked List',
     statement:
-      "Given the values of a singly linked list `head` (as a Python list) and a positive integer `n`, delete the node that sits `n` positions before the end and return the resulting list. `n` is always valid for the given input.",
+      "Given the `head` of a singly linked list and a positive integer `n`, remove the `n`-th node counting from the end of the list and return the head of the result. `n` is always valid for the given list.\n\nExamples show each list as its values in order.",
     explanation:
-      "For the Python-list version, the index of the node to remove is `len(head) - n`; slice it out.\n\nThe technique being taught is the **two-pointer gap trick** for real linked lists:\n\n1. Use a dummy node before `head` so removing the first node is uniform.\n2. Place `fast` at the dummy and advance it `n + 1` steps.\n3. Place `slow` at the dummy. Move both pointers together until `fast` falls off the end.\n4. At that point `slow.next` is the node to remove. Reroute `slow.next = slow.next.next`.\n\nOne pass, O(n) time, O(1) space — no need to first compute the length.",
+      "The technique is the **two-pointer gap trick**:\n\n1. Use a dummy node before `head` so removing the first node is uniform.\n2. Place `fast` at the dummy and advance it `n + 1` steps.\n3. Place `slow` at the dummy. Move both pointers together until `fast` falls off the end.\n4. At that point `slow.next` is the node to remove. Reroute `slow.next = slow.next.next`.\n\nReturn `dummy.next`. One pass, O(n) time, O(1) space — no need to first compute the length.",
     functionName: 'remove_nth_from_end',
-    functionSignature:
-      'def remove_nth_from_end(head: list[int], n: int) -> list[int]:',
+    functionSignature: "def remove_nth_from_end(head: Optional[ListNode], n: int) -> Optional[ListNode]:",
     starter:
       STARTER_HEADER +
-      'def remove_nth_from_end(head: list[int], n: int) -> list[int]:\n    pass\n',
+      "# ListNode has .val, .next. Make one with ListNode(val). Empty list is None.\ndef remove_nth_from_end(head: Optional[ListNode], n: int) -> Optional[ListNode]:\n    pass\n",
+    structs: { args: ['list'], returns: 'list' },
     examples: [
       { input: [[1, 2, 3, 4, 5], 2], expected: [1, 2, 3, 5] },
       { input: [[1], 1], expected: [] },
@@ -991,13 +1016,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Linked List',
     statement:
-      'Given the values of a singly linked list, weave them so the result alternates from the outside in: first value, last value, second value, second-to-last value, and so on. Return the woven sequence as a Python list.',
+      "Given the `head` of a singly linked list, reorder its nodes so they alternate from the outside in: first node, last node, second node, second-to-last node, and so on. Return the head of the reordered list.\n\nExamples show each list as its values in order.",
     explanation:
-      "Three-step pattern, both for the Python-list version and the real linked-list version:\n\n1. **Find the middle**: use slow/fast pointers (slow steps one, fast steps two). When fast falls off, slow is at (or just past) the middle.\n2. **Reverse the back half**: standard iterative reverse on the slice starting at slow.\n3. **Interleave**: walk the front half and the reversed back half in lockstep, appending one node from each alternately until both run out.\n\nO(n) time, O(1) space if you do it in place. The cute Python-only version just uses two indices walking inward from both ends.",
+      "Three-step pattern:\n\n1. **Find the middle**: use slow/fast pointers (slow steps one, fast steps two). When fast falls off, slow is at (or just past) the middle.\n2. **Reverse the back half**: cut the list after the middle, then run the standard iterative reverse on the second half.\n3. **Interleave**: walk the front half and the reversed back half in lockstep, linking one node from each alternately until the back half runs out.\n\nO(n) time, O(1) space.",
     functionName: 'reorder_list',
-    functionSignature: 'def reorder_list(head: list[int]) -> list[int]:',
+    functionSignature: "def reorder_list(head: Optional[ListNode]) -> Optional[ListNode]:",
     starter:
-      STARTER_HEADER + 'def reorder_list(head: list[int]) -> list[int]:\n    pass\n',
+      STARTER_HEADER +
+      "# ListNode has .val, .next. Make one with ListNode(val). Empty list is None.\ndef reorder_list(head: Optional[ListNode]) -> Optional[ListNode]:\n    pass\n",
+    structs: { args: ['list'], returns: 'list' },
     examples: [
       { input: [[1, 2, 3, 4]], expected: [1, 4, 2, 3] },
       { input: [[1, 2, 3, 4, 5]], expected: [1, 5, 2, 4, 3] },
@@ -1385,7 +1412,8 @@ export const blind75: Blind75Problem[] = [
   },
 
   // ===== Tree =====
-  // Trees use level-order (BFS) array representation with null for missing nodes.
+  // Tests encode trees as level-order arrays with null for missing children;
+  // `structs` makes the grader hand the user real TreeNode objects.
   {
     id: 'max-depth-binary-tree',
     number: 53,
@@ -1393,14 +1421,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Easy',
     topic: 'Tree',
     statement:
-      "A binary tree is encoded here as a level-order array with `None` for missing nodes. Return the tree's maximum depth — the number of nodes on the longest root-to-leaf path. An empty tree has depth 0.",
+      "Given the `root` of a binary tree, return its maximum depth — the number of nodes on the longest root-to-leaf path. An empty tree has depth 0.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
-      "Two angles:\n\n**Reasoning on the encoded array**: in level-order, the deepest non-`None` slot at index `k` lives on level `floor(log2(k + 1))`. Walk the array, track the highest such level among real nodes, and return `level + 1`. Watch the corner case of an empty array.\n\n**Convert and recurse (cleaner if you build a node tree)**: build actual `Node` objects from the level-order array, then `depth(node) = 1 + max(depth(left), depth(right))`, with `depth(None) = 0`. Iterative BFS counting levels also works.\n\nO(n) time either way.",
+      "**Recursive DFS**: `depth(node) = 1 + max(depth(node.left), depth(node.right))`, with `depth(None) = 0`. That's the whole solution.\n\n**Iterative BFS**: walk the tree level by level with a queue and count how many levels you process.\n\nO(n) time either way; the recursion uses O(h) stack, BFS uses a queue as wide as the widest level.",
     functionName: 'max_depth',
-    functionSignature: 'def max_depth(root: list) -> int:',
+    functionSignature: "def max_depth(root: Optional[TreeNode]) -> int:",
     starter:
       STARTER_HEADER +
-      'def max_depth(root: list) -> int:\n    # root is a level-order array; None marks missing nodes.\n    pass\n',
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef max_depth(root: Optional[TreeNode]) -> int:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[3, 9, 20, null, null, 15, 7]], expected: 3 },
       { input: [[1, null, 2]], expected: 2 },
@@ -1418,14 +1447,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Easy',
     topic: 'Tree',
     statement:
-      'Two binary trees are passed as level-order arrays with `None` for missing nodes. Return `True` if the trees have the same shape *and* the same value at every corresponding position, otherwise `False`.',
+      "Given the roots of two binary trees, `p` and `q`, return `True` if the trees have the same shape *and* the same value at every corresponding node, otherwise `False`.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
-      "Two angles:\n\n**Direct array compare** (works because the encoding includes `None` for missing nodes): `return p == q`. Two trees with the same structure and values produce the same level-order array under this scheme.\n\n**Recursive on a real tree** (the underlying interview answer): write `same(a, b)` that returns `True` if both `None`; `False` if exactly one is `None` or `a.val != b.val`; otherwise `same(a.left, b.left) and same(a.right, b.right)`.\n\nO(n) time, O(h) recursion depth.",
+      "Recurse on both trees in lockstep. Write `same(a, b)` that returns `True` if both are `None`; `False` if exactly one is `None` or `a.val != b.val`; otherwise `same(a.left, b.left) and same(a.right, b.right)`.\n\nO(n) time, O(h) recursion depth.",
     functionName: 'is_same_tree',
-    functionSignature: 'def is_same_tree(p: list, q: list) -> bool:',
+    functionSignature: "def is_same_tree(p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:",
     starter:
       STARTER_HEADER +
-      'def is_same_tree(p: list, q: list) -> bool:\n    pass\n',
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef is_same_tree(p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:\n    pass\n",
+    structs: { args: ['tree', 'tree'] },
     examples: [
       { input: [[1, 2, 3], [1, 2, 3]], expected: true },
       { input: [[1, 2], [1, null, 2]], expected: false },
@@ -1444,13 +1474,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Easy',
     topic: 'Tree',
     statement:
-      "Given a binary tree as a level-order array (with `None` for missing nodes), swap the left and right child of every node so the tree becomes the mirror image of itself. Return the inverted tree as a level-order array.",
+      "Given the `root` of a binary tree, swap the left and right child of every node so the tree becomes the mirror image of itself. Return the root of the inverted tree.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
-      "The interview-style recursive answer on a node tree: swap children, then recurse.\n\n```\ndef invert(node):\n    if node is None:\n        return None\n    node.left, node.right = invert(node.right), invert(node.left)\n    return node\n```\n\nFor this problem's level-order array encoding, the cleanest path is: rebuild the node tree from the array, invert it recursively, then re-serialize back to level-order using BFS (skipping over `None` parents but emitting `None` for their slots).\n\nO(n) time, O(h) recursion depth.",
+      "Swap the children, then recurse:\n\n```\ndef invert(node):\n    if node is None:\n        return None\n    node.left, node.right = invert(node.right), invert(node.left)\n    return node\n```\n\nAn iterative version works too: keep a stack or queue of nodes, and swap each popped node's children before pushing them.\n\nO(n) time, O(h) recursion depth.",
     functionName: 'invert_tree',
-    functionSignature: 'def invert_tree(root: list) -> list:',
+    functionSignature: "def invert_tree(root: Optional[TreeNode]) -> Optional[TreeNode]:",
     starter:
-      STARTER_HEADER + 'def invert_tree(root: list) -> list:\n    pass\n',
+      STARTER_HEADER +
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef invert_tree(root: Optional[TreeNode]) -> Optional[TreeNode]:\n    pass\n",
+    structs: { args: ['tree'], returns: 'tree' },
     examples: [
       { input: [[4, 2, 7, 1, 3, 6, 9]], expected: [4, 7, 2, 9, 6, 3, 1] },
       { input: [[2, 1, 3]], expected: [2, 3, 1] },
@@ -1468,13 +1500,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Hard',
     topic: 'Tree',
     statement:
-      "Given a binary tree (encoded as a level-order array with `None` for missing nodes), find the largest possible sum along any path connecting two nodes through the tree. A path is a sequence of nodes connected by edges, doesn't have to pass through the root, and must have at least one node.",
+      "Given the `root` of a non-empty binary tree, find the largest possible sum along any path connecting two nodes through the tree. A path is a sequence of nodes connected by edges, doesn't have to pass through the root, and must have at least one node.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
       "Recursive DFS with a twist: at each node, distinguish between *what you contribute upward* and *what the answer could be if this node is the path's apex*.\n\nDefine `gain(node)` = the best path sum starting at `node` and extending into exactly one child (or none). That's what a caller can chain onto. Inside `gain`:\n\n1. Recurse to get `left_gain = max(gain(node.left), 0)` and `right_gain = max(gain(node.right), 0)` — clamping negatives to zero (drop unhelpful subtrees).\n2. Compute `apex = node.val + left_gain + right_gain` — best path with this node as the peak — and update a global best.\n3. Return `node.val + max(left_gain, right_gain)` to the parent.\n\nO(n) time, O(h) recursion depth.",
     functionName: 'max_path_sum',
-    functionSignature: 'def max_path_sum(root: list) -> int:',
+    functionSignature: "def max_path_sum(root: Optional[TreeNode]) -> int:",
     starter:
-      STARTER_HEADER + 'def max_path_sum(root: list) -> int:\n    pass\n',
+      STARTER_HEADER +
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef max_path_sum(root: Optional[TreeNode]) -> int:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[1, 2, 3]], expected: 6 },
       { input: [[-10, 9, 20, null, null, 15, 7]], expected: 42 },
@@ -1492,14 +1526,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Tree',
     statement:
-      "Given a binary tree as a level-order array (with `None` marking absent nodes), return its values grouped by depth. The result is a list of lists: the outer list is ordered top-down by level, each inner list is left-to-right across that level.",
+      "Given the `root` of a binary tree, return its values grouped by depth. The result is a list of lists: the outer list is ordered top-down by level, each inner list is left-to-right across that level. An empty tree returns `[]`.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
-      "Classic BFS over an actual node tree.\n\n1. Build a queue starting with the root. Skip work entirely if the tree is empty.\n2. While the queue isn't empty, snapshot its current length — that's the size of one full level. Repeat that many times: pop the front node, append its value to the current level's list, push its non-`None` children to the queue.\n3. After draining the snapshot's worth, append the level list to the result and continue with the next level.\n\nO(n) time, O(n) space for the result. If you're working directly off the input level-order array, you can also slice it by level boundaries (positions `1`, `1+2`, `1+2+4`, ...), filtering out `None`s.",
+      "Classic BFS.\n\n1. Build a queue starting with the root. Skip work entirely if the tree is empty.\n2. While the queue isn't empty, snapshot its current length — that's the size of one full level. Repeat that many times: pop the front node, append its value to the current level's list, push its non-`None` children to the queue.\n3. After draining the snapshot's worth, append the level list to the result and continue with the next level.\n\nO(n) time, O(n) space for the result.",
     functionName: 'level_order',
-    functionSignature: 'def level_order(root: list) -> list[list[int]]:',
+    functionSignature: "def level_order(root: Optional[TreeNode]) -> list[list[int]]:",
     starter:
       STARTER_HEADER +
-      'def level_order(root: list) -> list[list[int]]:\n    pass\n',
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef level_order(root: Optional[TreeNode]) -> list[list[int]]:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[3, 9, 20, null, null, 15, 7]], expected: [[3], [9, 20], [15, 7]] },
       { input: [[1]], expected: [[1]] },
@@ -1517,14 +1552,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Hard',
     topic: 'Tree',
     statement:
-      "Design `serialize(root)` and `deserialize(data)` that round-trip a binary tree to and from a single string. The tree is provided as a level-order array (with `None` marking missing nodes). The graded wrapper `round_trip(root)` calls both in sequence and must return an array equal to `root`.",
+      "Design `serialize(root)`, which turns a binary tree into a single string, and `deserialize(data)`, which rebuilds the tree from that string. The format is up to you. The graded wrapper `round_trip(root)` calls both in sequence and must return a tree identical to the original.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
-      "Two common encodings:\n\n**Level-order with sentinels** (matches this input shape): JSON-encode the array directly with `json.dumps`; `json.loads` is the inverse. `None`s are preserved by JSON. Simple and correct for this representation.\n\n**Preorder with sentinels** (the canonical interview answer on real `Node` trees): recursively emit `node.val,` then recurse left, then right; a missing node emits a sentinel like `'#,'`. To deserialize, split by comma and consume tokens with a recursive helper that returns `None` on the sentinel and otherwise builds a node, recursing for left then right.\n\nO(n) time and space for either approach.",
+      "Two common encodings:\n\n**Preorder with sentinels** (the canonical interview answer): recursively emit `node.val,` then recurse left, then right; a missing node emits a sentinel like `'#,'`. To deserialize, split by comma and consume tokens with a recursive helper that returns `None` on the sentinel and otherwise builds a node, recursing for left then right.\n\n**Level-order with sentinels**: BFS from the root, writing each node's value or a sentinel for a missing child. Deserialize by reading tokens back in the same order, using a queue of parents that are still waiting for their children.\n\nO(n) time and space for either approach.",
     functionName: 'round_trip',
-    functionSignature: 'def round_trip(root: list) -> list:',
+    functionSignature: "def round_trip(root: Optional[TreeNode]) -> Optional[TreeNode]:",
     starter:
       STARTER_HEADER +
-      "import json\n\ndef serialize(root):\n    return json.dumps(root)\n\ndef deserialize(data):\n    return json.loads(data)\n\ndef round_trip(root: list) -> list:\n    return deserialize(serialize(root))\n",
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef serialize(root: Optional[TreeNode]) -> str:\n    pass\n\ndef deserialize(data: str) -> Optional[TreeNode]:\n    pass\n\n# Graded entry point. Leave this as is.\ndef round_trip(root: Optional[TreeNode]) -> Optional[TreeNode]:\n    return deserialize(serialize(root))\n",
+    structs: { args: ['tree'], returns: 'tree' },
     examples: [
       { input: [[1, 2, 3, null, null, 4, 5]], expected: [1, 2, 3, null, null, 4, 5] },
       { input: [[]], expected: [] },
@@ -1541,14 +1577,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Easy',
     topic: 'Tree',
     statement:
-      "Both `root` and `sub_root` are level-order arrays describing binary trees. Decide whether `sub_root` appears as an entire subtree somewhere inside `root` — meaning some node in `root` and everything below it is structurally and value-wise identical to `sub_root`.",
+      "Given the roots of two binary trees, `root` and `sub_root`, decide whether `sub_root` appears as an entire subtree somewhere inside `root` — meaning some node in `root` and everything below it is structurally and value-wise identical to `sub_root`.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
       "Two layers of comparison:\n\n1. **Helper `same(a, b)`**: a recursive `is_same_tree`-style check that returns `True` only when both trees have identical shape and values.\n2. **Walk `root` looking for a match**: a separate recursion `contains(node, sub)` returning `True` if `same(node, sub)`, otherwise recurses into `node.left` or `node.right`. An empty `sub` matches any node (including `None`); an empty `root` only matches an empty `sub`.\n\nO(m × n) worst case, where `m` and `n` are tree sizes. A more advanced trick: serialize both trees with sentinels and substring-search — O(m + n) with a hash-based string matcher.",
     functionName: 'is_subtree',
-    functionSignature: 'def is_subtree(root: list, sub_root: list) -> bool:',
+    functionSignature: "def is_subtree(root: Optional[TreeNode], sub_root: Optional[TreeNode]) -> bool:",
     starter:
       STARTER_HEADER +
-      'def is_subtree(root: list, sub_root: list) -> bool:\n    pass\n',
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef is_subtree(root: Optional[TreeNode], sub_root: Optional[TreeNode]) -> bool:\n    pass\n",
+    structs: { args: ['tree', 'tree'] },
     examples: [
       { input: [[3, 4, 5, 1, 2], [4, 1, 2]], expected: true },
       { input: [[3, 4, 5, 1, 2, null, null, null, null, 0], [4, 1, 2]], expected: false },
@@ -1566,15 +1603,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Tree',
     statement:
-      "You are given two arrays: `preorder` (the values produced by a preorder traversal) and `inorder` (the values from an inorder traversal of the same binary tree). Values are unique. Reconstruct the tree and return it as a level-order array, using `None` for absent nodes.",
+      "You are given two arrays: `preorder` (the values produced by a preorder traversal) and `inorder` (the values from an inorder traversal of the same binary tree). Values are unique. Reconstruct the tree and return its root.\n\nExpected results show the tree in level order, with `null` for a missing child.",
     explanation:
-      "Two facts power this:\n\n- The first element of `preorder` is always the current root.\n- In `inorder`, every value to the left of the root belongs to its left subtree; everything to the right belongs to its right subtree.\n\nRecurse: pop the next value from the front of `preorder` (or keep a moving cursor) — that's the root. Find it in `inorder` to determine the size of the left subtree. Recurse on the corresponding prefix of `inorder` for the left child, then on the suffix for the right child.\n\nA dictionary mapping `value → index in inorder` makes the lookup O(1), bringing the whole reconstruction to O(n) time. After building the node tree, serialize it back to level-order with BFS.",
+      "Two facts power this:\n\n- The first element of `preorder` is always the current root.\n- In `inorder`, every value to the left of the root belongs to its left subtree; everything to the right belongs to its right subtree.\n\nRecurse: pop the next value from the front of `preorder` (or keep a moving cursor) — that's the root. Find it in `inorder` to determine the size of the left subtree. Recurse on the corresponding prefix of `inorder` for the left child, then on the suffix for the right child.\n\nA dictionary mapping `value → index in inorder` makes the lookup O(1), bringing the whole reconstruction to O(n) time.",
     functionName: 'build_tree',
-    functionSignature:
-      'def build_tree(preorder: list[int], inorder: list[int]) -> list:',
+    functionSignature: "def build_tree(preorder: list[int], inorder: list[int]) -> Optional[TreeNode]:",
     starter:
       STARTER_HEADER +
-      'def build_tree(preorder: list[int], inorder: list[int]) -> list:\n    pass\n',
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef build_tree(preorder: list[int], inorder: list[int]) -> Optional[TreeNode]:\n    pass\n",
+    structs: { returns: 'tree' },
     examples: [
       {
         input: [[3, 9, 20, 15, 7], [9, 3, 15, 20, 7]],
@@ -1595,13 +1632,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Tree',
     statement:
-      "A binary tree is given as a level-order array (with `None` marking missing nodes). Return `True` if it satisfies the BST property: every value in a node's left subtree is strictly smaller than the node, every value in its right subtree is strictly larger, and both subtrees are themselves valid BSTs. An empty tree counts as valid.",
+      "Given the `root` of a binary tree, return `True` if it satisfies the BST property: every value in a node's left subtree is strictly smaller than the node, every value in its right subtree is strictly larger, and both subtrees are themselves valid BSTs. An empty tree counts as valid.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
       "The trap: it isn't enough to compare each node to its immediate children. The BST property is about all *descendants*, not just children.\n\n**Approach 1 — Range check**: recurse with an allowed value range `(lo, hi)`. Initially the root must lie in `(-inf, inf)`. When descending into a left child, tighten `hi` to the parent's value; when descending right, tighten `lo`. If any node falls outside its range, return `False`.\n\n**Approach 2 — Inorder traversal**: a BST's inorder walk produces a strictly increasing sequence. Run inorder and check every consecutive pair; the moment a value isn't strictly greater than the previous one, return `False`.\n\nBoth are O(n) time, O(h) space.",
     functionName: 'is_valid_bst',
-    functionSignature: 'def is_valid_bst(root: list) -> bool:',
+    functionSignature: "def is_valid_bst(root: Optional[TreeNode]) -> bool:",
     starter:
-      STARTER_HEADER + 'def is_valid_bst(root: list) -> bool:\n    pass\n',
+      STARTER_HEADER +
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef is_valid_bst(root: Optional[TreeNode]) -> bool:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[2, 1, 3]], expected: true },
       { input: [[5, 1, 4, null, null, 3, 6]], expected: false },
@@ -1619,13 +1658,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Tree',
     statement:
-      "A BST is given as a level-order array (with `None` marking absent nodes), plus an integer `k`. Return the `k`-th smallest value in the tree, treating `k = 1` as the smallest element. `k` is always valid for the input.",
+      "Given the `root` of a binary search tree and an integer `k`, return the `k`-th smallest value in the tree, treating `k = 1` as the smallest element. `k` is always valid for the input.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
       "Inorder traversal of a BST visits values in ascending order — that's the lever.\n\n**Recursive inorder with a counter**: walk inorder, decrementing `k` at each visit. When `k` hits 0, the current node's value is the answer; return it and short-circuit the recursion.\n\n**Iterative inorder with a stack** (often preferred in interviews): repeatedly walk to the leftmost unvisited node, pushing onto a stack as you go. Pop a node, count it; if it's the `k`-th, return its value. Otherwise step into its right subtree and repeat.\n\nO(h + k) time, O(h) space. If the BST changes frequently and `kth_smallest` is called often, augmenting each node with a subtree-size count lets you answer in O(h) per query.",
     functionName: 'kth_smallest',
-    functionSignature: 'def kth_smallest(root: list, k: int) -> int:',
+    functionSignature: "def kth_smallest(root: Optional[TreeNode], k: int) -> int:",
     starter:
-      STARTER_HEADER + 'def kth_smallest(root: list, k: int) -> int:\n    pass\n',
+      STARTER_HEADER +
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef kth_smallest(root: Optional[TreeNode], k: int) -> int:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[3, 1, 4, null, 2], 1], expected: 1 },
       { input: [[5, 3, 6, 2, 4, null, null, 1], 3], expected: 3 },
@@ -1643,15 +1684,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Easy',
     topic: 'Tree',
     statement:
-      "Given a BST (encoded as a level-order array with `None` for missing nodes) and two values `p` and `q` that both exist in the tree, return the value of their lowest common ancestor. A node counts as an ancestor of itself.",
+      "Given the `root` of a binary search tree and two values `p` and `q` that both exist in the tree, return the value of their lowest common ancestor. A node counts as an ancestor of itself.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
       "BST ordering makes this O(h) and elegant — no full search needed.\n\nStart at the root and compare the current value to both `p` and `q`:\n\n- If both `p` and `q` are *smaller* than the current value, the LCA lies in the left subtree — descend left.\n- If both are *larger*, descend right.\n- Otherwise (the values straddle the current node, or one equals it), the current node is the LCA.\n\nO(h) time, O(1) iterative space. This is strictly easier than the general-binary-tree LCA problem because the BST property tells you which side to descend without exploring both.",
     functionName: 'lowest_common_ancestor',
-    functionSignature:
-      'def lowest_common_ancestor(root: list, p: int, q: int) -> int:',
+    functionSignature: "def lowest_common_ancestor(root: Optional[TreeNode], p: int, q: int) -> int:",
     starter:
       STARTER_HEADER +
-      'def lowest_common_ancestor(root: list, p: int, q: int) -> int:\n    pass\n',
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef lowest_common_ancestor(root: Optional[TreeNode], p: int, q: int) -> int:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       {
         input: [[6, 2, 8, 0, 4, 7, 9, null, null, 3, 5], 2, 8],
@@ -2658,14 +2699,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Linked List',
     statement:
-      "Two non-negative integers are encoded as digit lists where the *least significant* digit comes first (so `342` is `[2, 4, 3]`). Add them and return the sum in the same reversed-digit format.\n\nNeither input list has leading zeros (except the number 0 itself).",
+      "Two non-negative integers are stored as linked lists of digits, *least significant* digit first (so `342` is `2 → 4 → 3`). Given the heads `l1` and `l2`, add the two numbers and return the head of a linked list holding the sum in the same reversed-digit format.\n\nNeither input has leading zeros (except the number 0 itself).\n\nExamples show each list as its values in order.",
     explanation:
-      "Reversed digits is the format you actually want for column addition — index 0 is the ones place, index 1 the tens, etc. Just walk both lists in lockstep adding the digits plus a running carry.\n\nLoop while either index is in range or the carry is non-zero. At each step compute `s = a + b + carry`, append `s % 10` to the result, set `carry = s // 10`, advance both indices. Empty positions count as 0.\n\nO(max(n, m)) time, O(max(n, m)) space.",
+      "Reversed digits is the format you actually want for column addition — the first node is the ones place, the next the tens, and so on. Walk both lists in lockstep adding the digits plus a running carry.\n\nUse a dummy head and a `tail` pointer. Loop while either list has nodes left or the carry is non-zero. At each step compute `s = a + b + carry` (a missing node counts as 0), append a new node holding `s % 10`, set `carry = s // 10`, and advance.\n\nO(max(n, m)) time, O(max(n, m)) space for the result.",
     functionName: 'add_two_numbers',
-    functionSignature: 'def add_two_numbers(l1: list[int], l2: list[int]) -> list[int]:',
+    functionSignature: "def add_two_numbers(l1: Optional[ListNode], l2: Optional[ListNode]) -> Optional[ListNode]:",
     starter:
       STARTER_HEADER +
-      'def add_two_numbers(l1: list[int], l2: list[int]) -> list[int]:\n    pass\n',
+      "# ListNode has .val, .next. Make one with ListNode(val). Empty list is None.\ndef add_two_numbers(l1: Optional[ListNode], l2: Optional[ListNode]) -> Optional[ListNode]:\n    pass\n",
+    structs: { args: ['list', 'list'], returns: 'list' },
     examples: [
       { input: [[2, 4, 3], [5, 6, 4]], expected: [7, 0, 8] },
       { input: [[0], [0]], expected: [0] },
@@ -2683,13 +2725,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Linked List',
     statement:
-      "Given the values of a singly linked list as a Python list, swap every two adjacent values. An odd-length list leaves the final value in place. Return the rearranged list.",
+      "Given the `head` of a singly linked list, swap every two adjacent nodes and return the new head. An odd-length list leaves the final node in place.\n\nExamples show each list as its values in order.",
     explanation:
-      "On the Python-list view, walk the list two indices at a time and swap `values[i]` with `values[i + 1]`. Stop when `i + 1` is out of bounds.\n\nThe interview answer on a real linked list re-routes pointers instead of touching values. Use a dummy node, walk with `prev` initially pointing at it; while `prev.next` and `prev.next.next` both exist, let `a = prev.next` and `b = a.next`, then splice `prev → b → a → b.next` and advance `prev = a` for the next pair. O(n) time, O(1) space.",
+      "Re-route pointers instead of touching values. Use a dummy node and walk with `prev` initially pointing at it; while `prev.next` and `prev.next.next` both exist, let `a = prev.next` and `b = a.next`, then splice `prev → b → a → b.next` and advance `prev = a` for the next pair.\n\nReturn `dummy.next`. O(n) time, O(1) space.",
     functionName: 'swap_pairs',
-    functionSignature: 'def swap_pairs(head: list[int]) -> list[int]:',
+    functionSignature: "def swap_pairs(head: Optional[ListNode]) -> Optional[ListNode]:",
     starter:
-      STARTER_HEADER + 'def swap_pairs(head: list[int]) -> list[int]:\n    pass\n',
+      STARTER_HEADER +
+      "# ListNode has .val, .next. Make one with ListNode(val). Empty list is None.\ndef swap_pairs(head: Optional[ListNode]) -> Optional[ListNode]:\n    pass\n",
+    structs: { args: ['list'], returns: 'list' },
     examples: [
       { input: [[1, 2, 3, 4]], expected: [2, 1, 4, 3] },
       { input: [[]], expected: [] },
@@ -2707,13 +2751,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Linked List',
     statement:
-      "Given the values of a singly linked list as a Python list, rearrange them so that every value at an *odd* position (1-based: positions 1, 3, 5, ...) comes first, followed by every value at an *even* position, preserving their relative order. Return the rearranged list.",
+      "Given the `head` of a singly linked list, regroup its nodes so that every node at an *odd* position (1-based: positions 1, 3, 5, ...) comes first, followed by every node at an *even* position, preserving the relative order within each group. Return the head of the regrouped list.\n\nExamples show each list as its values in order.",
     explanation:
-      "Walk the values once collecting two parallel lists `odd` (indices 0, 2, 4, ...) and `even` (indices 1, 3, 5, ...). Concatenate `odd + even`.\n\nThe in-place version on a real linked list weaves two chains in parallel: pointers `odd` and `even` advance two nodes at a time, splicing `odd.next = odd.next.next` and `even.next = even.next.next`. After the walk, link the tail of the odd chain to the head of the even chain.\n\nO(n) time, O(n) for the Python-list version (O(1) for the in-place version).",
+      "Weave two chains in parallel. Remember `even_head = head.next`, then advance pointers `odd` and `even` two nodes at a time, splicing `odd.next = odd.next.next` and `even.next = even.next.next`. After the walk, link the tail of the odd chain to `even_head`.\n\nO(n) time, O(1) space. Guard against the empty list first.",
     functionName: 'odd_even_list',
-    functionSignature: 'def odd_even_list(head: list[int]) -> list[int]:',
+    functionSignature: "def odd_even_list(head: Optional[ListNode]) -> Optional[ListNode]:",
     starter:
-      STARTER_HEADER + 'def odd_even_list(head: list[int]) -> list[int]:\n    pass\n',
+      STARTER_HEADER +
+      "# ListNode has .val, .next. Make one with ListNode(val). Empty list is None.\ndef odd_even_list(head: Optional[ListNode]) -> Optional[ListNode]:\n    pass\n",
+    structs: { args: ['list'], returns: 'list' },
     examples: [
       { input: [[1, 2, 3, 4, 5]], expected: [1, 3, 5, 2, 4] },
       { input: [[2, 1, 3, 5, 6, 4, 7]], expected: [2, 3, 6, 7, 1, 5, 4] },
@@ -2731,14 +2777,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Linked List',
     statement:
-      "Given the values of a singly linked list as a Python list and a non-negative integer `k`, rotate the list to the right by `k` positions. The last value wraps to the front, the second-to-last to second, and so on. Return the rotated list.",
+      "Given the `head` of a singly linked list and a non-negative integer `k`, rotate the list to the right by `k` positions: each rotation moves the last node to the front. Return the new head.\n\nExamples show each list as its values in order.",
     explanation:
-      "Rotating by a multiple of `n` (the length) is a no-op, so first reduce `k = k % n`. The result is `values[-k:] + values[:-k]`, an O(n) slice.\n\nFor the linked-list version, find the length and the tail node in one pass. Make the list circular by linking the tail to the head. Then walk `n − k` steps from the head to find the new tail; sever after it and the node after is the new head. O(n) time, O(1) space.\n\nGuard against the empty list and the `n == 0` case before computing the modulo.",
+      "Rotating by a multiple of `n` (the length) is a no-op, so first reduce `k = k % n`.\n\nFind the length and the tail node in one pass. Make the list circular by linking the tail to the head. Then walk `n − k` steps from the head to find the new tail; sever after it and the node after is the new head. O(n) time, O(1) space.\n\nGuard against the empty list before computing the modulo.",
     functionName: 'rotate_right',
-    functionSignature: 'def rotate_right(head: list[int], k: int) -> list[int]:',
+    functionSignature: "def rotate_right(head: Optional[ListNode], k: int) -> Optional[ListNode]:",
     starter:
       STARTER_HEADER +
-      'def rotate_right(head: list[int], k: int) -> list[int]:\n    pass\n',
+      "# ListNode has .val, .next. Make one with ListNode(val). Empty list is None.\ndef rotate_right(head: Optional[ListNode], k: int) -> Optional[ListNode]:\n    pass\n",
+    structs: { args: ['list'], returns: 'list' },
     examples: [
       { input: [[1, 2, 3, 4, 5], 2], expected: [4, 5, 1, 2, 3] },
       { input: [[0, 1, 2], 4], expected: [2, 0, 1] },
@@ -2756,14 +2803,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Hard',
     topic: 'Linked List',
     statement:
-      "Given the values of a singly linked list as a Python list and a positive integer `k`, reverse every consecutive block of `k` values. A trailing block with fewer than `k` values is left as-is. Return the result.",
+      "Given the `head` of a singly linked list and a positive integer `k`, reverse every consecutive block of `k` nodes. A trailing block with fewer than `k` nodes is left as-is. Return the new head.\n\nExamples show each list as its values in order.",
     explanation:
-      "On the Python-list view, walk in steps of `k`: for each start index `i`, if `i + k <= n`, reverse `values[i:i+k]` in place; otherwise leave it. Two pointers swapping inward inside each block keep the work in O(n).\n\nThe linked-list version is the classic interview answer. Use a dummy head and a `group_prev` pointer initially pointing at the dummy. While there are at least `k` nodes ahead of `group_prev`, identify the `k`-th node (`kth`), remember `group_next = kth.next`, reverse the `k`-segment in place (standard three-pointer reverse but stop when you reach `group_next`), then splice the reversed head onto `group_prev` and advance `group_prev` to the new tail of the just-reversed block. O(n) time, O(1) space.",
+      "Use a dummy head and a `group_prev` pointer initially pointing at the dummy. While there are at least `k` nodes ahead of `group_prev`, identify the `k`-th node (`kth`), remember `group_next = kth.next`, reverse the `k`-segment in place (standard three-pointer reverse but stop when you reach `group_next`), then splice the reversed head onto `group_prev` and advance `group_prev` to the new tail of the just-reversed block.\n\nO(n) time, O(1) space.",
     functionName: 'reverse_k_group',
-    functionSignature: 'def reverse_k_group(head: list[int], k: int) -> list[int]:',
+    functionSignature: "def reverse_k_group(head: Optional[ListNode], k: int) -> Optional[ListNode]:",
     starter:
       STARTER_HEADER +
-      'def reverse_k_group(head: list[int], k: int) -> list[int]:\n    pass\n',
+      "# ListNode has .val, .next. Make one with ListNode(val). Empty list is None.\ndef reverse_k_group(head: Optional[ListNode], k: int) -> Optional[ListNode]:\n    pass\n",
+    structs: { args: ['list'], returns: 'list' },
     examples: [
       { input: [[1, 2, 3, 4, 5], 2], expected: [2, 1, 4, 3, 5] },
       { input: [[1, 2, 3, 4, 5], 3], expected: [3, 2, 1, 4, 5] },
@@ -2783,14 +2831,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Easy',
     topic: 'Tree',
     statement:
-      "A binary tree is given as a level-order array with `None` marking missing nodes. The tree is *height-balanced* when, at every node, the heights of its two subtrees differ by at most 1. Return `True` if the input tree is balanced, `False` otherwise. An empty tree is balanced.",
+      "Given the `root` of a binary tree, return `True` if the tree is *height-balanced*: at every node, the heights of its two subtrees differ by at most 1. Otherwise return `False`. An empty tree is balanced.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
       "The naive solution computes `height` recursively at every node and re-checks the balance condition — O(n²) on a skewed tree because heights get recomputed repeatedly.\n\nThe O(n) idiom is to fold the balance check into the height recursion. Write `height(node)` that returns the subtree height *or* a sentinel like `-1` to signal an imbalance found below. At each call: recurse left, bail if `-1`; recurse right, bail if `-1`; if `abs(left − right) > 1`, return `-1`; otherwise return `1 + max(left, right)`. The root is balanced iff the top-level call doesn't return `-1`.\n\nO(n) time, O(h) recursion depth.",
     functionName: 'is_balanced',
-    functionSignature: 'def is_balanced(root: list) -> bool:',
+    functionSignature: "def is_balanced(root: Optional[TreeNode]) -> bool:",
     starter:
       STARTER_HEADER +
-      'def is_balanced(root: list) -> bool:\n    # root is a level-order array; None marks missing nodes.\n    pass\n',
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef is_balanced(root: Optional[TreeNode]) -> bool:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[3, 9, 20, null, null, 15, 7]], expected: true },
       { input: [[1, 2, 2, 3, 3, null, null, 4, 4]], expected: false },
@@ -2808,14 +2857,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Easy',
     topic: 'Tree',
     statement:
-      "A binary tree is given as a level-order array with `None` for missing nodes. The *diameter* is the number of edges on the longest path between any two nodes — that path doesn't have to pass through the root. Return the diameter.",
+      "Given the `root` of a binary tree, return its *diameter*: the number of edges on the longest path between any two nodes. That path doesn't have to pass through the root.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
       "For any node, the longest path that *passes through* it is `depth(left) + depth(right)` edges, where `depth` counts edges down to the deepest leaf. The diameter is the maximum of that quantity over every node.\n\nDo one DFS that returns `depth` but also updates a global best. At each node: `l = depth(left)`, `r = depth(right)`, update `best = max(best, l + r)`, return `1 + max(l, r)`. Empty subtrees have depth `0` (zero edges).\n\nO(n) time, O(h) recursion depth.",
     functionName: 'diameter_of_binary_tree',
-    functionSignature: 'def diameter_of_binary_tree(root: list) -> int:',
+    functionSignature: "def diameter_of_binary_tree(root: Optional[TreeNode]) -> int:",
     starter:
       STARTER_HEADER +
-      'def diameter_of_binary_tree(root: list) -> int:\n    pass\n',
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef diameter_of_binary_tree(root: Optional[TreeNode]) -> int:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[1, 2, 3, 4, 5]], expected: 3 },
       { input: [[1, 2]], expected: 1 },
@@ -2823,7 +2873,7 @@ export const blind75: Blind75Problem[] = [
     hiddenTests: [
       { input: [[]], expected: 0 },
       { input: [[1]], expected: 0 },
-      { input: [[1, 2, 3, 4, null, null, 5, 6, null, null, 7]], expected: 5 },
+      { input: [[1, 2, 3, 4, null, null, 5, 6, null, null, 7]], expected: 6 },
     ],
   },
   {
@@ -2833,14 +2883,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Easy',
     topic: 'Tree',
     statement:
-      "A binary tree is given as a level-order array with `None` for missing nodes, plus an integer `target_sum`. Return `True` if some root-to-leaf path's node values add up to exactly `target_sum`. A *leaf* is a node with no children. An empty tree has no paths, so the answer is `False`.",
+      "Given the `root` of a binary tree and an integer `target_sum`, return `True` if some root-to-leaf path's node values add up to exactly `target_sum`. A *leaf* is a node with no children. An empty tree has no paths, so the answer is `False`.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
       "Walk the tree once with DFS, threading the remaining sum down the recursion. At a leaf, return whether the leaf's value equals the remaining target. At an internal node, return `True` if either child finds a valid path with `target − node.val`.\n\nThe corner case is the empty tree — return `False` without recursing. Single-node tree: `True` iff `root.val == target_sum`.\n\nO(n) time, O(h) recursion depth.",
     functionName: 'has_path_sum',
-    functionSignature: 'def has_path_sum(root: list, target_sum: int) -> bool:',
+    functionSignature: "def has_path_sum(root: Optional[TreeNode], target_sum: int) -> bool:",
     starter:
       STARTER_HEADER +
-      'def has_path_sum(root: list, target_sum: int) -> bool:\n    pass\n',
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef has_path_sum(root: Optional[TreeNode], target_sum: int) -> bool:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[5, 4, 8, 11, null, 13, 4, 7, 2, null, null, null, 1], 22], expected: true },
       { input: [[1, 2, 3], 5], expected: false },
@@ -2858,15 +2909,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Tree',
     statement:
-      "Given a binary tree as a level-order array (with `None` for missing nodes) and an integer `target_sum`, return every root-to-leaf path whose values sum to `target_sum`. Each path is a list of node values from root to leaf. Order of paths in the output doesn't matter.",
+      "Given the `root` of a binary tree and an integer `target_sum`, return every root-to-leaf path whose values sum to `target_sum`. Each path is a list of node values from root to leaf. Order of paths in the output doesn't matter.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
       "DFS with a running `path` list and a running `remaining = target_sum − node.val`. At a leaf, if `remaining == 0`, append a *copy* of `path` to the results. Push `node.val` before recursing into the children; pop after — standard backtracking pattern so the same list can be reused.\n\nO(n²) worst-case time because copying complete paths into the output is O(path length) and there can be O(n) such paths; O(n) auxiliary space for the path stack.",
     functionName: 'path_sum',
-    functionSignature: 'def path_sum(root: list, target_sum: int) -> list[list[int]]:',
+    functionSignature: "def path_sum(root: Optional[TreeNode], target_sum: int) -> list[list[int]]:",
     starter:
       STARTER_HEADER +
-      'def path_sum(root: list, target_sum: int) -> list[list[int]]:\n    pass\n',
-    compare: 'unordered',
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef path_sum(root: Optional[TreeNode], target_sum: int) -> list[list[int]]:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       {
         input: [[5, 4, 8, 11, null, 13, 4, 7, 2, null, null, 5, 1], 22],
@@ -2887,14 +2938,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Tree',
     statement:
-      "A binary tree is given as a level-order array with `None` for missing nodes. If you stand to the right of the tree and look at it, which nodes are visible at each depth? Return their values from top to bottom.",
+      "Given the `root` of a binary tree, imagine standing to the right of the tree and looking at it. Which nodes are visible at each depth? Return their values from top to bottom.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
-      "The visible node at each depth is the rightmost real node on that level. Two clean implementations:\n\n**BFS, take the last on each level.** Walk level by level with a queue (built from the level-order array or a reconstructed node tree). After processing all nodes at the current depth, append the last one's value to the result.\n\n**DFS, right-child first.** Recurse right before left, threading the current depth. The first node you encounter at any new depth is the rightmost — append it and don't overwrite later.\n\nBoth are O(n) time, O(h) space.",
+      "The visible node at each depth is the rightmost node on that level. Two clean implementations:\n\n**BFS, take the last on each level.** Walk level by level with a queue. After processing all nodes at the current depth, append the last one's value to the result.\n\n**DFS, right-child first.** Recurse right before left, threading the current depth. The first node you encounter at any new depth is the rightmost — append it and don't overwrite later.\n\nBoth are O(n) time, O(h) space.",
     functionName: 'right_side_view',
-    functionSignature: 'def right_side_view(root: list) -> list[int]:',
+    functionSignature: "def right_side_view(root: Optional[TreeNode]) -> list[int]:",
     starter:
       STARTER_HEADER +
-      'def right_side_view(root: list) -> list[int]:\n    pass\n',
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef right_side_view(root: Optional[TreeNode]) -> list[int]:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[1, 2, 3, null, 5, null, 4]], expected: [1, 3, 4] },
       { input: [[1, null, 3]], expected: [1, 3] },
@@ -2912,13 +2964,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Easy',
     topic: 'Tree',
     statement:
-      "Given an integer list `nums` sorted in strictly ascending order, build a height-balanced binary search tree containing those values, always choosing the *left-middle* element of the current slice as the root (`mid = (lo + hi) // 2`). Return the tree as a level-order array with `None` for missing nodes.",
+      "Given an integer list `nums` sorted in strictly ascending order, build a height-balanced binary search tree containing those values, always choosing the *left-middle* element of the current slice as the root (`mid = (lo + hi) // 2`). Return the root of the tree.\n\nExpected results show the tree in level order, with `null` for a missing child.",
     explanation:
-      "Take the middle element as the root; everything to its left in the array forms the left subtree, everything to the right forms the right subtree. Recurse. Because each subtree gets exactly half the slice, the result is balanced.\n\nBuild the tree as Node objects first (or directly compute the level-order array via a queue traversal at the end). Stick to `mid = (lo + hi) // 2` as the statement requires — `mid = (lo + hi + 1) // 2` builds a mirror-image tree that is also balanced but serializes differently.\n\nO(n) time, O(log n) recursion depth.",
+      "Take the middle element as the root; everything to its left in the array forms the left subtree, everything to the right forms the right subtree. Recurse. Because each subtree gets exactly half the slice, the result is balanced.\n\nBuild a `TreeNode` at each step and attach the two recursive results as its children. Stick to `mid = (lo + hi) // 2` as the statement requires — `mid = (lo + hi + 1) // 2` builds a mirror-image tree that is also balanced but has a different shape than the expected one.\n\nO(n) time, O(log n) recursion depth.",
     functionName: 'sorted_array_to_bst',
-    functionSignature: 'def sorted_array_to_bst(nums: list[int]) -> list:',
+    functionSignature: "def sorted_array_to_bst(nums: list[int]) -> Optional[TreeNode]:",
     starter:
-      STARTER_HEADER + 'def sorted_array_to_bst(nums: list[int]) -> list:\n    pass\n',
+      STARTER_HEADER +
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef sorted_array_to_bst(nums: list[int]) -> Optional[TreeNode]:\n    pass\n",
+    structs: { returns: 'tree' },
     examples: [
       { input: [[-10, -3, 0, 5, 9]], expected: [0, -10, 5, null, -3, null, 9] },
       { input: [[1, 3]], expected: [1, null, 3] },
@@ -2936,15 +2990,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Tree',
     statement:
-      "A binary tree is given as a level-order array (with `None` for missing nodes) plus two distinct values `p` and `q`, both guaranteed to appear in the tree. The *lowest common ancestor* (LCA) is the deepest node that has both `p` and `q` in its subtree. Return the LCA's value.",
+      "Given the `root` of a binary tree and two distinct values `p` and `q`, both guaranteed to appear in the tree, find their *lowest common ancestor* (LCA): the deepest node that has both `p` and `q` in its subtree. Return the LCA's value.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
       "Define `lca(node)` recursively. Base case: if `node` is `None` or `node.val == p` or `node.val == q`, return `node`.\n\nOtherwise recurse into both children. If both calls return a non-`None` result, this node is the split point — return it. Otherwise return whichever child's call was non-`None` (it propagates upward the single matching subtree).\n\nThis works because the first ancestor that sees `p` in one subtree and `q` in the other is exactly the LCA. The walk visits each node at most once.\n\nO(n) time, O(h) recursion depth.",
     functionName: 'lowest_common_ancestor',
-    functionSignature:
-      'def lowest_common_ancestor(root: list, p: int, q: int) -> int:',
+    functionSignature: "def lowest_common_ancestor(root: Optional[TreeNode], p: int, q: int) -> int:",
     starter:
       STARTER_HEADER +
-      'def lowest_common_ancestor(root: list, p: int, q: int) -> int:\n    pass\n',
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef lowest_common_ancestor(root: Optional[TreeNode], p: int, q: int) -> int:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[3, 5, 1, 6, 2, 0, 8, null, null, 7, 4], 5, 1], expected: 3 },
       { input: [[3, 5, 1, 6, 2, 0, 8, null, null, 7, 4], 5, 4], expected: 5 },
@@ -2962,13 +3016,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Easy',
     topic: 'Tree',
     statement:
-      "A binary tree is given as a level-order array with `None` for missing nodes. Return `True` if the tree is a mirror image of itself around the root (same shape and same values when reflected left-to-right). An empty tree is symmetric.",
+      "Given the `root` of a binary tree, return `True` if the tree is a mirror image of itself around the root (same shape and same values when reflected left-to-right). An empty tree is symmetric.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
       "Compare the tree against its mirror by running two pointers from the root, one going left and one going right.\n\nDefine `mirror(a, b)`: if both are `None`, return `True`. If exactly one is `None` or their values differ, return `False`. Otherwise return `mirror(a.left, b.right) and mirror(a.right, b.left)`. Start with `mirror(root.left, root.right)`.\n\nO(n) time, O(h) recursion depth. An iterative version pushes pairs onto a queue and checks them in lockstep.",
     functionName: 'is_symmetric',
-    functionSignature: 'def is_symmetric(root: list) -> bool:',
+    functionSignature: "def is_symmetric(root: Optional[TreeNode]) -> bool:",
     starter:
-      STARTER_HEADER + 'def is_symmetric(root: list) -> bool:\n    pass\n',
+      STARTER_HEADER +
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef is_symmetric(root: Optional[TreeNode]) -> bool:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[1, 2, 2, 3, 4, 4, 3]], expected: true },
       { input: [[1, 2, 2, null, 3, null, 3]], expected: false },
@@ -6233,13 +6289,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: "Linked List",
     statement:
-      "You're given the values of a singly linked list (as a flat Python list) and two 1-indexed positions `left` and `right` with `1 <= left <= right <= n`. Reverse only the sublist of nodes from position `left` to position `right`, inclusive, leaving the rest of the list untouched. Return the resulting values as a Python list.",
+      "Given the `head` of a singly linked list and two 1-indexed positions `left` and `right` with `1 <= left <= right <= n`, reverse only the nodes from position `left` to position `right`, inclusive, leaving the rest of the list untouched. Return the head of the result.\n\nExamples show each list as its values in order.",
     explanation:
-      "The flat-list shortcut is a slice reversal: convert to 0-indexed bounds `lo = left - 1`, `hi = right - 1`, then reverse `vals[lo:hi+1]` in place.\n\nThe real linked-list version does this in one pass with O(1) space. Walk `left - 1` steps to the node just before the sublist (use a dummy head so `left == 1` is handled uniformly). Then repeatedly take the node right after your current position and splice it to the front of the reversed segment — the classic head-insertion trick. After `right - left` such splices the segment is reversed and correctly re-attached.\n\nO(n) time, O(1) extra space.",
+      "This can be done in one pass with O(1) space. Walk `left - 1` steps to the node just before the sublist (use a dummy head so `left == 1` is handled uniformly). Then repeatedly take the node right after the sublist's first node and splice it to the front of the reversed segment — the classic head-insertion trick. After `right - left` such splices the segment is reversed and correctly re-attached.\n\nO(n) time, O(1) extra space.",
     functionName: 'reverse_between',
-    functionSignature: "def reverse_between(head: list[int], left: int, right: int) -> list[int]:",
+    functionSignature: "def reverse_between(head: Optional[ListNode], left: int, right: int) -> Optional[ListNode]:",
     starter:
-      STARTER_HEADER + "def reverse_between(head: list[int], left: int, right: int) -> list[int]:\n    pass\n",
+      STARTER_HEADER +
+      "# ListNode has .val, .next. Make one with ListNode(val). Empty list is None.\ndef reverse_between(head: Optional[ListNode], left: int, right: int) -> Optional[ListNode]:\n    pass\n",
+    structs: { args: ['list'], returns: 'list' },
     examples: [
       { input: [[1,2,3,4,5],2,4], expected: [1,4,3,2,5] },
       { input: [[5],1,1], expected: [5] },
@@ -6258,13 +6316,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Easy',
     topic: "Linked List",
     statement:
-      "Given the values of a singly linked list as a flat Python list, determine whether the sequence of values reads the same forwards and backwards. Return `True` if it is a palindrome, `False` otherwise. An empty list is considered a palindrome.",
+      "Given the `head` of a singly linked list, return `True` if its values read the same forwards and backwards, `False` otherwise. An empty list counts as a palindrome.\n\nExamples show each list as its values in order.",
     explanation:
-      "With a flat list the check is simply `head == head[::-1]`.\n\nThe interesting O(1)-space linked-list technique: use slow/fast pointers to find the middle, reverse the second half in place, then walk the two halves inward comparing values node by node. If every pair matches, it's a palindrome. (Optionally restore the list by reversing the second half back.)\n\nComparing values inward is O(n) time; the in-place reverse keeps space at O(1), versus the naive O(n)-space approach of copying all values into an array.",
+      "The simple approach copies the values into a Python list and checks `vals == vals[::-1]`, at the cost of O(n) extra space.\n\nThe O(1)-space technique: use slow/fast pointers to find the middle, reverse the second half in place, then walk the two halves inward comparing values node by node. If every pair matches, it's a palindrome. (Optionally restore the list by reversing the second half back.)\n\nBoth are O(n) time.",
     functionName: 'is_palindrome_list',
-    functionSignature: "def is_palindrome_list(head: list[int]) -> bool:",
+    functionSignature: "def is_palindrome_list(head: Optional[ListNode]) -> bool:",
     starter:
-      STARTER_HEADER + "def is_palindrome_list(head: list[int]) -> bool:\n    pass\n",
+      STARTER_HEADER +
+      "# ListNode has .val, .next. Make one with ListNode(val). Empty list is None.\ndef is_palindrome_list(head: Optional[ListNode]) -> bool:\n    pass\n",
+    structs: { args: ['list'] },
     examples: [
       { input: [[1,2,2,1]], expected: true },
       { input: [[1,2]], expected: false },
@@ -6283,13 +6343,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: "Linked List",
     statement:
-      "You're given the node values of a singly linked list and an integer `pos`. If `pos >= 0`, the tail node is wired back to the node at index `pos`, forming a cycle that begins there. If `pos == -1`, the list has no cycle. Return the index at which the cycle begins, or `-1` if there is no cycle. An empty list has no cycle.",
+      "Given the `head` of a singly linked list that may contain a cycle, return the node where the cycle begins, or `None` if there is no cycle.\n\nExamples show the list's values plus `pos`, the index of the node the tail links back to (`-1` means no cycle). Your function only receives `head`. The node you return is reported as its index in the list (`-1` for `None`).",
     explanation:
-      "Because `pos` is handed to you, the answer is just `pos` when a cycle exists (and the list is non-empty) and `-1` otherwise.\n\nThe algorithmic heart is Floyd's two-phase cycle detection. **Phase 1**: advance `slow` by one and `fast` by two until they meet inside the loop (if `fast` hits the end, return -1). **Phase 2**: reset one pointer to the head, then advance both one step at a time; they meet exactly at the cycle's entry node. This works because the distance from the head to the entry equals the distance from the meeting point to the entry (mod the cycle length).\n\nO(n) time, O(1) space — no hash set of visited nodes needed.",
+      "Use Floyd's two-phase cycle detection. **Phase 1**: advance `slow` by one and `fast` by two until they meet inside the loop (if `fast` hits the end, return `None`). **Phase 2**: reset one pointer to the head, then advance both one step at a time; they meet exactly at the cycle's entry node. This works because the distance from the head to the entry equals the distance from the meeting point to the entry (mod the cycle length).\n\nO(n) time, O(1) space — no hash set of visited nodes needed.",
     functionName: 'cycle_start',
-    functionSignature: "def cycle_start(values: list[int], pos: int) -> int:",
+    functionSignature: "def cycle_start(head: Optional[ListNode]) -> Optional[ListNode]:",
     starter:
-      STARTER_HEADER + "def cycle_start(values: list[int], pos: int) -> int:\n    pass\n",
+      STARTER_HEADER +
+      "# ListNode has .val, .next. Make one with ListNode(val). Empty list is None.\ndef cycle_start(head: Optional[ListNode]) -> Optional[ListNode]:\n    pass\n",
+    structs: { args: ['cycle'], returns: 'node_index' },
     examples: [
       { input: [[3,2,0,-4],1], expected: 1 },
       { input: [[1,2],0], expected: 0 },
@@ -6308,13 +6370,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: "Linked List",
     statement:
-      "Given the values of a singly linked list as a flat Python list and an integer `x`, reorder the values so that every value strictly less than `x` comes before every value greater than or equal to `x`. The original relative order of the nodes within each of the two groups must be preserved (a stable partition). Return the reordered values as a Python list.",
+      "Given the `head` of a singly linked list and an integer `x`, rearrange the nodes so that every node with a value strictly less than `x` comes before every node with a value greater than or equal to `x`. The original relative order within each of the two groups must be preserved (a stable partition). Return the head of the result.\n\nExamples show each list as its values in order.",
     explanation:
-      "The stability requirement is the crux: you can't sort or swap freely. Build two separate sequences in a single left-to-right pass — one collecting values `< x` in the order they appear, the other collecting values `>= x` in the order they appear — then concatenate the first followed by the second.\n\nWith real nodes you'd keep two dummy-headed sub-lists (`less` and `greater`), append each node to the appropriate tail, and finally splice the `less` chain in front of the `greater` chain (remember to null-terminate the greater tail).\n\nO(n) time, O(1) extra space beyond the output.",
+      "The stability requirement is the crux: you can't sort or swap freely.\n\nKeep two dummy-headed sub-lists (`less` and `greater`). In a single left-to-right pass, append each node to the appropriate tail. Finally splice the `less` chain in front of the `greater` chain (remember to null-terminate the greater tail).\n\nO(n) time, O(1) extra space.",
     functionName: 'partition_list',
-    functionSignature: "def partition_list(head: list[int], x: int) -> list[int]:",
+    functionSignature: "def partition_list(head: Optional[ListNode], x: int) -> Optional[ListNode]:",
     starter:
-      STARTER_HEADER + "def partition_list(head: list[int], x: int) -> list[int]:\n    pass\n",
+      STARTER_HEADER +
+      "# ListNode has .val, .next. Make one with ListNode(val). Empty list is None.\ndef partition_list(head: Optional[ListNode], x: int) -> Optional[ListNode]:\n    pass\n",
+    structs: { args: ['list'], returns: 'list' },
     examples: [
       { input: [[1,4,3,2,5,2],3], expected: [1,2,2,4,3,5] },
       { input: [[2,1],2], expected: [1,2] },
@@ -6332,13 +6396,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: "Linked List",
     statement:
-      "Given the values of a singly linked list as a flat Python list, remove every node whose value appears more than once anywhere in the list, keeping only the nodes whose value is unique. The relative order of the surviving values must be preserved. Return the resulting values as a Python list.",
+      "Given the `head` of a singly linked list (not necessarily sorted), remove every node whose value appears more than once anywhere in the list, keeping only the nodes whose value is unique. The relative order of the surviving nodes must be preserved. Return the head of the result.\n\nExamples show each list as its values in order.",
     explanation:
-      "Note this deletes duplicated values entirely — not just the extra copies. A value that appears twice contributes nothing to the output.\n\nCount how many times each value occurs (a single pass building a frequency dictionary), then do a second pass keeping only the values whose count equals 1, in their original order.\n\nThe classic linked-list form uses a dummy head and a `prev` pointer: when you spot a run of equal values, skip the entire run by pointing `prev.next` past it; otherwise advance `prev`. That variant assumes a sorted list and runs in O(n) time, O(1) space. The counting approach here handles unsorted input in O(n) time, O(n) space.",
+      "Note this deletes duplicated values entirely — not just the extra copies. A value that appears twice contributes nothing to the output.\n\nFirst pass: walk the list counting how many times each value occurs. Second pass: use a dummy head and a `prev` pointer, unlinking every node whose count is greater than 1 (`prev.next = cur.next`) and advancing `prev` otherwise.\n\nO(n) time, O(n) space for the counts. If the list were sorted you could skip whole runs of equal values in O(1) space instead.",
     functionName: 'delete_duplicates_all',
-    functionSignature: "def delete_duplicates_all(head: list[int]) -> list[int]:",
+    functionSignature: "def delete_duplicates_all(head: Optional[ListNode]) -> Optional[ListNode]:",
     starter:
-      STARTER_HEADER + "def delete_duplicates_all(head: list[int]) -> list[int]:\n    pass\n",
+      STARTER_HEADER +
+      "# ListNode has .val, .next. Make one with ListNode(val). Empty list is None.\ndef delete_duplicates_all(head: Optional[ListNode]) -> Optional[ListNode]:\n    pass\n",
+    structs: { args: ['list'], returns: 'list' },
     examples: [
       { input: [[1,2,3,3,4,4,5]], expected: [1,2,5] },
       { input: [[1,1,1,2,3]], expected: [2,3] },
@@ -6357,13 +6423,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Easy',
     topic: "Tree",
     statement:
-      "A binary tree is encoded here as a level-order array with `None` for missing nodes (children of a missing node are omitted, as in the standard LeetCode encoding). A *leaf* is a node with no left child and no right child. Return the number of leaf nodes in the tree. An empty tree has 0 leaves.",
+      "Given the `root` of a binary tree, return the number of leaf nodes. A *leaf* is a node with no left child and no right child. An empty tree has 0 leaves.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
-      "Build the actual node tree from the level-order array, then count nodes whose `left` and `right` are both `None`.\n\nRecursive view: `leaves(None) = 0`; `leaves(leaf) = 1`; otherwise `leaves(node) = leaves(node.left) + leaves(node.right)`.\n\nAn iterative DFS with a stack works too — pop each node, add 1 when it has no children, and push any children. O(n) time.",
+      "Count the nodes whose `left` and `right` are both `None`.\n\nRecursive view: `leaves(None) = 0`; `leaves(leaf) = 1`; otherwise `leaves(node) = leaves(node.left) + leaves(node.right)`.\n\nAn iterative DFS with a stack works too — pop each node, add 1 when it has no children, and push any children. O(n) time.",
     functionName: 'count_leaves',
-    functionSignature: "def count_leaves(root: list) -> int:",
+    functionSignature: "def count_leaves(root: Optional[TreeNode]) -> int:",
     starter:
-      STARTER_HEADER + "def count_leaves(root: list) -> int:\n    # root is a level-order array; None marks missing nodes.\n    pass\n",
+      STARTER_HEADER +
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef count_leaves(root: Optional[TreeNode]) -> int:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[3,9,20,null,null,15,7]], expected: 3 },
       { input: [[1,null,2]], expected: 1 },
@@ -6382,13 +6450,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: "Tree",
     statement:
-      "A binary search tree is encoded as a level-order array with `None` for missing nodes (standard LeetCode encoding; children of a missing node are omitted). Given integers `low` and `high`, return the sum of the values of all nodes whose value lies in the inclusive range `[low, high]`. Values are unique. Return 0 for an empty tree.",
+      "Given the `root` of a binary search tree and integers `low` and `high`, return the sum of the values of all nodes whose value lies in the inclusive range `[low, high]`. Values are unique. Return 0 for an empty tree.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
       "You could sum every in-range node with a plain traversal, but the BST property lets you prune.\n\nDo a DFS from the root. At a node with value `v`:\n- if `v < low`, the entire left subtree is too small — only recurse right;\n- if `v > high`, the entire right subtree is too large — only recurse left;\n- otherwise add `v` and recurse into both children.\n\nEach node is visited at most once, so O(n) worst case but far fewer visits on typical trees.",
     functionName: 'range_sum_bst',
-    functionSignature: "def range_sum_bst(root: list, low: int, high: int) -> int:",
+    functionSignature: "def range_sum_bst(root: Optional[TreeNode], low: int, high: int) -> int:",
     starter:
-      STARTER_HEADER + "def range_sum_bst(root: list, low: int, high: int) -> int:\n    # root is a level-order array of a BST; None marks missing nodes.\n    pass\n",
+      STARTER_HEADER +
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef range_sum_bst(root: Optional[TreeNode], low: int, high: int) -> int:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[10,5,15,3,7,null,18],7,15], expected: 32 },
       { input: [[10,5,15,3,7,13,18,1,null,6],6,10], expected: 23 },
@@ -6406,13 +6476,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: "Tree",
     statement:
-      "A binary search tree is encoded as a level-order array with `None` for missing nodes (standard LeetCode encoding; children of a missing node are omitted). Return the minimum absolute difference between the values of any two different nodes in the tree. The tree has at least two nodes.",
+      "Given the `root` of a binary search tree with at least two nodes, return the minimum absolute difference between the values of any two different nodes in the tree.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
       "In a BST, an in-order traversal visits values in strictly increasing order. The closest pair of values is therefore always two *consecutive* values in that in-order sequence.\n\nDo an in-order traversal collecting values into a list, then take the minimum difference between adjacent entries. Because the list is sorted, you never need to compare non-adjacent pairs.\n\nO(n) time; O(n) space for the list (or O(h) if you track only the previous value during traversal).",
     functionName: 'min_diff_bst',
-    functionSignature: "def min_diff_bst(root: list) -> int:",
+    functionSignature: "def min_diff_bst(root: Optional[TreeNode]) -> int:",
     starter:
-      STARTER_HEADER + "def min_diff_bst(root: list) -> int:\n    # root is a level-order array of a BST; None marks missing nodes.\n    pass\n",
+      STARTER_HEADER +
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef min_diff_bst(root: Optional[TreeNode]) -> int:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[4,2,6,1,3]], expected: 1 },
       { input: [[1,0,48,null,null,12,49]], expected: 1 },
@@ -6429,13 +6501,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Easy',
     topic: "Tree",
     statement:
-      "A binary tree is encoded as a level-order array with `None` for missing nodes (standard LeetCode encoding; children of a missing node are omitted). Return a list giving the average value of the nodes on each level, from the root level downward.\n\nTo keep the result exact and unambiguous, each average must be an integer (Python `int`) when it divides evenly, and otherwise the exact `float` value of `sum / count`. Return an empty list for an empty tree.",
+      "Given the `root` of a binary tree, return a list giving the average value of the nodes on each level, from the root level downward.\n\nTo keep the result exact and unambiguous, each average must be an integer (Python `int`) when it divides evenly, and otherwise the exact `float` value of `sum / count`. Return an empty list for an empty tree.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
       "This is a breadth-first (level-order) traversal. Use a queue seeded with the root. Repeatedly process one full level at a time: record the current queue size `n`, pop exactly `n` nodes summing their values while enqueuing their children, then the level average is `sum / n`.\n\nTo match the required output format, emit `int(avg)` when `avg` is a whole number and the plain float otherwise. O(n) time.",
     functionName: 'level_averages',
-    functionSignature: "def level_averages(root: list) -> list:",
+    functionSignature: "def level_averages(root: Optional[TreeNode]) -> list:",
     starter:
-      STARTER_HEADER + "def level_averages(root: list) -> list:\n    # root is a level-order array; None marks missing nodes.\n    pass\n",
+      STARTER_HEADER +
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef level_averages(root: Optional[TreeNode]) -> list:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[3,9,20,null,null,15,7]], expected: [3,14.5,11] },
       { input: [[1]], expected: [1] },
@@ -6453,13 +6527,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Hard',
     topic: "Tree",
     statement:
-      "A binary tree is encoded as a level-order array with `None` for missing nodes (standard LeetCode encoding; children of a missing node are omitted). Return the maximum *width* of the tree.\n\nThe width of a level is the number of positions between its leftmost and rightmost non-`None` nodes **inclusive**, counting the `None` gap positions in between as if this were a complete binary tree. Formally, if the root sits at index 0, a node at index `i` has children at indices `2*i` and `2*i + 1`; a level's width is `rightmost_index - leftmost_index + 1`. Return 0 for an empty tree.",
+      "Given the `root` of a binary tree, return the maximum *width* of the tree.\n\nThe width of a level is the number of positions between its leftmost and rightmost nodes **inclusive**, counting the empty positions in between as if this were a complete binary tree. Formally, if the root sits at position 0 and a node at position `i` has its children at positions `2*i + 1` and `2*i + 2`, a level's width is `rightmost_position - leftmost_position + 1`. Return 0 for an empty tree.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
-      "Run a BFS where every queued node carries its positional index as in a complete binary tree: root index 0, and a node at index `i` gives children indices `2*i` and `2*i + 1`.\n\nProcess one level at a time. The first node dequeued on a level holds the leftmost index and the last holds the rightmost index; that level's width is `last - first + 1`. Track the maximum across all levels.\n\nTo avoid overflow in other languages you'd normalize indices per level by subtracting the level's first index, but Python's big integers make that optional. O(n) time.",
+      "Run a BFS where every queued node carries its positional index as in a complete binary tree: root index 0, and a node at index `i` gives children indices `2*i + 1` and `2*i + 2`.\n\nProcess one level at a time. The first node dequeued on a level holds the leftmost index and the last holds the rightmost index; that level's width is `last - first + 1`. Track the maximum across all levels.\n\nTo avoid overflow in other languages you'd normalize indices per level by subtracting the level's first index, but Python's big integers make that optional. O(n) time.",
     functionName: 'max_width',
-    functionSignature: "def max_width(root: list) -> int:",
+    functionSignature: "def max_width(root: Optional[TreeNode]) -> int:",
     starter:
-      STARTER_HEADER + "def max_width(root: list) -> int:\n    # root is a level-order array; None marks missing nodes.\n    pass\n",
+      STARTER_HEADER +
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef max_width(root: Optional[TreeNode]) -> int:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[1,3,2,5,3,null,9]], expected: 4 },
       { input: [[1,3,2,5,null,null,9,6,null,7]], expected: 7 },
@@ -6478,13 +6554,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Easy',
     topic: "Tree",
     statement:
-      "You're given a binary tree encoded as a level-order array `tree` (using `null` for missing children), and an integer `target`.\n\nA *root-to-leaf path* starts at the root and ends at a leaf (a node with no children). Count how many such paths have node values that add up exactly to `target`, and return that count.\n\nIf the tree is empty, return `0`. Node values may be negative.",
+      "Given the `root` of a binary tree and an integer `target`, count the root-to-leaf paths whose node values add up exactly to `target`, and return that count.\n\nA *root-to-leaf path* starts at the root and ends at a leaf (a node with no children). If the tree is empty, return `0`. Node values may be negative.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
       "Walk from the root toward the leaves while carrying a running sum of the values along the current path.\n\nAt every leaf, check whether the accumulated sum equals `target`; if so, add one to your count. Use DFS (a stack or recursion) so each path's sum is tracked independently.\n\nThis visits each node once: O(n) time, O(h) extra space for the traversal, where h is the tree height.",
     functionName: 'count_root_to_leaf_with_sum',
-    functionSignature: "def count_root_to_leaf_with_sum(tree: list, target: int) -> int:",
+    functionSignature: "def count_root_to_leaf_with_sum(root: Optional[TreeNode], target: int) -> int:",
     starter:
-      STARTER_HEADER + "def count_root_to_leaf_with_sum(tree: list, target: int) -> int:\n    pass\n",
+      STARTER_HEADER +
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef count_root_to_leaf_with_sum(root: Optional[TreeNode], target: int) -> int:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[5,4,8,11,null,13,4,7,2,null,null,null,1],22], expected: 1 },
       { input: [[1,2,3,4,null,null,3],7], expected: 2 },
@@ -6504,13 +6582,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: "Tree",
     statement:
-      "You're given a binary tree encoded as a level-order array `tree` (using `null` for missing children).\n\nThe *diameter* of the tree is the length of the longest path between any two nodes, measured as the number of **edges** on that path. This path may or may not pass through the root.\n\nReturn the diameter. A tree with 0 or 1 node has diameter `0`.",
+      "Given the `root` of a binary tree, return its *diameter*: the length of the longest path between any two nodes, measured as the number of **edges** on that path. This path may or may not pass through the root.\n\nA tree with 0 or 1 node has diameter `0`.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
       "For any single node, the longest path that bends at that node equals (height of its left subtree) + (height of its right subtree), counted in edges.\n\nDo one post-order DFS that returns each subtree's height. While unwinding, update a running maximum with `leftHeight + rightHeight` at every node. The overall maximum is the diameter.\n\nComputing height and diameter together avoids recomputation: O(n) time, O(h) recursion depth.",
     functionName: 'tree_diameter',
-    functionSignature: "def tree_diameter(tree: list) -> int:",
+    functionSignature: "def tree_diameter(root: Optional[TreeNode]) -> int:",
     starter:
-      STARTER_HEADER + "def tree_diameter(tree: list) -> int:\n    pass\n",
+      STARTER_HEADER +
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef tree_diameter(root: Optional[TreeNode]) -> int:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[1,2,3,4,5]], expected: 3 },
       { input: [[1,2]], expected: 1 },
@@ -6528,13 +6608,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: "Tree",
     statement:
-      "You're given a **binary search tree** encoded as a level-order array `tree` (using `null` for missing children), and two values `p` and `q` that are both present in the tree.\n\nReturn the **value** of the lowest common ancestor (LCA) of `p` and `q` — the deepest node that has both `p` and `q` somewhere in its subtree (a node can be an ancestor of itself).\n\nAssume the tree obeys the BST property: every value in a node's left subtree is smaller than the node, and every value in its right subtree is larger. All values are distinct.",
+      "Given the `root` of a **binary search tree** and two values `p` and `q` that are both present in the tree, return the **value** of the lowest common ancestor (LCA) of `p` and `q` — the deepest node that has both `p` and `q` somewhere in its subtree (a node can be an ancestor of itself).\n\nAssume the tree obeys the BST property: every value in a node's left subtree is smaller than the node, and every value in its right subtree is larger. All values are distinct.\n\nExamples show each tree in level order, with `null` for a missing child.",
     explanation:
       "Because it's a BST, you don't need to search both subtrees. Start at the root and compare.\n\nIf both `p` and `q` are smaller than the current node, the LCA lies to the left. If both are larger, it lies to the right. The moment the current node sits between them (or equals one of them), that node is the split point — the LCA.\n\nThis walks a single path down the tree: O(h) time, O(1) extra space.",
     functionName: 'lca_bst',
-    functionSignature: "def lca_bst(tree: list, p: int, q: int) -> int:",
+    functionSignature: "def lca_bst(root: Optional[TreeNode], p: int, q: int) -> int:",
     starter:
-      STARTER_HEADER + "def lca_bst(tree: list, p: int, q: int) -> int:\n    pass\n",
+      STARTER_HEADER +
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef lca_bst(root: Optional[TreeNode], p: int, q: int) -> int:\n    pass\n",
+    structs: { args: ['tree'] },
     examples: [
       { input: [[6,2,8,0,4,7,9,null,null,3,5],2,8], expected: 6 },
       { input: [[6,2,8,0,4,7,9,null,null,3,5],2,4], expected: 2 },
@@ -6552,13 +6634,15 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Hard',
     topic: "Tree",
     statement:
-      "You're given two integer lists, `preorder` and `inorder`, representing the preorder and inorder traversals of the same binary tree. All node values are distinct.\n\nReconstruct the tree and return it as a **level-order array** (breadth-first), using `null` for missing children, with any trailing `null` entries trimmed off.\n\nFor example, preorder `[3,9,20,15,7]` and inorder `[9,3,15,20,7]` rebuild to the level-order encoding `[3,9,20,null,null,15,7]`.",
+      "You're given two integer lists, `preorder` and `inorder`, representing the preorder and inorder traversals of the same binary tree. All node values are distinct.\n\nReconstruct the tree and return its root.\n\nFor example, preorder `[3,9,20,15,7]` and inorder `[9,3,15,20,7]` rebuild the tree shown in level order as `[3,9,20,null,null,15,7]`, where `null` marks a missing child.",
     explanation:
-      "The first element of `preorder` is always the root. Find that value in `inorder`: everything to its left belongs to the left subtree, everything to its right to the right subtree.\n\nRecurse, consuming preorder values in order (the next preorder value is the next subtree's root). A hash map from value to inorder index makes the split O(1) instead of scanning.\n\nAfter building the tree, run a BFS to emit the level-order array, appending `null` for absent children, then strip trailing `null`s. Construction is O(n).",
+      "The first element of `preorder` is always the root. Find that value in `inorder`: everything to its left belongs to the left subtree, everything to its right to the right subtree.\n\nRecurse, consuming preorder values in order (the next preorder value is the next subtree's root), building a `TreeNode` for each. A hash map from value to inorder index makes the split O(1) instead of scanning.\n\nConstruction is O(n).",
     functionName: 'build_tree_preorder_inorder',
-    functionSignature: "def build_tree_preorder_inorder(preorder: list, inorder: list) -> list:",
+    functionSignature: "def build_tree_preorder_inorder(preorder: list, inorder: list) -> Optional[TreeNode]:",
     starter:
-      STARTER_HEADER + "def build_tree_preorder_inorder(preorder: list, inorder: list) -> list:\n    pass\n",
+      STARTER_HEADER +
+      "# TreeNode has .val, .left, .right. Make one with TreeNode(val). Empty tree is None.\ndef build_tree_preorder_inorder(preorder: list, inorder: list) -> Optional[TreeNode]:\n    pass\n",
+    structs: { returns: 'tree' },
     examples: [
       { input: [[3,9,20,15,7],[9,3,15,20,7]], expected: [3,9,20,null,null,15,7] },
       { input: [[-1],[-1]], expected: [-1] },

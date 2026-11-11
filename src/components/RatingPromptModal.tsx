@@ -1,22 +1,45 @@
-import React, { useState } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Pressable,
-  Linking,
-} from 'react-native';
+// "Enjoying Algogo?" pre-prompt. It only asks whether the user is up for
+// rating; the stars themselves are collected by the system rating sheet
+// (SKStoreReviewController on iOS, the Play in-app review flow on Android) via
+// expo-store-review, so the user never leaves the app and we never collect a
+// rating of our own.
+
+import React, { useCallback } from 'react';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as StoreReview from 'expo-store-review';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
+import Animated, { Easing, FadeInDown, ZoomIn } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, spacing, borderRadius, typography, shadows } from '../theme';
+import BottomSheetModal from './BottomSheetModal';
+import PrimaryButton from './PrimaryButton';
+import AlgogoLogo from './AlgogoLogo';
+import { colors, spacing, typography } from '../theme';
 
 const APP_STORE_FALLBACK_URL =
   'https://apps.apple.com/app/id6756475892?action=write-review';
+const FEEDBACK_URL = 'mailto:ceo@raidea.dev?subject=Algogo%20feedback';
+const STAR_GOLD = '#FFC800';
+
+// The system sheet presents over the app window, so our own sheet (an RN
+// Modal) has to be fully dismissed first or iOS can drop the request.
+const SHEET_DISMISS_MS = 450;
+
+const ease = <T extends { easing: (e: any) => T }>(a: T) => a.easing(Easing.out(Easing.cubic));
+
+async function requestNativeReview() {
+  try {
+    if (await StoreReview.hasAction()) {
+      await StoreReview.requestReview();
+      return;
+    }
+    // No in-app flow on this device/build: fall back to the store listing.
+    const url = (await StoreReview.storeUrl()) || APP_STORE_FALLBACK_URL;
+    await Linking.openURL(url);
+  } catch {
+    Linking.openURL(APP_STORE_FALLBACK_URL).catch(() => {});
+  }
+}
 
 interface Props {
   visible: boolean;
@@ -24,242 +47,140 @@ interface Props {
 }
 
 export default function RatingPromptModal({ visible, onClose }: Props) {
-  const [rating, setRating] = useState<number | null>(null);
-  const [stage, setStage] = useState<'rate' | 'review' | 'thanks-low'>('rate');
+  const insets = useSafeAreaInsets();
 
-  const reset = () => {
-    setRating(null);
-    setStage('rate');
-  };
-
-  const close = () => {
-    reset();
+  const handleRate = useCallback(() => {
     onClose();
-  };
+    setTimeout(requestNativeReview, SHEET_DISMISS_MS);
+  }, [onClose]);
 
-  const handleStar = (n: number) => {
-    setRating(n);
-    // Brief pause so the user sees their selection before the modal swaps content.
-    setTimeout(() => {
-      if (n >= 4) setStage('review');
-      else setStage('thanks-low');
-    }, 350);
-  };
-
-  const handleReviewYes = async () => {
-    try {
-      if (await StoreReview.hasAction()) {
-        await StoreReview.requestReview();
-      } else {
-        const url = (await StoreReview.storeUrl()) || APP_STORE_FALLBACK_URL;
-        await Linking.openURL(url);
-      }
-    } catch {
-      Linking.openURL(APP_STORE_FALLBACK_URL).catch(() => {});
-    }
-    close();
-  };
+  const handleFeedback = useCallback(() => {
+    onClose();
+    Linking.openURL(FEEDBACK_URL).catch(() => {});
+  }, [onClose]);
 
   return (
-    <Modal
+    <BottomSheetModal
       visible={visible}
-      animationType="fade"
-      transparent
-      onRequestClose={close}
+      onClose={onClose}
+      sheetStyle={{ paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.sm }}
     >
-      <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill}>
-      <Pressable style={styles.backdrop} onPress={close}>
-        <Animated.View
-          entering={FadeInDown.springify().damping(18)}
-          style={styles.card}
+      <View style={styles.body}>
+        <Animated.View entering={ease(FadeInDown.delay(80).duration(380))} style={styles.logoTile}>
+          <AlgogoLogo size={92} />
+        </Animated.View>
+
+        {/* Decorative, but tapping them goes to the real rating sheet too. */}
+        <Pressable
+          onPress={handleRate}
+          style={styles.starRow}
+          accessibilityRole="button"
+          accessibilityLabel="Rate Algogo"
         >
-          <Pressable onPress={() => {}} style={styles.cardInner}>
-            <TouchableOpacity
-              onPress={close}
-              hitSlop={10}
-              style={styles.closeBtn}
-            >
-              <Ionicons name="close" size={22} color={colors.inkLight} />
-            </TouchableOpacity>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Animated.View key={i} entering={ZoomIn.delay(220 + i * 70).duration(260)}>
+              <Ionicons name="star" size={30} color={STAR_GOLD} />
+            </Animated.View>
+          ))}
+        </Pressable>
 
-            {stage === 'rate' && (
-              <Animated.View entering={FadeIn.duration(200)}>
-                <View style={styles.emojiCircle}>
-                  <Text style={styles.emoji}>👋</Text>
-                </View>
-                <Text style={styles.title}>Enjoying Algogo?</Text>
-                <Text style={styles.subtitle}>
-                  You've been with us for a few days — how's the app treating you?
-                </Text>
-                <View style={styles.starRow}>
-                  {[1, 2, 3, 4, 5].map((n) => {
-                    const active = rating !== null && n <= rating;
-                    return (
-                      <TouchableOpacity
-                        key={n}
-                        onPress={() => handleStar(n)}
-                        activeOpacity={0.7}
-                        style={styles.starBtn}
-                      >
-                        <Ionicons
-                          name={active ? 'star' : 'star-outline'}
-                          size={40}
-                          color={active ? '#F5B400' : colors.inkLighter}
-                        />
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                <Text style={styles.hint}>Tap a star</Text>
-              </Animated.View>
-            )}
+        <Animated.Text entering={ease(FadeInDown.delay(160).duration(380))} style={styles.title}>
+          Enjoying Algogo?
+        </Animated.Text>
+        <Animated.Text entering={ease(FadeInDown.delay(220).duration(380))} style={styles.subtitle}>
+          A quick rating helps other engineers find the app. It takes a few seconds and you
+          never leave Algogo.
+        </Animated.Text>
 
-            {stage === 'review' && (
-              <Animated.View entering={FadeIn.duration(220)}>
-                <View style={[styles.emojiCircle, { backgroundColor: '#FFF6D6' }]}>
-                  <Text style={styles.emoji}>⭐️</Text>
-                </View>
-                <Text style={styles.title}>That means a lot</Text>
-                <Text style={styles.subtitle}>
-                  Would you mind leaving us a review?
-                </Text>
-                <TouchableOpacity
-                  onPress={handleReviewYes}
-                  activeOpacity={0.85}
-                  style={[styles.primaryBtn, shadows.button(colors.primaryDark)]}
-                >
-                  <Ionicons name="logo-apple" size={18} color={colors.white} />
-                  <Text style={styles.primaryBtnText}>Leave a review</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={close}
-                  activeOpacity={0.8}
-                  style={styles.secondaryBtn}
-                >
-                  <Text style={styles.secondaryBtnText}>Maybe later</Text>
-                </TouchableOpacity>
-              </Animated.View>
-            )}
-
-            {stage === 'thanks-low' && (
-              <Animated.View entering={FadeIn.duration(220)}>
-                <View style={[styles.emojiCircle, { backgroundColor: '#E9F4FF' }]}>
-                  <Text style={styles.emoji}>🙏</Text>
-                </View>
-                <Text style={styles.title}>Thanks for the feedback</Text>
-                <Text style={styles.subtitle}>
-                  We're a tiny team and we read everything. If something's off,
-                  email us at ceo@raidea.dev — we want to fix it.
-                </Text>
-                <TouchableOpacity
-                  onPress={close}
-                  activeOpacity={0.85}
-                  style={[styles.primaryBtn, shadows.button(colors.primaryDark)]}
-                >
-                  <Text style={styles.primaryBtnText}>Got it</Text>
-                </TouchableOpacity>
-              </Animated.View>
-            )}
+        <Animated.View entering={ease(FadeInDown.delay(300).duration(380))} style={styles.actions}>
+          <PrimaryButton label="Rate Algogo" icon="star" onPress={handleRate} />
+          <Pressable
+            onPress={onClose}
+            hitSlop={8}
+            style={({ pressed }) => [styles.laterBtn, pressed && styles.dim]}
+            accessibilityRole="button"
+          >
+            <Text style={styles.laterText}>Not now</Text>
           </Pressable>
         </Animated.View>
-      </Pressable>
-      </BlurView>
-    </Modal>
+
+        <Pressable
+          onPress={handleFeedback}
+          hitSlop={8}
+          style={({ pressed }) => pressed && styles.dim}
+          accessibilityRole="link"
+        >
+          <Text style={styles.feedbackText}>
+            Something not working? <Text style={styles.feedbackLink}>Tell us</Text>
+          </Text>
+        </Pressable>
+      </View>
+    </BottomSheetModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 15, 25, 0.3)',
-    justifyContent: 'center',
+  body: {
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.sm,
   },
-  card: {
-    width: '100%',
-    maxWidth: 360,
+  // Same chunky card treatment as the rest of the app: thin border, heavy lip.
+  logoTile: {
+    width: 92,
+    height: 92,
+    borderRadius: 26,
     backgroundColor: colors.card,
-    borderRadius: borderRadius.xl,
     borderWidth: 1.5,
     borderBottomWidth: 5,
     borderColor: colors.border,
     borderBottomColor: colors.borderDark,
-    ...shadows.lg,
-  },
-  cardInner: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.lg,
-    alignItems: 'center',
-  },
-  closeBtn: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    padding: spacing.xs,
-  },
-  emojiCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#FFEED9',
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: spacing.md,
-  },
-  emoji: { fontSize: 32 },
-  title: {
-    ...typography.headlineSmall,
-    color: colors.ink,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-  },
-  subtitle: {
-    ...typography.bodyMedium,
-    color: colors.inkLight,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: spacing.lg,
-    paddingHorizontal: spacing.xs,
   },
   starRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
+    gap: 6,
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
   },
-  starBtn: { padding: 4 },
-  hint: {
-    ...typography.labelSmall,
-    color: colors.inkLighter,
+  title: {
+    ...typography.screenTitle,
     textAlign: 'center',
     marginBottom: spacing.sm,
   },
-  primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.md,
+  subtitle: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '500',
+    color: colors.inkLight,
+    textAlign: 'center',
+    maxWidth: 320,
+    marginBottom: spacing.xl,
+  },
+  actions: {
     alignSelf: 'stretch',
   },
-  primaryBtnText: {
-    ...typography.labelLarge,
-    color: colors.white,
-    fontSize: 16,
-  },
-  secondaryBtn: {
-    paddingVertical: spacing.md,
+  laterBtn: {
     alignItems: 'center',
-    marginTop: spacing.xs,
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
   },
-  secondaryBtnText: {
-    ...typography.labelMedium,
+  laterText: {
+    ...typography.labelLarge,
+    fontSize: 15,
     color: colors.inkLight,
   },
+  feedbackText: {
+    ...typography.caption,
+    color: colors.inkLighter,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+  },
+  feedbackLink: {
+    color: colors.inkLight,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  dim: { opacity: 0.6 },
 });

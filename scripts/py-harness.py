@@ -1,5 +1,5 @@
 # Offline twin of the in-app Pyodide grader (see src/practice/practiceHtml.ts).
-# Reads JSON on stdin: {"code": "<python source>", "tests": [{"id":..., "fn":..., "input": [...], "expected": ..., "compare": "exact"|"unordered"}]}
+# Reads JSON on stdin: {"code": "<python source>", "tests": [{"id":..., "fn":..., "input": [...], "expected": ..., "compare": "exact"|"unordered", "structs": {"args": [...], "returns": ...}|null}]}
 # Writes JSON on stdout: [{"id":..., "pass": bool, "got": ..., "error": str|None}]
 import json, sys, copy, traceback, io, signal
 
@@ -35,6 +35,143 @@ def _equal(a, b, compare='exact'):
     return a == b
 
 
+# --- Tree / linked-list support ---------------------------------------------
+# Problems that declare structs get real node objects instead of raw arrays:
+# level-order arrays become TreeNode trees, value lists become ListNode chains,
+# and returned nodes are flattened back so results compare against plain JSON.
+from typing import Optional, List, Dict, Tuple, Set, Any
+
+class TreeNode:
+    def __init__(self, val=0, left=None, right=None):
+        self.val = val
+        self.left = left
+        self.right = right
+    def __repr__(self):
+        return 'TreeNode(' + repr(self.val) + ')'
+
+class ListNode:
+    def __init__(self, val=0, next=None):
+        self.val = val
+        self.next = next
+    def __repr__(self):
+        return 'ListNode(' + repr(self.val) + ')'
+
+_MAX_NODES = 100000
+
+def _base_globals():
+    return {
+        '__name__': '__main__',
+        'TreeNode': TreeNode, 'ListNode': ListNode,
+        'Optional': Optional, 'List': List, 'Dict': Dict,
+        'Tuple': Tuple, 'Set': Set, 'Any': Any,
+    }
+
+def _build_tree(vals, cls):
+    # Standard level-order encoding: children of a missing node are omitted.
+    if not vals or vals[0] is None:
+        return None
+    root = cls(vals[0])
+    queue = [root]
+    qi = 0
+    i = 1
+    while i < len(vals) and qi < len(queue):
+        node = queue[qi]
+        qi += 1
+        if vals[i] is not None:
+            node.left = cls(vals[i])
+            queue.append(node.left)
+        i += 1
+        if i < len(vals) and vals[i] is not None:
+            node.right = cls(vals[i])
+            queue.append(node.right)
+        i += 1
+    return root
+
+def _build_list(vals, cls, pos=-1):
+    nodes = [cls(v) for v in (vals or [])]
+    for a, b in zip(nodes, nodes[1:]):
+        a.next = b
+    if nodes and isinstance(pos, int) and 0 <= pos < len(nodes):
+        nodes[-1].next = nodes[pos]
+    return (nodes[0] if nodes else None), nodes
+
+def _dump_tree(root):
+    out = []
+    queue = [root]
+    qi = 0
+    while qi < len(queue):
+        node = queue[qi]
+        qi += 1
+        if node is None:
+            out.append(None)
+            continue
+        out.append(node.val)
+        if len(out) > _MAX_NODES:
+            raise ValueError('Returned tree is too large (does it contain a cycle?)')
+        queue.append(node.left)
+        queue.append(node.right)
+    while out and out[-1] is None:
+        out.pop()
+    return out
+
+def _dump_list(head):
+    out = []
+    node = head
+    while node is not None:
+        out.append(node.val)
+        if len(out) > _MAX_NODES:
+            raise ValueError('Returned list never ends (does it contain a cycle?)')
+        node = node.next
+    return out
+
+def _prepare_args(inputs, structs, glb):
+    kinds = (structs or {}).get('args') or []
+    if not kinds:
+        return list(inputs), None
+    # Honour a TreeNode / ListNode class the user defined themselves.
+    tree_cls = glb.get('TreeNode', TreeNode)
+    list_cls = glb.get('ListNode', ListNode)
+    args = []
+    cycle_nodes = None
+    i = 0
+    while i < len(inputs):
+        kind = kinds[i] if i < len(kinds) else None
+        if kind == 'tree':
+            args.append(_build_tree(inputs[i], tree_cls))
+        elif kind == 'list':
+            args.append(_build_list(inputs[i], list_cls)[0])
+        elif kind == 'cycle':
+            # Consumes two inputs: the values and the index the tail links to.
+            pos = inputs[i + 1] if i + 1 < len(inputs) else -1
+            head, cycle_nodes = _build_list(inputs[i], list_cls, pos)
+            args.append(head)
+            i += 1
+        else:
+            args.append(inputs[i])
+        i += 1
+    return args, cycle_nodes
+
+def _export_value(value, structs, cycle_nodes):
+    ret = (structs or {}).get('returns')
+    if ret == 'tree':
+        if value is None:
+            return []
+        if hasattr(value, 'left') and hasattr(value, 'right'):
+            return _dump_tree(value)
+    elif ret == 'list':
+        if value is None:
+            return []
+        if hasattr(value, 'next') and hasattr(value, 'val'):
+            return _dump_list(value)
+    elif ret == 'node_index':
+        if value is None:
+            return -1
+        for idx, node in enumerate(cycle_nodes or []):
+            if node is value:
+                return idx
+    return value
+
+
 class Timeout(Exception):
     pass
 
@@ -45,7 +182,7 @@ def _alarm(signum, frame):
 
 def main():
     payload = json.load(sys.stdin)
-    ns = {}
+    ns = _base_globals()
     results = []
     try:
         exec(payload['code'], ns)
@@ -63,9 +200,12 @@ def main():
         old_stdout = sys.stdout
         sys.stdout = io.StringIO()
         try:
+            structs = t.get('structs')
+            args, cycle_nodes = _prepare_args(copy.deepcopy(t['input']), structs, ns)
             signal.alarm(5)
-            got = fn(*copy.deepcopy(t['input']))
+            got = fn(*args)
             signal.alarm(0)
+            got = _export_value(got, structs, cycle_nodes)
             ok = _equal(got, t['expected'], t.get('compare', 'exact'))
             results.append({'id': t['id'], 'pass': bool(ok), 'got': _normalize(got), 'error': None})
         except BaseException as e:

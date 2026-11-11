@@ -84,6 +84,7 @@ const tests = problems.flatMap((p) =>
     input: t.input,
     expected: t.expected,
     compare: p.compare ?? 'exact',
+    structs: p.structs ?? null,
   })),
 );
 const run = spawnSync('python3', [path.join(__dirname, 'py-harness.py')], {

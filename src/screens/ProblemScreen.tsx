@@ -17,7 +17,7 @@ import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import * as FileSystem from 'expo-file-system/legacy';
 
 import { colors, spacing, borderRadius, typography, shadows } from '../theme';
-import { getProblem, Difficulty, TestCase, Blind75Problem } from '../data/blind75';
+import { getProblem, Difficulty, TestCase, Blind75Problem, StructSpec } from '../data/blind75';
 import { PracticeStackParamList } from '../navigation';
 import { buildPracticeHtml } from '../practice/practiceHtml';
 import { ensurePracticeRuntime } from '../practice/stageAssets';
@@ -178,9 +178,12 @@ export function AlgorithmProblemView({
     setRunning(true);
     setResult(null);
     const compare = problem.compare ?? 'exact';
-    const allTests: (TestCase & { hidden: boolean; compare: string })[] = [
-      ...problem.examples.map((t) => ({ ...t, hidden: false, compare })),
-      ...problem.hiddenTests.map((t) => ({ ...t, hidden: true, compare })),
+    // structs tells the grader which args/returns are real TreeNode / ListNode
+    // objects (built from, and flattened back to, the JSON arrays in the tests).
+    const structs = problem.structs ?? null;
+    const allTests: (TestCase & { hidden: boolean; compare: string; structs: StructSpec | null })[] = [
+      ...problem.examples.map((t) => ({ ...t, hidden: false, compare, structs })),
+      ...problem.hiddenTests.map((t) => ({ ...t, hidden: true, compare, structs })),
     ];
     webRef.current?.postMessage(
       JSON.stringify({ type: 'run', fnName: problem.functionName, tests: allTests })
