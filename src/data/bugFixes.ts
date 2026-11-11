@@ -7403,6 +7403,7 @@ import { problems as nodeBuild3 } from './more/node-build-3';
 import { problems as javaDebug2 } from './more/java-debug-2';
 import { problems as javaBuild2 } from './more/java-build-2';
 import { problems as kotlinBuild2 } from './more/kotlin-build-2';
+import { problems as kotlinDebug2 } from './more/kotlin-debug-2';
 
 export const codeProblems: BugFixProblem[] = [
   ...bugFixProblems,
@@ -7420,6 +7421,7 @@ export const codeProblems: BugFixProblem[] = [
   ...javaDebug2,
   ...javaBuild2,
   ...kotlinBuild2,
+  ...kotlinDebug2,
 ];
 
 /** Problems for one Practice category, build problems first. */
