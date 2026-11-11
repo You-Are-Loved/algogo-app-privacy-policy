@@ -2619,15 +2619,15 @@ expect(getByTestId('toast-count').textContent).toBe('Toasts: 2');`,
       },
       {
         name: 'each toast keeps its own timer when another one is added',
-        code: `const { container, getByLabelText, getByRole } = render({ duration: 150, maxVisible: 3 });
+        code: `const { container, getByLabelText, getByRole } = render({ duration: 100, maxVisible: 3 });
 const messages = () => Array.from(container.querySelectorAll('[role="status"] [data-testid="toast-message"]')).map((el) => el.textContent);
 fireEvent.change(getByLabelText('Message'), 'First');
 fireEvent.click(getByRole('button', { name: 'Show toast' }));
-await sleep(90);
+await sleep(60);
 fireEvent.change(getByLabelText('Message'), 'Second');
 fireEvent.click(getByRole('button', { name: 'Show toast' }));
 expect(messages()).toEqual(['First', 'Second']);
-await sleep(100);
+await sleep(60);
 expect(messages()).toEqual(['Second']);
 await waitFor(() => expect(messages()).toEqual([]));`,
       },
@@ -3175,6 +3175,997 @@ const PinField = forwardRef(function PinField({ label }, ref) {
 });
 
 export default PinField;
+`,
+  },
+  {
+    id: 'react-memo-rows-render-spy',
+    number: 96,
+    title: 'Only the Changed Row Re-renders',
+    difficulty: 'Hard',
+    topic: 'Performance & Hooks',
+    statement: `Build \`GuestList({ initialGuests, onRowRender })\`, a list that stays fast because a row only re-renders when ITS guest changes. \`initialGuests\` is an array of \`{ id, name, attending }\` with unique ids and names.
+
+Render:
+- One row per guest, in order. A row contains \`<span data-testid="status-<id>">\` reading \`<name>: attending\` or \`<name>: not attending\`, and a button with \`aria-label="Toggle <name>"\` that flips that guest's \`attending\`.
+- \`<p data-testid="summary">Attending: <count> of <total></p>\`.
+- A text input with \`aria-label="Note"\` whose text lives in the state of \`GuestList\` itself (the same component that owns the guests).
+
+Measuring renders: each row must be its own component, and that component must call \`onRowRender(guest.id)\` at the top of its body, unconditionally, every time it renders. \`onRowRender\` is a spy supplied by the tests; its identity never changes.
+
+Requirements:
+- After mounting, \`onRowRender\` has been called exactly once per guest.
+- Typing in the Note input must not render any row again.
+- Toggling a guest must render ONLY that guest's row again (exactly one more \`onRowRender\` call, with that id).
+- Toggling must stay correct over several clicks on different rows: earlier toggles are never lost.`,
+    componentName: 'GuestList',
+    starter: `import React, { useState, useCallback, memo } from 'react';
+
+function GuestRow({ guest, onToggle, onRowRender }) {
+  onRowRender(guest.id);
+  return (
+    <li>
+      <span data-testid={'status-' + guest.id}>{guest.name}: {guest.attending ? 'attending' : 'not attending'}</span>
+      <button type="button" aria-label={'Toggle ' + guest.name} onClick={() => onToggle(guest.id)}>Toggle</button>
+    </li>
+  );
+}
+
+export default function GuestList({ initialGuests, onRowRender }) {
+  const [guests, setGuests] = useState(initialGuests);
+  const [note, setNote] = useState('');
+  // TODO: toggling, the summary, and rows that skip unnecessary renders
+  return (
+    <div>
+      <input aria-label="Note" value={note} onChange={(e) => setNote(e.target.value)} />
+      <ul>
+        {guests.map((guest) => (
+          <GuestRow key={guest.id} guest={guest} onToggle={() => {}} onRowRender={onRowRender} />
+        ))}
+      </ul>
+      <p data-testid="summary">Attending: 0 of {guests.length}</p>
+    </div>
+  );
+}
+`,
+    previewProps: {"initialGuests": [{"id": 1, "name": "Ada", "attending": true}, {"id": 2, "name": "Linus", "attending": false}, {"id": 3, "name": "Grace", "attending": false}]},
+    previewSetup: `return { onRowRender: (id) => console.log('row rendered', id) };`,
+    tests: [
+      {
+        name: 'renders every guest once, with the summary',
+        code: `const renders = [];
+const guests = [{ id: 1, name: 'Ada', attending: true }, { id: 2, name: 'Linus', attending: false }, { id: 3, name: 'Grace', attending: true }];
+const { getByTestId } = render({ initialGuests: guests, onRowRender: (id) => renders.push(id) });
+expect(getByTestId('status-1').textContent).toBe('Ada: attending');
+expect(getByTestId('status-2').textContent).toBe('Linus: not attending');
+expect(getByTestId('status-3').textContent).toBe('Grace: attending');
+expect(getByTestId('summary').textContent).toBe('Attending: 2 of 3');
+expect(renders.slice().sort()).toEqual([1, 2, 3]);`,
+      },
+      {
+        name: 'toggling flips the status and the summary',
+        code: `const guests = [{ id: 1, name: 'Ada', attending: true }, { id: 2, name: 'Linus', attending: false }];
+const { getByTestId, getByLabelText } = render({ initialGuests: guests, onRowRender: () => {} });
+fireEvent.click(getByLabelText('Toggle Linus'));
+expect(getByTestId('status-2').textContent).toBe('Linus: attending');
+expect(getByTestId('summary').textContent).toBe('Attending: 2 of 2');
+fireEvent.click(getByLabelText('Toggle Ada'));
+fireEvent.click(getByLabelText('Toggle Linus'));
+expect(getByTestId('status-1').textContent).toBe('Ada: not attending');
+expect(getByTestId('status-2').textContent).toBe('Linus: not attending');
+expect(getByTestId('summary').textContent).toBe('Attending: 0 of 2');`,
+      },
+      {
+        name: 'typing a note does not re-render any row',
+        code: `const renders = [];
+const guests = [{ id: 1, name: 'Ada', attending: true }, { id: 2, name: 'Linus', attending: false }, { id: 3, name: 'Grace', attending: true }];
+const { getByLabelText } = render({ initialGuests: guests, onRowRender: (id) => renders.push(id) });
+expect(renders).toHaveLength(3);
+fireEvent.change(getByLabelText('Note'), 'B');
+fireEvent.change(getByLabelText('Note'), 'Bring');
+fireEvent.change(getByLabelText('Note'), 'Bring cake');
+expect(getByLabelText('Note').value).toBe('Bring cake');
+expect(renders).toHaveLength(3);`,
+      },
+      {
+        name: 'toggling one guest re-renders only that row',
+        code: `const renders = [];
+const guests = [{ id: 1, name: 'Ada', attending: true }, { id: 2, name: 'Linus', attending: false }, { id: 3, name: 'Grace', attending: true }];
+const { getByLabelText, getByTestId } = render({ initialGuests: guests, onRowRender: (id) => renders.push(id) });
+renders.length = 0;
+fireEvent.click(getByLabelText('Toggle Linus'));
+expect(getByTestId('status-2').textContent).toBe('Linus: attending');
+expect(renders).toEqual([2]);`,
+      },
+      {
+        name: 'several toggles in a row stay correct and stay cheap',
+        code: `const renders = [];
+const guests = [{ id: 1, name: 'Ada', attending: false }, { id: 2, name: 'Linus', attending: false }, { id: 3, name: 'Grace', attending: false }];
+const { getByLabelText, getByTestId } = render({ initialGuests: guests, onRowRender: (id) => renders.push(id) });
+renders.length = 0;
+fireEvent.click(getByLabelText('Toggle Ada'));
+fireEvent.click(getByLabelText('Toggle Grace'));
+fireEvent.change(getByLabelText('Note'), 'two so far');
+fireEvent.click(getByLabelText('Toggle Ada'));
+fireEvent.click(getByLabelText('Toggle Linus'));
+expect(renders).toEqual([1, 3, 1, 2]);
+expect(getByTestId('status-1').textContent).toBe('Ada: not attending');
+expect(getByTestId('status-2').textContent).toBe('Linus: attending');
+expect(getByTestId('status-3').textContent).toBe('Grace: attending');
+expect(getByTestId('summary').textContent).toBe('Attending: 2 of 3');`,
+      },
+    ],
+    hint: `\`memo\` skips a render only when EVERY prop is identical to last time. Check each prop of the row: the guest object (do you create new objects for guests that did not change?), and the toggle callback (an inline arrow is a new function on every render). A callback wrapped in \`useCallback\` with no dependencies has to use the functional form \`setGuests((prev) => ...)\`.`,
+    explanation: `When a parent renders, React renders all of its children again unless told otherwise. \`memo(Row)\` is the opt-out: React compares the new props with the previous ones using \`Object.is\` and reuses the old output if all are equal. The work is making the props really equal.
+
+Three things must hold. First, the guest object: the toggle maps over the array and returns the SAME object for untouched guests (\`g.id === id ? { ...g, attending: !g.attending } : g\`). Copying every guest would change every row's props. Second, the callback: \`onToggle={() => toggle(guest.id)}\` creates a new function per row per render, which defeats \`memo\` completely. The reference passes one \`toggle\` function to every row, kept stable by \`useCallback(..., [])\`, and the row calls it with its own id. Third, that stable callback must not read \`guests\` from its closure, because with an empty dependency list it would see the first render's array forever and lose earlier toggles. The functional update \`setGuests((prev) => ...)\` receives the latest array instead.
+
+With all three in place, typing in the Note field re-renders \`GuestList\` but every row's props are unchanged, so no row function runs. A toggle changes exactly one guest object, so exactly one row runs. \`dispatch\` from \`useReducer\` is an alternative to \`useCallback\`, since React guarantees its identity.
+
+The summary is recomputed in the parent on each render, O(n), which is cheap compared with rendering n rows.`,
+    solution: `import React, { useState, useCallback, memo } from 'react';
+
+const GuestRow = memo(function GuestRow({ guest, onToggle, onRowRender }) {
+  onRowRender(guest.id);
+  return (
+    <li>
+      <span data-testid={'status-' + guest.id}>{guest.name + ': ' + (guest.attending ? 'attending' : 'not attending')}</span>{' '}
+      <button type="button" aria-label={'Toggle ' + guest.name} onClick={() => onToggle(guest.id)}>Toggle</button>
+    </li>
+  );
+});
+
+export default function GuestList({ initialGuests, onRowRender }) {
+  const [guests, setGuests] = useState(initialGuests);
+  const [note, setNote] = useState('');
+
+  const toggle = useCallback((id) => {
+    setGuests((prev) => prev.map((g) => (g.id === id ? { ...g, attending: !g.attending } : g)));
+  }, []);
+
+  const attending = guests.filter((g) => g.attending).length;
+
+  return (
+    <div>
+      <input aria-label="Note" value={note} onChange={(e) => setNote(e.target.value)} />
+      <ul>
+        {guests.map((guest) => (
+          <GuestRow key={guest.id} guest={guest} onToggle={toggle} onRowRender={onRowRender} />
+        ))}
+      </ul>
+      <p data-testid="summary">{'Attending: ' + attending + ' of ' + guests.length}</p>
+    </div>
+  );
+}
+`,
+  },
+  {
+    id: 'react-roving-tabindex-menu',
+    number: 97,
+    title: 'Roving Tabindex Menu',
+    difficulty: 'Medium',
+    topic: 'State & Events',
+    statement: `Build \`ActionMenu({ actions, onAction })\`, an always-visible vertical menu with proper keyboard navigation. \`actions\` is an array of \`{ label, disabled }\` (\`disabled\` is optional) with unique labels. At least one action is enabled.
+
+Markup:
+- A container with \`role="menu"\`.
+- One \`<button role="menuitem">\` per action whose text is the label, in order.
+- A disabled action has \`aria-disabled="true"\`. Do NOT use the native \`disabled\` attribute. Enabled actions have no \`aria-disabled\` attribute.
+
+Roving tabindex (so the Tab key stops in the menu only once):
+- Exactly one item has \`tabIndex={0}\`; every other item has \`tabIndex={-1}\`.
+- Initially the item with \`tabIndex={0}\` is the first ENABLED action.
+
+Keyboard, handled on \`keydown\` while an item has focus:
+- \`ArrowDown\` moves to the next enabled item, wrapping from the last enabled item to the first enabled one.
+- \`ArrowUp\` moves to the previous enabled item, wrapping from the first enabled item to the last enabled one.
+- \`Home\` moves to the first enabled item, \`End\` to the last enabled item.
+- "Moves to" means two things: that item becomes the one with \`tabIndex={0}\` AND it receives DOM focus (\`element.focus()\`).
+- Disabled items are always skipped.
+
+Mouse:
+- Clicking an enabled item calls \`onAction(label)\` and makes it the item with \`tabIndex={0}\`.
+- Clicking a disabled item does nothing.`,
+    componentName: 'ActionMenu',
+    starter: `import React, { useState, useRef } from 'react';
+
+export default function ActionMenu({ actions, onAction }) {
+  // TODO: roving tabindex, arrow keys, Home / End, skipping disabled items
+  return (
+    <div role="menu">
+      {actions.map((action) => (
+        <button key={action.label} type="button" role="menuitem" tabIndex={0}>
+          {action.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+`,
+    previewProps: {"actions": [{"label": "Cut"}, {"label": "Copy"}, {"label": "Paste", "disabled": true}, {"label": "Rename"}, {"label": "Delete"}]},
+    previewSetup: `return { onAction: (label) => console.log('action', label) };`,
+    tests: [
+      {
+        name: 'renders a menu where only the first enabled item is tabbable',
+        code: `const actions = [{ label: 'Cut' }, { label: 'Copy' }, { label: 'Paste' }];
+const { getByRole, getAllByRole } = render({ actions });
+expect(getByRole('menu')).toBeTruthy();
+const items = getAllByRole('menuitem');
+expect(items.map((el) => el.textContent)).toEqual(['Cut', 'Copy', 'Paste']);
+expect(items.map((el) => el.getAttribute('tabindex'))).toEqual(['0', '-1', '-1']);
+expect(items.every((el) => !el.hasAttribute('aria-disabled') && !el.disabled)).toBe(true);
+expect(getByRole('menu').contains(items[2])).toBe(true);`,
+      },
+      {
+        name: 'ArrowDown moves focus and the tab stop, wrapping at the end',
+        code: `const actions = [{ label: 'Cut' }, { label: 'Copy' }, { label: 'Paste' }];
+const { getAllByRole } = render({ actions });
+const items = () => getAllByRole('menuitem');
+fireEvent.focus(items()[0]);
+fireEvent.keyDown(document.activeElement, 'ArrowDown');
+expect(document.activeElement.textContent).toBe('Copy');
+expect(items().map((el) => el.getAttribute('tabindex'))).toEqual(['-1', '0', '-1']);
+fireEvent.keyDown(document.activeElement, 'ArrowDown');
+expect(document.activeElement.textContent).toBe('Paste');
+fireEvent.keyDown(document.activeElement, 'ArrowDown');
+expect(document.activeElement.textContent).toBe('Cut');
+expect(items().map((el) => el.getAttribute('tabindex'))).toEqual(['0', '-1', '-1']);`,
+      },
+      {
+        name: 'ArrowUp wraps to the last item, Home and End jump',
+        code: `const actions = [{ label: 'Cut' }, { label: 'Copy' }, { label: 'Paste' }, { label: 'Delete' }];
+const { getAllByRole } = render({ actions });
+const items = () => getAllByRole('menuitem');
+fireEvent.focus(items()[0]);
+fireEvent.keyDown(document.activeElement, 'ArrowUp');
+expect(document.activeElement.textContent).toBe('Delete');
+expect(items().map((el) => el.getAttribute('tabindex'))).toEqual(['-1', '-1', '-1', '0']);
+fireEvent.keyDown(document.activeElement, 'ArrowUp');
+expect(document.activeElement.textContent).toBe('Paste');
+fireEvent.keyDown(document.activeElement, 'Home');
+expect(document.activeElement.textContent).toBe('Cut');
+fireEvent.keyDown(document.activeElement, 'End');
+expect(document.activeElement.textContent).toBe('Delete');
+expect(items().map((el) => el.getAttribute('tabindex'))).toEqual(['-1', '-1', '-1', '0']);`,
+      },
+      {
+        name: 'disabled items are marked with aria-disabled and skipped by the keyboard',
+        code: `const actions = [{ label: 'Undo', disabled: true }, { label: 'Cut' }, { label: 'Paste', disabled: true }, { label: 'Rename' }, { label: 'Share', disabled: true }];
+const { getAllByRole } = render({ actions });
+const items = () => getAllByRole('menuitem');
+expect(items().map((el) => el.getAttribute('aria-disabled'))).toEqual(['true', null, 'true', null, 'true']);
+expect(items().some((el) => el.disabled)).toBe(false);
+expect(items().map((el) => el.getAttribute('tabindex'))).toEqual(['-1', '0', '-1', '-1', '-1']);
+fireEvent.focus(items()[1]);
+fireEvent.keyDown(document.activeElement, 'ArrowDown');
+expect(document.activeElement.textContent).toBe('Rename');
+fireEvent.keyDown(document.activeElement, 'ArrowDown');
+expect(document.activeElement.textContent).toBe('Cut');
+fireEvent.keyDown(document.activeElement, 'ArrowUp');
+expect(document.activeElement.textContent).toBe('Rename');
+fireEvent.keyDown(document.activeElement, 'Home');
+expect(document.activeElement.textContent).toBe('Cut');
+fireEvent.keyDown(document.activeElement, 'End');
+expect(document.activeElement.textContent).toBe('Rename');
+expect(items().map((el) => el.getAttribute('tabindex'))).toEqual(['-1', '-1', '-1', '0', '-1']);`,
+      },
+      {
+        name: 'clicking calls onAction for enabled items only and moves the tab stop',
+        code: `const picked = [];
+const actions = [{ label: 'Cut' }, { label: 'Copy', disabled: true }, { label: 'Paste' }];
+const { getAllByRole, getByRole } = render({ actions, onAction: (label) => picked.push(label) });
+fireEvent.click(getByRole('menuitem', { name: 'Paste' }));
+expect(picked).toEqual(['Paste']);
+expect(getAllByRole('menuitem').map((el) => el.getAttribute('tabindex'))).toEqual(['-1', '-1', '0']);
+fireEvent.click(getByRole('menuitem', { name: 'Copy' }));
+expect(picked).toEqual(['Paste']);
+expect(getAllByRole('menuitem').map((el) => el.getAttribute('tabindex'))).toEqual(['-1', '-1', '0']);
+fireEvent.click(getByRole('menuitem', { name: 'Cut' }));
+expect(picked).toEqual(['Paste', 'Cut']);`,
+      },
+    ],
+    hint: `Keep the index of the "tab stop" item in state and the button nodes in a ref array. For the arrows, first build the list of enabled indexes, find where the current one sits in that list, step with modulo arithmetic, then set the state and call \`.focus()\` on the target node.`,
+    explanation: `A menu is one stop in the Tab order: Tab enters it, the arrow keys move inside it, Tab leaves it. Roving tabindex implements that with plain attributes. Only one item has \`tabIndex={0}\` and is reachable by Tab. The rest have \`-1\`, which means focusable by script but skipped by Tab. When the user presses an arrow, the component moves the \`0\` to another item and focuses it.
+
+State is a single number, the index of the current tab stop, initialised to the first enabled index. Rendering derives every \`tabIndex\` from it.
+
+Navigation is easiest on a list of enabled indexes, for example \`[1, 3]\` when items 0, 2 and 4 are disabled. Find the current position in that list, add or subtract one, and wrap with \`(pos + delta + n) % n\`. Home and End are the first and last entries. Skipping disabled items falls out of the data structure and needs no loop of "is this one disabled?" checks. Stepping through the raw indexes instead is the usual bug: focus lands on a disabled item.
+
+Focus is moved imperatively through a ref array because the target button already exists. Disabled items use \`aria-disabled\`, not the native \`disabled\` attribute, so they stay visible to assistive technology in the menu. The click handler therefore has to ignore them itself.
+
+Each key press is O(n) for building the enabled list.`,
+    solution: `import React, { useState, useRef } from 'react';
+
+export default function ActionMenu({ actions, onAction }) {
+  const enabled = actions.map((action, i) => (action.disabled ? -1 : i)).filter((i) => i !== -1);
+  const [active, setActive] = useState(enabled[0]);
+  const nodes = useRef([]);
+
+  function moveTo(index) {
+    setActive(index);
+    if (nodes.current[index]) nodes.current[index].focus();
+  }
+
+  function onKeyDown(event) {
+    const pos = enabled.indexOf(active);
+    const count = enabled.length;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      moveTo(enabled[(pos + 1) % count]);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      moveTo(enabled[(pos - 1 + count) % count]);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      moveTo(enabled[0]);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      moveTo(enabled[count - 1]);
+    }
+  }
+
+  function onClick(action, index) {
+    if (action.disabled) return;
+    setActive(index);
+    if (onAction) onAction(action.label);
+  }
+
+  return (
+    <div role="menu" onKeyDown={onKeyDown} style={{ display: 'inline-flex', flexDirection: 'column' }}>
+      {actions.map((action, i) => (
+        <button
+          key={action.label}
+          ref={(node) => { nodes.current[i] = node; }}
+          type="button"
+          role="menuitem"
+          tabIndex={i === active ? 0 : -1}
+          aria-disabled={action.disabled ? 'true' : undefined}
+          onClick={() => onClick(action, i)}
+          style={{ opacity: action.disabled ? 0.5 : 1 }}
+        >
+          {action.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+`,
+  },
+  {
+    id: 'react-listbox-active-descendant',
+    number: 98,
+    title: 'Listbox with aria-activedescendant',
+    difficulty: 'Medium',
+    topic: 'State & Events',
+    statement: `Build \`OptionListbox({ label, options, onChange })\`, a single-select listbox operated with the keyboard. \`options\` is a non-empty array of unique strings.
+
+This widget uses the "active descendant" pattern: DOM focus stays on the listbox container the whole time, and the container points at the option the keyboard is currently on.
+
+Markup:
+- A container with \`role="listbox"\`, \`tabIndex={0}\` and \`aria-label\` equal to \`label\`.
+- One element with \`role="option"\` per option (its text is the option), each with a unique, non-empty \`id\`.
+- Every option has \`aria-selected\`: \`"true"\` for the selected option, \`"false"\` for the others. Nothing is selected at first.
+- The ACTIVE option (where the keyboard is) has \`data-active="true"\`; other options have no \`data-active\` attribute. The container's \`aria-activedescendant\` is always the \`id\` of the active option. The first option is active initially.
+- \`<p data-testid="value">Selected: <option></p>\`, or \`Selected: none\` before any selection.
+
+Keyboard (\`keydown\` on the listbox container):
+- \`ArrowDown\` / \`ArrowUp\` move the active option by one. They stop at the last / first option (no wrap-around).
+- \`Home\` / \`End\` make the first / last option active.
+- \`Enter\` or the space key (\`event.key === ' '\`) selects the active option.
+- Never move DOM focus to an option.
+
+Mouse: clicking an option makes it both active and selected.
+
+Each time an option is selected (keyboard or mouse) call \`onChange(option)\` if it was given. Moving the active option does not select anything.`,
+    componentName: 'OptionListbox',
+    starter: `import React, { useState } from 'react';
+
+export default function OptionListbox({ label, options, onChange }) {
+  // TODO: active option, selection, keyboard handling, aria-activedescendant
+  return (
+    <div>
+      <ul role="listbox" tabIndex={0} aria-label={label}>
+        {options.map((option) => (
+          <li key={option} role="option" aria-selected="false">{option}</li>
+        ))}
+      </ul>
+      <p data-testid="value">Selected: none</p>
+    </div>
+  );
+}
+`,
+    previewProps: {"label": "Shipping speed", "options": ["Standard", "Express", "Overnight", "Pickup"]},
+    previewSetup: `return { onChange: (option) => console.log('selected', option) };`,
+    tests: [
+      {
+        name: 'renders a labelled listbox whose first option is active and nothing selected',
+        code: `const { getByRole, getAllByRole, getByTestId } = render({ label: 'Speed', options: ['Standard', 'Express', 'Overnight'] });
+const listbox = getByRole('listbox', { name: 'Speed' });
+expect(listbox.getAttribute('tabindex')).toBe('0');
+const opts = getAllByRole('option');
+expect(opts.map((o) => o.textContent)).toEqual(['Standard', 'Express', 'Overnight']);
+expect(opts.map((o) => o.getAttribute('aria-selected'))).toEqual(['false', 'false', 'false']);
+expect(opts.every((o) => o.id && o.id.length > 0)).toBe(true);
+expect(new Set(opts.map((o) => o.id)).size).toBe(3);
+expect(opts.map((o) => o.getAttribute('data-active'))).toEqual(['true', null, null]);
+expect(listbox.getAttribute('aria-activedescendant')).toBe(opts[0].id);
+expect(getByTestId('value').textContent).toBe('Selected: none');`,
+      },
+      {
+        name: 'arrow keys move the active option and stop at the ends',
+        code: `const { getByRole, getAllByRole, getByTestId } = render({ label: 'Speed', options: ['Standard', 'Express', 'Overnight'] });
+const listbox = getByRole('listbox');
+const active = () => getAllByRole('option').filter((o) => o.getAttribute('data-active') === 'true').map((o) => o.textContent);
+const pointsAtActive = () => { const el = getAllByRole('option').find((o) => o.getAttribute('data-active') === 'true'); return listbox.getAttribute('aria-activedescendant') === el.id; };
+fireEvent.focus(listbox);
+fireEvent.keyDown(listbox, 'ArrowUp');
+expect(active()).toEqual(['Standard']);
+fireEvent.keyDown(listbox, 'ArrowDown');
+expect(active()).toEqual(['Express']);
+expect(pointsAtActive()).toBe(true);
+fireEvent.keyDown(listbox, 'ArrowDown');
+fireEvent.keyDown(listbox, 'ArrowDown');
+fireEvent.keyDown(listbox, 'ArrowDown');
+expect(active()).toEqual(['Overnight']);
+expect(pointsAtActive()).toBe(true);
+fireEvent.keyDown(listbox, 'ArrowUp');
+expect(active()).toEqual(['Express']);
+expect(document.activeElement === listbox).toBe(true);
+expect(getByTestId('value').textContent).toBe('Selected: none');
+expect(getAllByRole('option').map((o) => o.getAttribute('aria-selected'))).toEqual(['false', 'false', 'false']);`,
+      },
+      {
+        name: 'Enter and Space select the active option and call onChange',
+        code: `const picked = [];
+const { getByRole, getAllByRole, getByTestId } = render({ label: 'Speed', options: ['Standard', 'Express', 'Overnight'], onChange: (o) => picked.push(o) });
+const listbox = getByRole('listbox');
+fireEvent.keyDown(listbox, 'ArrowDown');
+expect(picked).toEqual([]);
+fireEvent.keyDown(listbox, 'Enter');
+expect(picked).toEqual(['Express']);
+expect(getByTestId('value').textContent).toBe('Selected: Express');
+expect(getAllByRole('option').map((o) => o.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false']);
+fireEvent.keyDown(listbox, 'ArrowDown');
+expect(getAllByRole('option').map((o) => o.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false']);
+fireEvent.keyDown(listbox, ' ');
+expect(picked).toEqual(['Express', 'Overnight']);
+expect(getByTestId('value').textContent).toBe('Selected: Overnight');
+expect(getAllByRole('option').map((o) => o.getAttribute('aria-selected'))).toEqual(['false', 'false', 'true']);`,
+      },
+      {
+        name: 'Home and End jump to the first and last option',
+        code: `const { getByRole, getAllByRole } = render({ label: 'Speed', options: ['Standard', 'Express', 'Overnight', 'Pickup'] });
+const listbox = getByRole('listbox');
+const activeEl = () => getAllByRole('option').find((o) => o.getAttribute('data-active') === 'true');
+fireEvent.keyDown(listbox, 'End');
+expect(activeEl().textContent).toBe('Pickup');
+expect(listbox.getAttribute('aria-activedescendant')).toBe(activeEl().id);
+fireEvent.keyDown(listbox, 'Home');
+expect(activeEl().textContent).toBe('Standard');
+expect(listbox.getAttribute('aria-activedescendant')).toBe(activeEl().id);
+expect(getAllByRole('option').filter((o) => o.hasAttribute('data-active'))).toHaveLength(1);`,
+      },
+      {
+        name: 'clicking an option selects it and the keyboard continues from there',
+        code: `const picked = [];
+const { getByRole, getAllByRole, getByTestId } = render({ label: 'Speed', options: ['Standard', 'Express', 'Overnight', 'Pickup'], onChange: (o) => picked.push(o) });
+const listbox = getByRole('listbox');
+const activeEl = () => getAllByRole('option').find((o) => o.getAttribute('data-active') === 'true');
+fireEvent.click(getByRole('option', { name: 'Overnight' }));
+expect(picked).toEqual(['Overnight']);
+expect(getByTestId('value').textContent).toBe('Selected: Overnight');
+expect(activeEl().textContent).toBe('Overnight');
+expect(listbox.getAttribute('aria-activedescendant')).toBe(activeEl().id);
+fireEvent.keyDown(listbox, 'ArrowDown');
+expect(activeEl().textContent).toBe('Pickup');
+expect(getAllByRole('option').map((o) => o.getAttribute('aria-selected'))).toEqual(['false', 'false', 'true', 'false']);`,
+      },
+    ],
+    hint: `You need two separate pieces of state: the active index (moved by the arrows) and the selected option (set by Enter, Space or a click). Generate option ids from \`useId()\` plus the index, and compute \`aria-activedescendant\` from the active index with the same formula so the two can never disagree.`,
+    explanation: `There are two ways to do keyboard navigation inside a composite widget. Roving tabindex moves real DOM focus from item to item. The active-descendant pattern keeps focus on the container and sets \`aria-activedescendant\` to the id of the item that is "virtually" focused. Screen readers announce that item as if it had focus. This pattern suits lists whose items are re-created often, because there is no focus to lose.
+
+Active and selected are different ideas, and mixing them into one variable is the main mistake here. Arrowing through a list should not change the form value, only Enter, Space or a click commits. So the reference holds \`activeIndex\` (a number, starts at 0) and \`selected\` (an option or null).
+
+The key handler on the container is a clamped index move: \`Math.min(last, i + 1)\`, \`Math.max(0, i - 1)\`, 0 for Home, last for End. It calls \`preventDefault()\` for the keys it handles so the page does not scroll. Enter and Space select \`options[activeIndex]\`.
+
+Ids must be unique on the page even if the listbox is rendered twice, so they are built from \`useId()\` and the option index. The same expression produces both the option's \`id\` and the container's \`aria-activedescendant\`, which keeps them in sync by construction. A click sets both pieces of state so that the keyboard continues from the clicked option. Each key press is O(1), and rendering is O(n).`,
+    solution: `import React, { useState, useId } from 'react';
+
+export default function OptionListbox({ label, options, onChange }) {
+  const baseId = useId();
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const optionId = (index) => baseId + '-option-' + index;
+
+  function select(index) {
+    setActiveIndex(index);
+    setSelected(options[index]);
+    if (onChange) onChange(options[index]);
+  }
+
+  function onKeyDown(event) {
+    const last = options.length - 1;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setActiveIndex((i) => Math.min(last, i + 1));
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setActiveIndex((i) => Math.max(0, i - 1));
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      setActiveIndex(0);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      setActiveIndex(last);
+    } else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      select(activeIndex);
+    }
+  }
+
+  return (
+    <div>
+      <ul
+        role="listbox"
+        tabIndex={0}
+        aria-label={label}
+        aria-activedescendant={optionId(activeIndex)}
+        onKeyDown={onKeyDown}
+        style={{ listStyle: 'none', padding: 0 }}
+      >
+        {options.map((option, i) => (
+          <li
+            key={option}
+            id={optionId(i)}
+            role="option"
+            aria-selected={option === selected ? 'true' : 'false'}
+            data-active={i === activeIndex ? 'true' : undefined}
+            onClick={() => select(i)}
+            style={{ outline: i === activeIndex ? '2px solid #4a7' : 'none', fontWeight: option === selected ? 'bold' : 'normal' }}
+          >
+            {option}
+          </li>
+        ))}
+      </ul>
+      <p data-testid="value">{'Selected: ' + (selected === null ? 'none' : selected)}</p>
+    </div>
+  );
+}
+`,
+  },
+  {
+    id: 'react-combobox-autocomplete',
+    number: 99,
+    title: 'Autocomplete Combobox with Keyboard Selection',
+    difficulty: 'Hard',
+    topic: 'State & Events',
+    statement: `Build \`LanguageCombobox({ options, onSelect })\`, a text field with a suggestion list that can be operated entirely from the keyboard. \`options\` is an array of unique strings.
+
+Markup:
+- An \`<input role="combobox" aria-label="Language">\` holding the text.
+- Suggestions are the options that CONTAIN the input text, ignoring upper / lower case, in their original order.
+- While the list is open, render an element with \`role="listbox"\` containing one element with \`role="option"\` per suggestion (its text is the option). Each option has a unique, non-empty \`id\` and \`aria-selected\`: \`"true"\` for the active option, \`"false"\` for the others.
+- The input has \`aria-expanded="true"\` while the listbox is rendered and \`aria-expanded="false"\` otherwise.
+- When an option is active, the input's \`aria-activedescendant\` is that option's \`id\`. When no option is active, the input has NO \`aria-activedescendant\` attribute.
+
+Opening and closing:
+- Every change of the text opens the list if the new text is not empty and has at least one suggestion, and resets the active option to "none".
+- If the text is not empty but nothing matches, render \`<p>No matches</p>\` and no listbox.
+- If the text is empty, render neither.
+- \`Escape\` closes the list and keeps the text. (The next change of the text opens it again.)
+
+Keyboard on the input while the list is open:
+- \`ArrowDown\` makes the next option active: from "none" to the first, and from the last back to the first.
+- \`ArrowUp\` makes the previous option active: from "none" to the last, and from the first back to the last.
+- \`Enter\` with an active option selects it. \`Enter\` with no active option does nothing.
+
+While the list is closed, the arrow keys and \`Enter\` do nothing.
+
+Selecting an option (by \`Enter\`, or by clicking the option) puts the option's text into the input, closes the list and calls \`onSelect(option)\` (if given). After a selection no listbox and no \`No matches\` text is shown until the text changes again.`,
+    componentName: 'LanguageCombobox',
+    starter: `import React, { useState } from 'react';
+
+export default function LanguageCombobox({ options, onSelect }) {
+  const [text, setText] = useState('');
+  // TODO: suggestions, open / close, active option, keyboard, selection
+  return (
+    <div>
+      <input role="combobox" aria-label="Language" aria-expanded="false" value={text} onChange={(e) => setText(e.target.value)} />
+    </div>
+  );
+}
+`,
+    previewProps: {"options": ["JavaScript", "TypeScript", "Java", "Python", "Kotlin", "Swift", "Go", "Rust"]},
+    previewSetup: `return { onSelect: (option) => console.log('selected', option) };`,
+    tests: [
+      {
+        name: 'typing filters the options without regard to case',
+        code: `const options = ['JavaScript', 'TypeScript', 'Java', 'Python', 'Go'];
+const { getByRole, getAllByRole, queryByRole } = render({ options });
+const input = getByRole('combobox', { name: 'Language' });
+expect(input).toHaveAttribute('aria-expanded', 'false');
+expect(queryByRole('listbox')).toBeNull();
+fireEvent.change(input, 'SCRIPT');
+expect(input).toHaveAttribute('aria-expanded', 'true');
+expect(getByRole('listbox')).toBeTruthy();
+expect(getAllByRole('option').map((o) => o.textContent)).toEqual(['JavaScript', 'TypeScript']);
+fireEvent.change(input, 'o');
+expect(getAllByRole('option').map((o) => o.textContent)).toEqual(['Python', 'Go']);
+expect(getAllByRole('option').map((o) => o.getAttribute('aria-selected'))).toEqual(['false', 'false']);
+expect(input.hasAttribute('aria-activedescendant')).toBe(false);
+expect(new Set(getAllByRole('option').map((o) => o.id)).size).toBe(2);
+expect(getAllByRole('option').every((o) => o.id.length > 0)).toBe(true);`,
+      },
+      {
+        name: 'shows No matches for unknown text and nothing for empty text',
+        code: `const options = ['JavaScript', 'TypeScript', 'Java'];
+const { getByRole, getByText, queryByRole, queryByText } = render({ options });
+const input = getByRole('combobox');
+expect(queryByText('No matches')).toBeNull();
+fireEvent.change(input, 'rust');
+expect(getByText('No matches')).toBeTruthy();
+expect(queryByRole('listbox')).toBeNull();
+expect(input).toHaveAttribute('aria-expanded', 'false');
+fireEvent.change(input, '');
+expect(queryByText('No matches')).toBeNull();
+expect(queryByRole('listbox')).toBeNull();
+expect(input).toHaveAttribute('aria-expanded', 'false');`,
+      },
+      {
+        name: 'ArrowDown and ArrowUp move the active option and wrap around',
+        code: `const options = ['JavaScript', 'TypeScript', 'Java', 'Python'];
+const { getByRole, getAllByRole } = render({ options });
+const input = getByRole('combobox');
+const activeTexts = () => getAllByRole('option').filter((o) => o.getAttribute('aria-selected') === 'true').map((o) => o.textContent);
+const activeId = () => { const el = getAllByRole('option').find((o) => o.getAttribute('aria-selected') === 'true'); return el ? el.id : null; };
+fireEvent.change(input, 'a');
+expect(getAllByRole('option').map((o) => o.textContent)).toEqual(['JavaScript', 'Java']);
+fireEvent.keyDown(input, 'ArrowDown');
+expect(activeTexts()).toEqual(['JavaScript']);
+expect(input.getAttribute('aria-activedescendant')).toBe(activeId());
+fireEvent.keyDown(input, 'ArrowDown');
+expect(activeTexts()).toEqual(['Java']);
+expect(input.getAttribute('aria-activedescendant')).toBe(activeId());
+fireEvent.keyDown(input, 'ArrowDown');
+expect(activeTexts()).toEqual(['JavaScript']);
+fireEvent.keyDown(input, 'ArrowUp');
+expect(activeTexts()).toEqual(['Java']);
+fireEvent.change(input, 'p');
+expect(activeTexts()).toEqual([]);
+fireEvent.keyDown(input, 'ArrowUp');
+expect(activeTexts()).toEqual(['Python']);
+expect(input.getAttribute('aria-activedescendant')).toBe(activeId());`,
+      },
+      {
+        name: 'Enter selects the active option, fills the input and closes the list',
+        code: `const picked = [];
+const options = ['JavaScript', 'TypeScript', 'Java', 'Python'];
+const { getByRole, queryByRole, queryByText } = render({ options, onSelect: (o) => picked.push(o) });
+const input = getByRole('combobox');
+fireEvent.change(input, 'ja');
+fireEvent.keyDown(input, 'Enter');
+expect(picked).toEqual([]);
+expect(queryByRole('listbox')).toBeTruthy();
+expect(input.value).toBe('ja');
+fireEvent.keyDown(input, 'ArrowDown');
+fireEvent.keyDown(input, 'ArrowDown');
+fireEvent.keyDown(input, 'Enter');
+expect(picked).toEqual(['Java']);
+expect(input.value).toBe('Java');
+expect(queryByRole('listbox')).toBeNull();
+expect(queryByText('No matches')).toBeNull();
+expect(input).toHaveAttribute('aria-expanded', 'false');
+expect(input.hasAttribute('aria-activedescendant')).toBe(false);
+fireEvent.keyDown(input, 'ArrowDown');
+fireEvent.keyDown(input, 'Enter');
+expect(picked).toEqual(['Java']);
+expect(queryByRole('listbox')).toBeNull();`,
+      },
+      {
+        name: 'typing after moving resets the active option, and Escape closes the list',
+        code: `const picked = [];
+const options = ['JavaScript', 'TypeScript', 'Java', 'Python'];
+const { getByRole, getAllByRole, queryByRole } = render({ options, onSelect: (o) => picked.push(o) });
+const input = getByRole('combobox');
+fireEvent.change(input, 'p');
+fireEvent.keyDown(input, 'ArrowDown');
+fireEvent.keyDown(input, 'ArrowDown');
+expect(input.hasAttribute('aria-activedescendant')).toBe(true);
+fireEvent.change(input, 'pt');
+expect(getAllByRole('option').map((o) => o.textContent)).toEqual(['JavaScript', 'TypeScript']);
+expect(getAllByRole('option').map((o) => o.getAttribute('aria-selected'))).toEqual(['false', 'false']);
+expect(input.hasAttribute('aria-activedescendant')).toBe(false);
+fireEvent.keyDown(input, 'Enter');
+expect(picked).toEqual([]);
+fireEvent.keyDown(input, 'ArrowDown');
+fireEvent.keyDown(input, 'Escape');
+expect(queryByRole('listbox')).toBeNull();
+expect(input.value).toBe('pt');
+expect(input).toHaveAttribute('aria-expanded', 'false');
+expect(input.hasAttribute('aria-activedescendant')).toBe(false);
+fireEvent.keyDown(input, 'ArrowDown');
+fireEvent.keyDown(input, 'Enter');
+expect(picked).toEqual([]);
+fireEvent.change(input, 'typ');
+expect(getAllByRole('option').map((o) => o.textContent)).toEqual(['TypeScript']);
+expect(getAllByRole('option')[0].getAttribute('aria-selected')).toBe('false');`,
+      },
+      {
+        name: 'clicking a suggestion selects it',
+        code: `const picked = [];
+const options = ['JavaScript', 'TypeScript', 'Java', 'Python'];
+const { getByRole, queryByRole } = render({ options, onSelect: (o) => picked.push(o) });
+const input = getByRole('combobox');
+fireEvent.change(input, 'script');
+fireEvent.click(getByRole('option', { name: 'TypeScript' }));
+expect(picked).toEqual(['TypeScript']);
+expect(input.value).toBe('TypeScript');
+expect(queryByRole('listbox')).toBeNull();
+fireEvent.change(input, 'TypeScrip');
+expect(getByRole('option', { name: 'TypeScript' })).toBeTruthy();`,
+      },
+    ],
+    hint: `Three pieces of state are enough: the text, an \`open\` boolean and an \`activeIndex\` where -1 means "none". The suggestions are derived from the text on every render. Set \`open\` and reset \`activeIndex\` in the change handler, not in an effect. For wrapping, treat -1 as a special case before applying modulo.`,
+    explanation: `A combobox is an input plus a popup, and the difficulty is keeping a handful of small states consistent.
+
+Derived data first: the suggestions are a pure function of the text, \`options.filter((o) => o.toLowerCase().includes(text.toLowerCase()))\`, so they are computed during render and never stored.
+
+Real state: \`text\`, \`open\` and \`activeIndex\`. "Is the list open" cannot be derived from the text alone, because Escape and a selection both close the list while matching text is still in the input. That is why \`open\` is its own boolean, set to true by every change and to false by Escape and by selecting. The listbox is shown when \`open\` is true and there are suggestions; \`No matches\` is shown when \`open\` is true, the text is not empty and there are none.
+
+\`activeIndex\` uses -1 for "nothing active". It must be reset on every text change, otherwise it points at whatever option happens to sit at the old position in the new, shorter list, and Enter picks something the user never looked at. Wrapping needs care with -1: ArrowDown is \`(active + 1) % n\`, which already maps -1 to 0, while ArrowUp is \`active <= 0 ? n - 1 : active - 1\`.
+
+Focus never leaves the input, so the active option is conveyed with \`aria-activedescendant\` (omitted when nothing is active) and \`aria-selected\` on the options. The handler calls \`preventDefault()\` on the arrows so the text cursor does not jump, and on Enter so an enclosing form is not submitted. Option ids come from \`useId()\`, so two comboboxes on one page do not clash.
+
+Filtering is O(n times the option length) per render.`,
+    solution: `import React, { useState, useId } from 'react';
+
+export default function LanguageCombobox({ options, onSelect }) {
+  const baseId = useId();
+  const [text, setText] = useState('');
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+
+  const needle = text.toLowerCase();
+  const suggestions = text === '' ? [] : options.filter((option) => option.toLowerCase().includes(needle));
+  const showList = open && suggestions.length > 0;
+  const showEmpty = open && text !== '' && suggestions.length === 0;
+  const optionId = (index) => baseId + '-opt-' + index;
+
+  function handleChange(event) {
+    setText(event.target.value);
+    setOpen(true);
+    setActiveIndex(-1);
+  }
+
+  function choose(option) {
+    setText(option);
+    setOpen(false);
+    setActiveIndex(-1);
+    if (onSelect) onSelect(option);
+  }
+
+  function handleKeyDown(event) {
+    if (!showList) return;
+    const count = suggestions.length;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setActiveIndex((activeIndex + 1) % count);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setActiveIndex(activeIndex <= 0 ? count - 1 : activeIndex - 1);
+    } else if (event.key === 'Enter') {
+      if (activeIndex === -1) return;
+      event.preventDefault();
+      choose(suggestions[activeIndex]);
+    } else if (event.key === 'Escape') {
+      setOpen(false);
+      setActiveIndex(-1);
+    }
+  }
+
+  return (
+    <div>
+      <input
+        role="combobox"
+        aria-label="Language"
+        aria-expanded={showList ? 'true' : 'false'}
+        aria-activedescendant={showList && activeIndex !== -1 ? optionId(activeIndex) : undefined}
+        value={text}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+      />
+      {showList && (
+        <ul role="listbox" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          {suggestions.map((option, i) => (
+            <li
+              key={option}
+              id={optionId(i)}
+              role="option"
+              aria-selected={i === activeIndex ? 'true' : 'false'}
+              onClick={() => choose(option)}
+              style={{ background: i === activeIndex ? '#dde' : 'transparent', cursor: 'pointer' }}
+            >
+              {option}
+            </li>
+          ))}
+        </ul>
+      )}
+      {showEmpty && <p>No matches</p>}
+    </div>
+  );
+}
+`,
+  },
+  {
+    id: 'react-dialog-focus-trap',
+    number: 100,
+    title: 'Confirm Dialog with a Focus Trap',
+    difficulty: 'Hard',
+    topic: 'Composition & Patterns',
+    statement: `Build \`DeleteConfirm({ itemName, onConfirm })\`, a delete button guarded by a modal confirmation dialog that manages keyboard focus correctly (rendered inline, no portal).
+
+Closed (initial state):
+- Render one button \`Delete <itemName>\`, for example \`Delete Old draft\`. No element with \`role="dialog"\` exists.
+
+Open (after clicking that button):
+- Render \`<div role="dialog" aria-modal="true" aria-labelledby="<id of the heading>">\` containing a heading \`<h2 id="...">Delete <itemName>?</h2>\` and two buttons, \`Cancel\` first and \`Confirm\` second.
+- The trigger button stays in the DOM.
+- When the dialog opens, focus moves to \`Cancel\` (the safe choice).
+
+Focus trap, on \`keydown\` with \`event.key === 'Tab'\`:
+- \`Tab\` (without Shift) while \`Confirm\`, the last button, has focus: call \`event.preventDefault()\` and focus \`Cancel\`.
+- \`Shift+Tab\` (\`event.shiftKey\` is true) while \`Cancel\`, the first button, has focus: call \`event.preventDefault()\` and focus \`Confirm\`.
+
+Closing:
+- \`Cancel\` closes the dialog.
+- \`Confirm\` calls \`onConfirm()\` exactly once and closes the dialog.
+- The \`Escape\` key, pressed while focus is inside the dialog, closes it without calling \`onConfirm\`.
+- Whenever the dialog closes, focus returns to the \`Delete <itemName>\` button.
+- The component does not move focus when it first mounts.`,
+    componentName: 'DeleteConfirm',
+    starter: `import React, { useState, useRef, useEffect } from 'react';
+
+export default function DeleteConfirm({ itemName, onConfirm }) {
+  const [open, setOpen] = useState(false);
+  // TODO: dialog markup, initial focus, focus trap, Escape, focus return
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen(true)}>Delete {itemName}</button>
+    </div>
+  );
+}
+`,
+    previewProps: {"itemName": "Quarterly report"},
+    previewSetup: `return { onConfirm: () => console.log('confirmed') };`,
+    tests: [
+      {
+        name: 'opening shows a labelled modal dialog and focuses Cancel',
+        code: `const { getByRole, queryByRole } = render({ itemName: 'Old draft', onConfirm: () => {} });
+const trigger = getByRole('button', { name: 'Delete Old draft' });
+expect(queryByRole('dialog')).toBeNull();
+expect(document.activeElement === trigger).toBe(false);
+fireEvent.click(trigger);
+const dialog = getByRole('dialog', { name: 'Delete Old draft?' });
+expect(dialog).toHaveAttribute('aria-modal', 'true');
+expect(within(dialog).getByRole('heading').textContent).toBe('Delete Old draft?');
+expect(within(dialog).getAllByRole('button').map((b) => b.textContent)).toEqual(['Cancel', 'Confirm']);
+expect(document.activeElement === within(dialog).getByRole('button', { name: 'Cancel' })).toBe(true);
+expect(getByRole('button', { name: 'Delete Old draft' })).toBeTruthy();`,
+      },
+      {
+        name: 'Tab on the last button wraps to the first, Shift+Tab on the first wraps to the last',
+        code: `const { getByRole } = render({ itemName: 'Old draft', onConfirm: () => {} });
+fireEvent.click(getByRole('button', { name: 'Delete Old draft' }));
+const cancel = getByRole('button', { name: 'Cancel' });
+const confirm = getByRole('button', { name: 'Confirm' });
+const firstAllowed = fireEvent.keyDown(cancel, { key: 'Tab', shiftKey: true });
+expect(document.activeElement === confirm).toBe(true);
+expect(firstAllowed).toBe(false);
+const secondAllowed = fireEvent.keyDown(confirm, { key: 'Tab' });
+expect(document.activeElement === cancel).toBe(true);
+expect(secondAllowed).toBe(false);
+fireEvent.focus(confirm);
+fireEvent.keyDown(confirm, { key: 'Tab', shiftKey: false });
+expect(document.activeElement === cancel).toBe(true);
+expect(getByRole('dialog')).toBeTruthy();`,
+      },
+      {
+        name: 'Escape closes without confirming and returns focus to the trigger',
+        code: `let confirmed = 0;
+const { getByRole, queryByRole } = render({ itemName: 'Old draft', onConfirm: () => { confirmed += 1; } });
+fireEvent.click(getByRole('button', { name: 'Delete Old draft' }));
+fireEvent.keyDown(document.activeElement, 'Escape');
+expect(queryByRole('dialog')).toBeNull();
+expect(confirmed).toBe(0);
+expect(document.activeElement === getByRole('button', { name: 'Delete Old draft' })).toBe(true);`,
+      },
+      {
+        name: 'Confirm calls onConfirm once, closes and returns focus',
+        code: `let confirmed = 0;
+const { getByRole, queryByRole } = render({ itemName: 'Invoice 7', onConfirm: () => { confirmed += 1; } });
+fireEvent.click(getByRole('button', { name: 'Delete Invoice 7' }));
+fireEvent.click(getByRole('button', { name: 'Confirm' }));
+expect(confirmed).toBe(1);
+expect(queryByRole('dialog')).toBeNull();
+expect(document.activeElement === getByRole('button', { name: 'Delete Invoice 7' })).toBe(true);`,
+      },
+      {
+        name: 'Cancel closes without confirming and the dialog can be opened again',
+        code: `let confirmed = 0;
+const { getByRole, queryByRole } = render({ itemName: 'Old draft', onConfirm: () => { confirmed += 1; } });
+fireEvent.click(getByRole('button', { name: 'Delete Old draft' }));
+fireEvent.click(getByRole('button', { name: 'Cancel' }));
+expect(queryByRole('dialog')).toBeNull();
+expect(confirmed).toBe(0);
+expect(document.activeElement === getByRole('button', { name: 'Delete Old draft' })).toBe(true);
+fireEvent.click(getByRole('button', { name: 'Delete Old draft' }));
+expect(getByRole('dialog')).toBeTruthy();
+expect(document.activeElement === getByRole('button', { name: 'Cancel' })).toBe(true);
+fireEvent.keyDown(document.activeElement, 'Escape');
+fireEvent.keyDown(document.body, 'Escape');
+expect(queryByRole('dialog')).toBeNull();
+expect(confirmed).toBe(0);`,
+      },
+    ],
+    hint: `Use refs for the trigger, \`Cancel\` and \`Confirm\`. One effect keyed on \`open\` moves focus: to \`Cancel\` when it became true, back to the trigger when it became false, but not on the first mount. Put a single \`onKeyDown\` on the dialog element. Key events from the buttons bubble up to it, and \`document.activeElement\` tells you which button has focus.`,
+    explanation: `A modal dialog makes three promises to keyboard users: focus goes into the dialog when it opens, it cannot leave while the dialog is open, and it goes back to where it was when the dialog closes. None of that happens by default.
+
+Moving focus in and out is the job of an effect keyed on \`open\`, because the elements to focus only exist after the render. When \`open\` becomes true the effect focuses \`Cancel\`, the non-destructive option, so that an accidental Enter does not delete anything. When it becomes false it focuses the trigger. A \`wasOpen\` ref stops the effect from focusing the trigger on the initial mount, when nothing was closed.
+
+The trap handles the two edges of the tab order. Tab on the last focusable element would move focus out of the dialog to the page behind it, so the handler prevents the default and focuses the first one. Shift+Tab on the first does the reverse. \`preventDefault()\` matters: without it the browser performs its own focus move right after yours. Elements between the edges need no handling because the browser's normal Tab already stays inside. With only two buttons you can compare \`document.activeElement\` to the refs. A general dialog would query its focusable descendants and use the first and last.
+
+One \`onKeyDown\` on the dialog element sees keys from both buttons through bubbling, and also handles Escape. Confirm calls \`onConfirm\` and then closes, and every way of closing goes through the same state change, so the focus return in the effect covers them all. All handlers are O(1).`,
+    solution: `import React, { useState, useRef, useEffect, useId } from 'react';
+
+export default function DeleteConfirm({ itemName, onConfirm }) {
+  const [open, setOpen] = useState(false);
+  const titleId = useId();
+  const triggerRef = useRef(null);
+  const cancelRef = useRef(null);
+  const confirmRef = useRef(null);
+  const wasOpen = useRef(false);
+
+  useEffect(() => {
+    if (open) {
+      cancelRef.current.focus();
+    } else if (wasOpen.current) {
+      triggerRef.current.focus();
+    }
+    wasOpen.current = open;
+  }, [open]);
+
+  function onKeyDown(event) {
+    if (event.key === 'Escape') {
+      setOpen(false);
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    if (!event.shiftKey && document.activeElement === confirmRef.current) {
+      event.preventDefault();
+      cancelRef.current.focus();
+    } else if (event.shiftKey && document.activeElement === cancelRef.current) {
+      event.preventDefault();
+      confirmRef.current.focus();
+    }
+  }
+
+  function confirm() {
+    if (onConfirm) onConfirm();
+    setOpen(false);
+  }
+
+  return (
+    <div>
+      <button type="button" ref={triggerRef} onClick={() => setOpen(true)}>{'Delete ' + itemName}</button>
+      {open && (
+        <div role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={onKeyDown} style={{ border: '1px solid #999', padding: 12, marginTop: 8 }}>
+          <h2 id={titleId}>{'Delete ' + itemName + '?'}</h2>
+          <button type="button" ref={cancelRef} onClick={() => setOpen(false)}>Cancel</button>{' '}
+          <button type="button" ref={confirmRef} onClick={confirm}>Confirm</button>
+        </div>
+      )}
+    </div>
+  );
+}
 `,
   },
 ];

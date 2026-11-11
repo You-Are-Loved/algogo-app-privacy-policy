@@ -676,4 +676,241 @@ const PinField = forwardRef(function PinField({ label }, ref) {
 
 export default PinField;
 `,
+  'react-memo-rows-render-spy': `import React, { useState, memo } from 'react';
+
+const GuestRow = memo(function GuestRow({ guest, onToggle, onRowRender }) {
+  onRowRender(guest.id);
+  return (
+    <li>
+      <span data-testid={'status-' + guest.id}>{guest.name + ': ' + (guest.attending ? 'attending' : 'not attending')}</span>{' '}
+      <button type="button" aria-label={'Toggle ' + guest.name} onClick={onToggle}>Toggle</button>
+    </li>
+  );
+});
+
+export default function GuestList({ initialGuests, onRowRender }) {
+  const [guests, setGuests] = useState(initialGuests);
+  const [note, setNote] = useState('');
+
+  function toggle(id) {
+    setGuests((prev) => prev.map((g) => (g.id === id ? { ...g, attending: !g.attending } : g)));
+  }
+
+  const attending = guests.filter((g) => g.attending).length;
+
+  // Bug: memo is defeated by a new inline callback for every row on every render.
+  return (
+    <div>
+      <input aria-label="Note" value={note} onChange={(e) => setNote(e.target.value)} />
+      <ul>
+        {guests.map((guest) => (
+          <GuestRow key={guest.id} guest={guest} onToggle={() => toggle(guest.id)} onRowRender={onRowRender} />
+        ))}
+      </ul>
+      <p data-testid="summary">{'Attending: ' + attending + ' of ' + guests.length}</p>
+    </div>
+  );
+}
+`,
+  'react-roving-tabindex-menu': `import React, { useState, useRef } from 'react';
+
+export default function ActionMenu({ actions, onAction }) {
+  const firstEnabled = actions.findIndex((action) => !action.disabled);
+  const [active, setActive] = useState(firstEnabled);
+  const nodes = useRef([]);
+
+  function moveTo(index) {
+    setActive(index);
+    if (nodes.current[index]) nodes.current[index].focus();
+  }
+
+  // Bug: steps through every index, so focus can land on a disabled item.
+  function onKeyDown(event) {
+    const count = actions.length;
+    if (event.key === 'ArrowDown') moveTo((active + 1) % count);
+    else if (event.key === 'ArrowUp') moveTo((active - 1 + count) % count);
+    else if (event.key === 'Home') moveTo(0);
+    else if (event.key === 'End') moveTo(count - 1);
+  }
+
+  function onClick(action, index) {
+    if (action.disabled) return;
+    setActive(index);
+    if (onAction) onAction(action.label);
+  }
+
+  return (
+    <div role="menu" onKeyDown={onKeyDown}>
+      {actions.map((action, i) => (
+        <button
+          key={action.label}
+          ref={(node) => { nodes.current[i] = node; }}
+          type="button"
+          role="menuitem"
+          tabIndex={i === active ? 0 : -1}
+          aria-disabled={action.disabled ? 'true' : undefined}
+          onClick={() => onClick(action, i)}
+        >
+          {action.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+`,
+  'react-listbox-active-descendant': `import React, { useState, useId } from 'react';
+
+export default function OptionListbox({ label, options, onChange }) {
+  const baseId = useId();
+  const [activeIndex, setActiveIndex] = useState(0);
+  const optionId = (index) => baseId + '-option-' + index;
+
+  // Bug: one variable for both "active" and "selected", so arrowing selects.
+  function go(index) {
+    setActiveIndex(index);
+    if (onChange) onChange(options[index]);
+  }
+
+  function onKeyDown(event) {
+    const last = options.length - 1;
+    if (event.key === 'ArrowDown') go(Math.min(last, activeIndex + 1));
+    else if (event.key === 'ArrowUp') go(Math.max(0, activeIndex - 1));
+    else if (event.key === 'Home') go(0);
+    else if (event.key === 'End') go(last);
+  }
+
+  return (
+    <div>
+      <ul role="listbox" tabIndex={0} aria-label={label} aria-activedescendant={optionId(activeIndex)} onKeyDown={onKeyDown}>
+        {options.map((option, i) => (
+          <li
+            key={option}
+            id={optionId(i)}
+            role="option"
+            aria-selected={i === activeIndex ? 'true' : 'false'}
+            data-active={i === activeIndex ? 'true' : undefined}
+            onClick={() => go(i)}
+          >
+            {option}
+          </li>
+        ))}
+      </ul>
+      <p data-testid="value">{'Selected: ' + options[activeIndex]}</p>
+    </div>
+  );
+}
+`,
+  'react-combobox-autocomplete': `import React, { useState, useId } from 'react';
+
+export default function LanguageCombobox({ options, onSelect }) {
+  const baseId = useId();
+  const [text, setText] = useState('');
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+
+  const needle = text.toLowerCase();
+  const suggestions = text === '' ? [] : options.filter((option) => option.toLowerCase().includes(needle));
+  const showList = open && suggestions.length > 0;
+  const showEmpty = open && text !== '' && suggestions.length === 0;
+  const optionId = (index) => baseId + '-opt-' + index;
+
+  function handleChange(event) {
+    // Bug: the active index is not reset when the text (and so the list) changes.
+    setText(event.target.value);
+    setOpen(true);
+  }
+
+  function choose(option) {
+    setText(option);
+    setOpen(false);
+    setActiveIndex(-1);
+    if (onSelect) onSelect(option);
+  }
+
+  function handleKeyDown(event) {
+    if (!showList) return;
+    const count = suggestions.length;
+    if (event.key === 'ArrowDown') setActiveIndex((activeIndex + 1) % count);
+    else if (event.key === 'ArrowUp') setActiveIndex(activeIndex <= 0 ? count - 1 : activeIndex - 1);
+    else if (event.key === 'Enter') {
+      if (activeIndex === -1 || !suggestions[activeIndex]) return;
+      choose(suggestions[activeIndex]);
+    } else if (event.key === 'Escape') {
+      setOpen(false);
+      setActiveIndex(-1);
+    }
+  }
+
+  return (
+    <div>
+      <input
+        role="combobox"
+        aria-label="Language"
+        aria-expanded={showList ? 'true' : 'false'}
+        aria-activedescendant={showList && activeIndex !== -1 ? optionId(activeIndex) : undefined}
+        value={text}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+      />
+      {showList && (
+        <ul role="listbox">
+          {suggestions.map((option, i) => (
+            <li key={option} id={optionId(i)} role="option" aria-selected={i === activeIndex ? 'true' : 'false'} onClick={() => choose(option)}>
+              {option}
+            </li>
+          ))}
+        </ul>
+      )}
+      {showEmpty && <p>No matches</p>}
+    </div>
+  );
+}
+`,
+  'react-dialog-focus-trap': `import React, { useState, useRef, useEffect, useId } from 'react';
+
+export default function DeleteConfirm({ itemName, onConfirm }) {
+  const [open, setOpen] = useState(false);
+  const titleId = useId();
+  const cancelRef = useRef(null);
+  const confirmRef = useRef(null);
+
+  // Bug: focus goes into the dialog but is never returned to the trigger.
+  useEffect(() => {
+    if (open) cancelRef.current.focus();
+  }, [open]);
+
+  function onKeyDown(event) {
+    if (event.key === 'Escape') {
+      setOpen(false);
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    if (!event.shiftKey && document.activeElement === confirmRef.current) {
+      event.preventDefault();
+      cancelRef.current.focus();
+    } else if (event.shiftKey && document.activeElement === cancelRef.current) {
+      event.preventDefault();
+      confirmRef.current.focus();
+    }
+  }
+
+  function confirm() {
+    if (onConfirm) onConfirm();
+    setOpen(false);
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen(true)}>{'Delete ' + itemName}</button>
+      {open && (
+        <div role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={onKeyDown}>
+          <h2 id={titleId}>{'Delete ' + itemName + '?'}</h2>
+          <button type="button" ref={cancelRef} onClick={() => setOpen(false)}>Cancel</button>{' '}
+          <button type="button" ref={confirmRef} onClick={confirm}>Confirm</button>
+        </div>
+      )}
+    </div>
+  );
+}
+`,
 };
