@@ -508,6 +508,51 @@ def _export_value(value, structs, cycle_nodes):
                 return idx
     return value
 
+# --- Time limit ---------------------------------------------------------------
+# User code runs on the WebView's only thread, so an infinite loop would hang
+# the page forever. sys.monitoring lets us count loop back-edges and function
+# calls cheaply and abort once a test has run too long. (A single long call
+# into C, like sum(range(10**12)), cannot be interrupted.)
+_TIME_LIMIT_S = 5.0
+_TIME_LIMIT_MSG = (
+    'Time limit exceeded: this ran for more than 5 seconds. '
+    'Check for an infinite loop or runaway recursion.'
+)
+
+class _TimeLimit(BaseException):
+    # BaseException so a broad "except Exception" in user code cannot swallow it.
+    pass
+
+_MON = getattr(sys, 'monitoring', None)
+_MON_TOOL = 4
+_guard = {'deadline': 0.0, 'ticks': 0}
+
+def _guard_tick(*_args):
+    _guard['ticks'] += 1
+    if _guard['ticks'] & 63 == 0 and time.perf_counter() > _guard['deadline']:
+        # Disarm first so our own cleanup code is not interrupted as well.
+        _MON.set_events(_MON_TOOL, 0)
+        raise _TimeLimit()
+
+if _MON is not None:
+    try:
+        _MON.use_tool_id(_MON_TOOL, 'algogo-time-limit')
+    except ValueError:
+        pass
+    _GUARD_EVENTS = _MON.events.JUMP | _MON.events.PY_START | _MON.events.PY_RESUME
+    for _ev in (_MON.events.JUMP, _MON.events.PY_START, _MON.events.PY_RESUME):
+        _MON.register_callback(_MON_TOOL, _ev, _guard_tick)
+
+def _guard_on():
+    if _MON is not None:
+        _guard['ticks'] = 0
+        _guard['deadline'] = time.perf_counter() + _TIME_LIMIT_S
+        _MON.set_events(_MON_TOOL, _GUARD_EVENTS)
+
+def _guard_off():
+    if _MON is not None:
+        _MON.set_events(_MON_TOOL, 0)
+
 def _run_one(fn, inputs, structs, glb):
     buf = io.StringIO()
     old_stdout = sys.stdout
@@ -515,13 +560,25 @@ def _run_one(fn, inputs, structs, glb):
     try:
         args, cycle_nodes = _prepare_args(inputs, structs, glb)
         t0 = time.perf_counter()
-        out = fn(*args)
+        _guard_on()
+        try:
+            out = fn(*args)
+        finally:
+            _guard_off()
         t1 = time.perf_counter()
         return {
             'ok': True,
             'value': _normalize(_export_value(out, structs, cycle_nodes)),
             'runtime_ms': round((t1 - t0) * 1000.0, 1),
             'stdout': buf.getvalue(),
+        }
+    except _TimeLimit:
+        return {
+            'ok': False,
+            'timeout': True,
+            'error': _TIME_LIMIT_MSG,
+            'runtime_ms': round(_TIME_LIMIT_S * 1000.0, 1),
+            'stdout': buf.getvalue()[:20000],
         }
     except Exception:
         return {
@@ -531,13 +588,23 @@ def _run_one(fn, inputs, structs, glb):
             'stdout': buf.getvalue(),
         }
     finally:
+        _guard_off()
         sys.stdout = old_stdout
 
 def grade(user_code: str, fn_name: str, tests_json: str):
     tests = json.loads(tests_json)
     glb = _base_globals()
     try:
-        exec(user_code, glb)
+        _guard_on()
+        try:
+            exec(user_code, glb)
+        finally:
+            _guard_off()
+    except _TimeLimit:
+        return json.dumps({
+            'kind': 'compile_error',
+            'error': _TIME_LIMIT_MSG,
+        })
     except Exception:
         return json.dumps({
             'kind': 'compile_error',
@@ -552,8 +619,20 @@ def grade(user_code: str, fn_name: str, tests_json: str):
     out_cases = []
     total_ms = 0.0
     passed = 0
+    timed_out = False
     for t in tests:
+        if timed_out:
+            # One runaway test is enough; do not make the user wait 5s per case.
+            out_cases.append({
+                'hidden': t.get('hidden', False),
+                'pass': False,
+                'runtime_ms': 0,
+                'error': 'Not run: an earlier test hit the time limit.',
+                'stdout': '',
+            })
+            continue
         res = _run_one(fn, t['input'], t.get('structs'), glb)
+        timed_out = bool(res.get('timeout'))
         runtime_ms = res['runtime_ms']
         total_ms += runtime_ms
         if not res['ok']:
