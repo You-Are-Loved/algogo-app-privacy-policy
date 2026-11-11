@@ -1194,5 +1194,601 @@ open class ScreenModel(dispatcher: CoroutineDispatcher) {
       { label: 'No GlobalScope or hard-coded Dispatchers', type: 'mustNotContain', pattern: 'GlobalScope|Dispatchers\\s*\\.', regex: true },
     ],
   },
-  // @@NEXT@@
+  {
+    id: 'kotlin-build-retained-instance-store',
+    number: 51,
+    language: 'kotlin',
+    kind: 'build',
+    title: 'Retained Instance Store',
+    difficulty: 'Medium',
+    topic: 'Lifecycle',
+    statement:
+      'When a screen is recreated on rotation its presenters must survive; when it is finished for good they must be released. Implement `RetainedStore`, a stand-in for `ViewModelStore` that the host keeps across recreation (a given key is always used with the same type):\n\n- `getOrCreate(key, factory)`: if an instance is stored under `key` return it **without calling** `factory`; otherwise call `factory` once, store the result and return it (`getOrPut` does exactly this).\n- `size`: number of stored instances.\n- `clear()`: call `close()` on every stored instance that is an `AutoCloseable` (this includes `java.io.Closeable`), in insertion order, then empty the store. After `clear()` the next `getOrCreate` creates a fresh instance.',
+    functionSignature: 'class RetainedStore { fun <T : Any> getOrCreate(key: String, factory: () -> T): T; val size: Int; fun clear() }',
+    buggyCode: `class RetainedStore {
+    private val instances = LinkedHashMap<String, Any>()
+
+    fun <T : Any> getOrCreate(key: String, factory: () -> T): T {
+        // TODO: create at most once per key, afterwards return the retained instance
+        return factory()
+    }
+
+    val size: Int get() = instances.size
+
+    fun clear() {
+        // TODO: close every AutoCloseable instance in insertion order, then empty the store
+    }
+}
+`,
+    solution: `class RetainedStore {
+    private val instances = LinkedHashMap<String, Any>()
+
+    @Suppress("UNCHECKED_CAST")
+    fun <T : Any> getOrCreate(key: String, factory: () -> T): T =
+        instances.getOrPut(key) { factory() } as T
+
+    val size: Int get() = instances.size
+
+    fun clear() {
+        val retained = instances.values.toList()
+        instances.clear()
+        retained.forEach { (it as? AutoCloseable)?.close() }
+    }
+}
+`,
+    hint: '`map.getOrPut(key) { factory() }` only runs the lambda when the key is missing. For `clear()`, a safe cast `as? AutoCloseable` followed by `?.close()` handles both kinds of instance.',
+    explanation:
+      'The store separates two lifetimes: the screen object, which is rebuilt on every configuration change, and the state holders, which should be built once. `getOrPut` gives the "create on first request, reuse afterwards" behaviour in one call; calling `factory()` unconditionally would restart every in-flight load on each rotation. `clear()` is the only place where resources are released, so it must reach every instance that owns something (`AutoCloseable` covers `Closeable` too) and leave the map empty so a later screen starts clean. A `LinkedHashMap` preserves insertion order, which makes teardown deterministic. The generic cast is unchecked by nature, which is why a key must always be paired with one type.',
+    rules: [
+      { label: 'Looks the key up before calling the factory (getOrPut or an explicit check)', type: 'mustContain', pattern: '(getOrPut\\s*\\(\\s*key|computeIfAbsent\\s*\\(\\s*key|\\[\\s*key\\s*\\](?!\\s*=[^=])|\\.get\\s*\\(\\s*key\\s*\\)|containsKey\\s*\\(\\s*key)[\\s\\S]*?\\bfactory\\b', regex: true },
+      { label: 'clear() detects AutoCloseable / Closeable instances', type: 'mustContain', pattern: '(\\bis|\\bas\\?)\\s+(java\\.(io|lang)\\.)?(Auto)?Closeable|filterIsInstance\\s*<\\s*(java\\.(io|lang)\\.)?(Auto)?Closeable\\s*>', regex: true },
+      { label: 'clear() closes them', type: 'mustContain', pattern: '\\.close\\s*\\(\\s*\\)', regex: true },
+      { label: 'clear() empties the store', type: 'mustContain', pattern: '\\.clear\\s*\\(\\s*\\)', regex: true },
+    ],
+  },
+  {
+    id: 'kotlin-build-permission-result-bridge',
+    number: 52,
+    language: 'kotlin',
+    kind: 'build',
+    title: 'Permission Result Bridge',
+    difficulty: 'Hard',
+    topic: 'Lifecycle',
+    statement:
+      'The system permission dialog answers through a host callback, long after the request was made. Bridge it to coroutines so a view model can write `if (bridge.request("camera")) ...`. Every call happens on the main thread, so no locking is needed.\n\nImplement `PermissionBridge(launchSystemDialog)` with one `CompletableDeferred<Boolean>` per permission that is waiting for an answer:\n\n- `request(permission)`: if a request for this permission is already waiting, do **not** launch a second dialog; await the same deferred. Otherwise create a deferred, store it in the map **before** calling `launchSystemDialog(permission)` (a host may answer synchronously), then `await()` it.\n- `onResult(permission, granted)`: remove the waiting deferred for that permission and `complete` it with `granted`; an answer nobody waits for is ignored.\n- `onHostDestroyed()`: cancel every waiting deferred and empty the map, so suspended callers get a `CancellationException` instead of hanging forever.',
+    functionSignature: 'class PermissionBridge(launchSystemDialog: (permission: String) -> Unit) { suspend fun request(permission: String): Boolean; fun onResult(permission: String, granted: Boolean); fun onHostDestroyed() }',
+    buggyCode: `import kotlinx.coroutines.CompletableDeferred
+
+class PermissionBridge(private val launchSystemDialog: (permission: String) -> Unit) {
+    // TODO: one CompletableDeferred<Boolean> per permission that is waiting for an answer
+
+    suspend fun request(permission: String): Boolean = TODO()
+
+    fun onResult(permission: String, granted: Boolean) {
+        TODO()
+    }
+
+    fun onHostDestroyed() {
+        TODO()
+    }
+}
+`,
+    solution: `import kotlinx.coroutines.CompletableDeferred
+
+class PermissionBridge(private val launchSystemDialog: (permission: String) -> Unit) {
+    private val waiting = mutableMapOf<String, CompletableDeferred<Boolean>>()
+
+    suspend fun request(permission: String): Boolean {
+        val existing = waiting[permission]
+        if (existing != null) return existing.await()
+        val answer = CompletableDeferred<Boolean>()
+        waiting[permission] = answer
+        launchSystemDialog(permission)
+        return answer.await()
+    }
+
+    fun onResult(permission: String, granted: Boolean) {
+        waiting.remove(permission)?.complete(granted)
+    }
+
+    fun onHostDestroyed() {
+        val abandoned = waiting.values.toList()
+        waiting.clear()
+        abandoned.forEach { it.cancel() }
+    }
+}
+`,
+    hint: 'A `CompletableDeferred` is a one-shot result box: one side calls `await()`, the other `complete(value)` or `cancel()`. Think about what happens if the host calls `onResult` before `launchSystemDialog` has even returned.',
+    explanation:
+      'A `CompletableDeferred` is the simplest bridge between a callback that arrives later and a suspended caller: `await()` suspends without blocking the main thread and `complete(value)` resumes every waiter. Keying the deferreds by permission collapses duplicate requests into one dialog. The order inside `request` is the subtle part: if the dialog is launched before the deferred is registered, a host that answers synchronously finds nothing to complete and the caller waits forever. Removing the entry in `onResult` lets a later request ask again, and cancelling the leftovers when the host dies turns a silent leak into an ordinary cancellation that structured concurrency already handles. All operations are O(1) per permission.',
+    rules: [
+      { label: 'Tracks waiting requests as CompletableDeferred<Boolean>', type: 'mustContain', pattern: 'CompletableDeferred\\s*<\\s*Boolean\\s*>', regex: true },
+      { label: 'request suspends on await()', type: 'mustContain', pattern: '\\.await\\s*\\(\\s*\\)', regex: true },
+      { label: 'Stores the deferred before launching the dialog', type: 'mustContain', pattern: '(\\]\\s*=[^=]|\\.put\\s*\\(|\\.set\\s*\\(|putIfAbsent\\s*\\()[\\s\\S]*launchSystemDialog\\s*\\(', regex: true },
+      { label: 'onResult completes the waiting deferred', type: 'mustContain', pattern: '\\.complete\\s*\\(', regex: true },
+      { label: 'onHostDestroyed cancels the deferreds that are still waiting', type: 'mustContain', pattern: '\\.cancel\\s*\\(|completeExceptionally\\s*\\(', regex: true },
+    ],
+  },
+  // ------------------------------------------------------------ Networking Layer
+  {
+    id: 'kotlin-build-connectivity-callback-flow',
+    number: 53,
+    language: 'kotlin',
+    kind: 'build',
+    title: 'Connectivity Callback Flow',
+    difficulty: 'Medium',
+    topic: 'Networking Layer',
+    statement:
+      'The platform reports connectivity through a listener API (`ConnectivityMonitor` is a stand-in for `ConnectivityManager`). The sync engine wants a `Flow<Boolean>` instead. Implement the extension `ConnectivityMonitor.onlineStatus()` with `callbackFlow`:\n\n- first send the current status `isOnlineNow`,\n- register a `NetworkListener` that sends `true` from `onAvailable()` and `false` from `onLost()` (use `trySend`; the callbacks are not suspending),\n- keep the flow open with `awaitClose { ... }` and `unregister` the listener in that block, so it is removed when the collector goes away,\n- apply `distinctUntilChanged()` so repeated callbacks with the same status are not re-emitted.',
+    functionSignature: 'fun ConnectivityMonitor.onlineStatus(): Flow<Boolean>',
+    buggyCode: `import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOf
+
+interface NetworkListener {
+    fun onAvailable()
+    fun onLost()
+}
+
+interface ConnectivityMonitor {
+    val isOnlineNow: Boolean
+    fun register(listener: NetworkListener)
+    fun unregister(listener: NetworkListener)
+}
+
+fun ConnectivityMonitor.onlineStatus(): Flow<Boolean> {
+    // TODO: callbackFlow that registers a listener and unregisters it in awaitClose
+    return flowOf(isOnlineNow)
+}
+`,
+    solution: `import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+
+interface NetworkListener {
+    fun onAvailable()
+    fun onLost()
+}
+
+interface ConnectivityMonitor {
+    val isOnlineNow: Boolean
+    fun register(listener: NetworkListener)
+    fun unregister(listener: NetworkListener)
+}
+
+fun ConnectivityMonitor.onlineStatus(): Flow<Boolean> = callbackFlow {
+    val listener = object : NetworkListener {
+        override fun onAvailable() {
+            trySend(true)
+        }
+
+        override fun onLost() {
+            trySend(false)
+        }
+    }
+    trySend(isOnlineNow)
+    register(listener)
+    awaitClose { unregister(listener) }
+}.distinctUntilChanged()
+`,
+    hint: 'The body of `callbackFlow` must end with `awaitClose { }`; whatever you registered above is undone inside that block.',
+    explanation:
+      '`callbackFlow` exists for exactly this adaptation: it gives the block a channel that plain callbacks can push into with `trySend`, and it keeps the flow alive until the collector cancels. `awaitClose` is not optional. Without it the block would return at once and the flow would complete, and without the `unregister` inside it every collection would leak a listener that keeps firing into a closed channel. A plain `flow { }` cannot be used because `emit` may not be called from another thread or a non-suspending callback. Sending the current status first means the UI does not wait for the next network change, and `distinctUntilChanged` filters the duplicate callbacks platforms like to deliver.',
+    rules: [
+      { label: 'Adapts the listener API with callbackFlow', type: 'mustContain', pattern: 'callbackFlow\\s*(<\\s*Boolean\\s*>\\s*)?\\{', regex: true },
+      { label: 'Sends the current status first', type: 'mustContain', pattern: '(trySend|send|trySendBlocking)\\s*\\(\\s*([\\w@]+\\.)?isOnlineNow\\s*\\)', regex: true },
+      { label: 'Pushes callback values with trySend', type: 'mustContain', pattern: 'trySend(Blocking)?\\s*\\(\\s*(true|false)\\s*\\)', regex: true },
+      { label: 'Unregisters the listener inside awaitClose { }', type: 'mustContain', pattern: 'awaitClose\\s*\\{[^}]*unregister\\s*\\(', regex: true },
+      { label: 'Drops repeated statuses with distinctUntilChanged()', type: 'mustContain', pattern: 'distinctUntilChanged\\s*\\(\\s*\\)', regex: true },
+    ],
+  },
+  {
+    id: 'kotlin-build-legacy-call-await-adapter',
+    number: 54,
+    language: 'kotlin',
+    kind: 'build',
+    title: 'Legacy Call Await Adapter',
+    difficulty: 'Medium',
+    topic: 'Networking Layer',
+    statement:
+      'An older HTTP client in a travel app exposes `Call<T>` with `enqueue(callback)` and `cancel()`. Write the suspending adapter `Call<T>.await()` using `suspendCancellableCoroutine`:\n\n- enqueue a `Callback<T>` that resumes the coroutine with the body on `onSuccess` and resumes it with the exception on `onFailure` (`resume` / `resumeWithException`),\n- register `invokeOnCancellation { ... }` that calls `cancel()` on the call, so a request is aborted when the awaiting coroutine is cancelled (for example when the screen closes).\n\nDo not use the non-cancellable `suspendCoroutine`, and do not block a thread.',
+    functionSignature: 'suspend fun <T> Call<T>.await(): T',
+    buggyCode: `import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.suspendCancellableCoroutine
+
+interface Callback<T> {
+    fun onSuccess(body: T)
+    fun onFailure(error: Exception)
+}
+
+interface Call<T> {
+    fun enqueue(callback: Callback<T>)
+    fun cancel()
+}
+
+suspend fun <T> Call<T>.await(): T {
+    // TODO: suspend until the callback fires; cancel the call if the coroutine is cancelled
+    TODO()
+}
+`,
+    solution: `import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.suspendCancellableCoroutine
+
+interface Callback<T> {
+    fun onSuccess(body: T)
+    fun onFailure(error: Exception)
+}
+
+interface Call<T> {
+    fun enqueue(callback: Callback<T>)
+    fun cancel()
+}
+
+suspend fun <T> Call<T>.await(): T = suspendCancellableCoroutine { continuation ->
+    continuation.invokeOnCancellation { cancel() }
+    enqueue(object : Callback<T> {
+        override fun onSuccess(body: T) {
+            continuation.resume(body)
+        }
+
+        override fun onFailure(error: Exception) {
+            continuation.resumeWithException(error)
+        }
+    })
+}
+`,
+    hint: 'The lambda of `suspendCancellableCoroutine` receives a continuation: call `resume` or `resumeWithException` on it from the callback, and `invokeOnCancellation` for the cleanup.',
+    explanation:
+      '`suspendCancellableCoroutine` suspends the caller and hands you a continuation that the callback resumes exactly once, with a value or with an exception that is rethrown at the call site. The cancellable variant matters on mobile: with `suspendCoroutine` a cancelled screen keeps waiting for a response nobody will read and the socket stays busy. `invokeOnCancellation` is the hook that propagates coroutine cancellation into the callback world by calling `cancel()` on the request. Registering it before `enqueue` covers a callback that fires immediately. The adapter adds no thread and no allocation beyond the callback object.',
+    rules: [
+      { label: 'Suspends with suspendCancellableCoroutine', type: 'mustContain', pattern: 'suspendCancellableCoroutine\\s*(<\\s*T\\s*>\\s*)?\\{', regex: true },
+      { label: 'Resumes with the body on success', type: 'mustContain', pattern: '\\.resume\\s*\\(|resumeWith\\s*\\(\\s*Result\\.success', regex: true },
+      { label: 'Resumes with the exception on failure', type: 'mustContain', pattern: 'resumeWithException\\s*\\(|Result\\.failure', regex: true },
+      { label: 'Cancels the call from invokeOnCancellation { }', type: 'mustContain', pattern: 'invokeOnCancellation\\s*\\{[^}]*cancel\\s*\\(', regex: true },
+      { label: 'No suspendCoroutine, runBlocking or latches', type: 'mustNotContain', pattern: 'suspendCoroutine\\s*[<{]|runBlocking|CountDownLatch', regex: true },
+    ],
+  },
+  {
+    id: 'kotlin-build-capped-parallel-tile-downloads',
+    number: 55,
+    language: 'kotlin',
+    kind: 'build',
+    title: 'Capped Parallel Tile Downloads',
+    difficulty: 'Medium',
+    topic: 'Networking Layer',
+    statement:
+      'An offline-maps screen downloads hundreds of tiles. Starting them all at once exhausts the connection pool; one at a time is far too slow. Implement `downloadAll(urls, maxParallel, download)`:\n\n- `require(maxParallel >= 1)`,\n- start one `async` per url inside a `coroutineScope { }`,\n- at most `maxParallel` downloads may run at the same moment: guard each `download(url)` with a `kotlinx.coroutines.sync.Semaphore(maxParallel)` and `withPermit { }`,\n- a slot must be reused as soon as **any** download finishes (do not process fixed batches with `chunked`),\n- return the results in the order of `urls`; if a download throws, the rest is cancelled and the exception propagates.',
+    functionSignature: 'suspend fun <T> downloadAll(urls: List<String>, maxParallel: Int, download: suspend (String) -> T): List<T>',
+    buggyCode: `import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+
+suspend fun <T> downloadAll(
+    urls: List<String>,
+    maxParallel: Int,
+    download: suspend (String) -> T,
+): List<T> {
+    // TODO: concurrent, but never more than maxParallel downloads at once
+    return urls.map { download(it) }
+}
+`,
+    solution: `import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+
+suspend fun <T> downloadAll(
+    urls: List<String>,
+    maxParallel: Int,
+    download: suspend (String) -> T,
+): List<T> {
+    require(maxParallel >= 1) { "maxParallel must be >= 1" }
+    val gate = Semaphore(maxParallel)
+    return coroutineScope {
+        urls.map { url ->
+            async { gate.withPermit { download(url) } }
+        }.awaitAll()
+    }
+}
+`,
+    hint: 'Launching all the `async` blocks is cheap; the limit is enforced inside each one by `semaphore.withPermit { download(url) }`.',
+    explanation:
+      'Coroutines are cheap, so the usual pattern is to launch one per item and limit only the expensive section. A coroutine `Semaphore` holds `maxParallel` permits; `withPermit` suspends (without blocking a thread) until one is free and gives it back even when the download throws or is cancelled. Splitting the list with `chunked(maxParallel)` looks similar but each batch waits for its slowest member, so the effective parallelism drops well below the cap. `awaitAll` on the list of deferreds returns results in list order regardless of completion order, and `coroutineScope` cancels the remaining downloads on the first failure.',
+    rules: [
+      { label: 'Creates a Semaphore with maxParallel permits', type: 'mustContain', pattern: 'Semaphore\\s*\\(\\s*(permits\\s*=\\s*)?maxParallel\\b', regex: true },
+      { label: 'Wraps each download in withPermit { }', type: 'mustContain', pattern: 'withPermit\\s*\\{', regex: true },
+      { label: 'Starts the downloads with async', type: 'mustContain', pattern: 'async\\s*(\\(.*\\))?\\s*\\{', regex: true },
+      { label: 'Awaits all results in order', type: 'mustContain', pattern: 'awaitAll\\s*\\(|\\.await\\s*\\(\\s*\\)', regex: true },
+      { label: 'No fixed batches, GlobalScope or runBlocking', type: 'mustNotContain', pattern: 'chunked\\s*\\(|windowed\\s*\\(|GlobalScope|runBlocking', regex: true },
+    ],
+  },
+  {
+    id: 'kotlin-build-in-flight-request-deduper',
+    number: 56,
+    language: 'kotlin',
+    kind: 'build',
+    title: 'In-Flight Request Deduper',
+    difficulty: 'Hard',
+    topic: 'Networking Layer',
+    statement:
+      'Three widgets on a stock-watch home screen ask for the same quote at the same moment and trigger three identical requests. Implement `InFlightDeduper<K, V>(scope)` (the `scope` uses a `SupervisorJob`) so that concurrent callers share one load per key:\n\n- keep the running loads in a map from key to `Deferred<V>`, guarded by a `Mutex` (`withLock`),\n- `fetch(key, load)`: under the lock, reuse the `Deferred` already stored for `key`, or start `load(key)` with `scope.async { }` and store it; then `await()` the deferred **outside** the lock,\n- the load runs in `scope`, not in the coroutine of the first caller, so cancelling one caller does not cancel the request for the others,\n- when the load finishes, with a value or with an exception, its entry is removed from the map (`remove(key)`), so the next `fetch` starts a fresh load; all current waiters receive the same value or exception.',
+    functionSignature: 'class InFlightDeduper<K, V>(scope: CoroutineScope) { suspend fun fetch(key: K, load: suspend (K) -> V): V }',
+    buggyCode: `import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
+class InFlightDeduper<K, V>(private val scope: CoroutineScope) {
+    // TODO: a Mutex and a map of key -> Deferred<V> for the loads that are running
+
+    suspend fun fetch(key: K, load: suspend (K) -> V): V {
+        // TODO: join the running load for this key, or start one in scope
+        return load(key)
+    }
+}
+`,
+    solution: `import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
+class InFlightDeduper<K, V>(private val scope: CoroutineScope) {
+    private val mutex = Mutex()
+    private val inFlight = mutableMapOf<K, Deferred<V>>()
+
+    suspend fun fetch(key: K, load: suspend (K) -> V): V {
+        val call = mutex.withLock {
+            inFlight[key] ?: scope.async {
+                try {
+                    load(key)
+                } finally {
+                    withContext(NonCancellable) {
+                        mutex.withLock { inFlight.remove(key) }
+                    }
+                }
+            }.also { inFlight[key] = it }
+        }
+        return call.await()
+    }
+}
+`,
+    hint: 'The lock only protects the map: look up or create the `Deferred` inside `withLock`, await it afterwards. Clean the entry up in a `finally` inside the `async` block.',
+    explanation:
+      'Deduplication needs a shared handle to work that is already running, and `Deferred` is that handle: any number of coroutines can `await()` it and all receive the same outcome. The check "is there a load for this key, otherwise start one" is a read followed by a write, so it sits under a `Mutex`; awaiting under the lock would serialise every key behind the slowest request. Starting the load with `scope.async` rather than in the first caller decouples its lifetime from that caller, which is why one widget leaving the screen does not fail the others. Removing the entry in `finally` (under `NonCancellable`, because the cleanup itself suspends on the lock) keeps the map from serving a finished or failed result forever.',
+    rules: [
+      { label: 'Tracks running loads as Deferred<V> per key', type: 'mustContain', pattern: 'Deferred\\s*<\\s*V\\s*>', regex: true },
+      { label: 'Starts the shared load with scope.async', type: 'mustContain', pattern: 'scope\\s*\\.\\s*async\\s*[({]', regex: true },
+      { label: 'Guards the map with Mutex.withLock', type: 'mustContain', pattern: 'withLock\\s*\\{', regex: true },
+      { label: 'Callers await the shared Deferred', type: 'mustContain', pattern: '\\.await\\s*\\(\\s*\\)', regex: true },
+      { label: 'Removes the entry when the load has finished', type: 'mustContain', pattern: '\\.remove\\s*\\(\\s*key\\b|-=\\s*key\\b', regex: true },
+    ],
+  },
+  // ------------------------------------------------------------ Testing & DI
+  {
+    id: 'kotlin-build-fake-clock-otp-countdown',
+    number: 57,
+    language: 'kotlin',
+    kind: 'build',
+    title: 'Fake Clock For OTP Countdown',
+    difficulty: 'Easy',
+    topic: 'Testing & DI',
+    statement:
+      'The one-time-password screen of a banking app shows how long a code remains valid. The starter reads the system time directly, so a test would have to sleep for real. Make time an injected dependency:\n\n- declare `fun interface Clock` with the single method `nowMs(): Long` (a `fun interface` lets production code pass a lambda),\n- `FakeClock(startMs: Long = 0L) : Clock` returns its current value from `nowMs()`; `advanceBy(ms)` moves it forward and requires `ms >= 0`,\n- `OtpCountdown(clock: Clock, ttlMs: Long)` remembers `clock.nowMs()` at construction as the issue time; `remainingMs` is `issuedAt + ttlMs - clock.nowMs()`, never below `0`; `isExpired` is true when `remainingMs` is `0`.\n\nNothing in this file may read the system clock.',
+    functionSignature: 'fun interface Clock { fun nowMs(): Long }; class FakeClock(startMs: Long = 0L) : Clock { fun advanceBy(ms: Long) }; class OtpCountdown(clock: Clock, ttlMs: Long) { val remainingMs: Long; val isExpired: Boolean }',
+    buggyCode: `// TODO: declare Clock as a fun interface with a single nowMs(): Long
+
+// TODO: class FakeClock(startMs: Long = 0L) : Clock, with advanceBy(ms)
+
+class OtpCountdown(private val ttlMs: Long) {
+    // TODO: take a Clock through the constructor instead of reading the system time
+    private val issuedAt = System.currentTimeMillis()
+
+    val remainingMs: Long
+        get() = (issuedAt + ttlMs - System.currentTimeMillis()).coerceAtLeast(0L)
+
+    val isExpired: Boolean get() = remainingMs == 0L
+}
+`,
+    solution: `fun interface Clock {
+    fun nowMs(): Long
+}
+
+class FakeClock(startMs: Long = 0L) : Clock {
+    private var current = startMs
+
+    override fun nowMs(): Long = current
+
+    fun advanceBy(ms: Long) {
+        require(ms >= 0) { "time cannot move backwards" }
+        current += ms
+    }
+}
+
+class OtpCountdown(private val clock: Clock, private val ttlMs: Long) {
+    private val issuedAt = clock.nowMs()
+
+    val remainingMs: Long
+        get() = (issuedAt + ttlMs - clock.nowMs()).coerceAtLeast(0L)
+
+    val isExpired: Boolean get() = remainingMs == 0L
+}
+`,
+    hint: 'Replace both `System.currentTimeMillis()` calls with `clock.nowMs()`. The fake only needs a private `var` that `advanceBy` increases.',
+    explanation:
+      'Code that calls `System.currentTimeMillis()` has a hidden input, so a test of "expires after 30 seconds" either sleeps for 30 seconds or is flaky. Passing a `Clock` through the constructor makes time an explicit dependency: production wires a real clock, tests wire a `FakeClock` and call `advanceBy(30_000)` to jump ahead instantly and deterministically. Declaring it as a `fun interface` keeps the production side a one-line lambda, `Clock { System.currentTimeMillis() }`, written at the composition root rather than in this class. Refusing negative advances keeps a test from accidentally modelling time running backwards.',
+    rules: [
+      { label: 'Clock is a fun interface', type: 'mustContain', pattern: 'fun\\s+interface\\s+Clock\\b', regex: true },
+      { label: 'FakeClock implements Clock', type: 'mustContain', pattern: 'class\\s+FakeClock\\b[^{]*:\\s*Clock\\b', regex: true },
+      { label: 'FakeClock can be advanced with advanceBy', type: 'mustContain', pattern: 'fun\\s+advanceBy\\s*\\(', regex: true },
+      { label: 'OtpCountdown reads time from the injected clock', type: 'mustContain', pattern: '\\bclock\\s*\\.\\s*nowMs\\s*\\(\\s*\\)', regex: true },
+      { label: 'Nothing reads the system clock', type: 'mustNotContain', pattern: 'System\\s*\\.\\s*(currentTimeMillis|nanoTime)|Instant\\.now|SystemClock', regex: true },
+    ],
+  },
+  {
+    id: 'kotlin-build-recording-prefs-spy-delegation',
+    number: 58,
+    language: 'kotlin',
+    kind: 'build',
+    title: 'Recording Prefs Spy By Delegation',
+    difficulty: 'Medium',
+    topic: 'Testing & DI',
+    statement:
+      'Tests of an onboarding flow need to assert which preferences were written, without replacing the real in-memory store. Write the spy `RecordingPrefsStore(inner)`:\n\n- it implements `PrefsStore` through **class delegation**: `class RecordingPrefsStore(...) : PrefsStore by inner`, so `getString` and `keys` are forwarded by the compiler and must not be written by hand,\n- it overrides only the two mutating functions: `putString(key, value)` records the entry `"put:<key>"` and `remove(key)` records `"remove:<key>"`; both then forward to `inner`,\n- `writes: List<String>` exposes the recorded entries in call order.',
+    functionSignature: 'class RecordingPrefsStore(inner: PrefsStore) : PrefsStore by inner { val writes: List<String> }',
+    buggyCode: `interface PrefsStore {
+    fun getString(key: String): String?
+    fun putString(key: String, value: String)
+    fun remove(key: String)
+    fun keys(): Set<String>
+}
+
+// TODO: implement PrefsStore by delegating to inner; record puts and removes
+class RecordingPrefsStore(private val inner: PrefsStore) {
+    val writes: List<String> get() = TODO()
+}
+`,
+    solution: `interface PrefsStore {
+    fun getString(key: String): String?
+    fun putString(key: String, value: String)
+    fun remove(key: String)
+    fun keys(): Set<String>
+}
+
+class RecordingPrefsStore(private val inner: PrefsStore) : PrefsStore by inner {
+    private val recorded = mutableListOf<String>()
+    val writes: List<String> get() = recorded.toList()
+
+    override fun putString(key: String, value: String) {
+        recorded += "put:" + key
+        inner.putString(key, value)
+    }
+
+    override fun remove(key: String) {
+        recorded += "remove:" + key
+        inner.remove(key)
+    }
+}
+`,
+    hint: '`class Spy(private val inner: Store) : Store by inner` already is a complete implementation; add `override` only for the functions whose behaviour you want to change.',
+    explanation:
+      'Class delegation (`: PrefsStore by inner`) makes the compiler generate a forwarding member for every interface function, so a decorator states only what it changes. Writing the forwards by hand works until someone adds a function to the interface: a hand-written wrapper then fails to compile or, worse with default methods, silently skips the inner object. An explicit `override` takes precedence over the generated forward, which is how the two mutating calls get their recording step before passing the call on. Exposing the log as a snapshot (`toList()`) keeps a test from holding a list that changes underneath its assertions.',
+    rules: [
+      { label: 'Implements PrefsStore by class delegation (PrefsStore by inner)', type: 'mustContain', pattern: ':\\s*PrefsStore\\s+by\\s+\\w+', regex: true },
+      { label: 'Overrides putString and forwards to the inner store', type: 'mustContain', pattern: 'override\\s+fun\\s+putString\\s*\\([\\s\\S]*?\\.putString\\s*\\(', regex: true },
+      { label: 'Overrides remove and forwards to the inner store', type: 'mustContain', pattern: 'override\\s+fun\\s+remove\\s*\\([\\s\\S]*?\\.remove\\s*\\(', regex: true },
+      { label: 'Does not hand-write the forwarding of getString / keys', type: 'mustNotContain', pattern: 'override\\s+fun\\s+(getString|keys)\\s*\\(', regex: true },
+      { label: 'No TODO() placeholder remains', type: 'mustNotContain', pattern: 'TODO()' },
+    ],
+  },
+  {
+    id: 'kotlin-build-mini-service-registry',
+    number: 59,
+    language: 'kotlin',
+    kind: 'build',
+    title: 'Mini Service Registry',
+    difficulty: 'Hard',
+    topic: 'Testing & DI',
+    statement:
+      'A small app does not want a DI framework, only a registry that tests can fill with fakes. Implement `ServiceRegistry`, keyed by `KClass`:\n\n- `single(type, create)`: registers a singleton. `create` is **not** called at registration; it runs on the first `get` and the same instance is returned from then on (wrap it with `lazy`).\n- `factory(type, create)`: registers a provider that calls `create` on **every** `get`.\n- `get(type)`: returns the instance for `type`, or throws `IllegalStateException` (for example with `error(...)`) when nothing is registered. Registering a type again replaces the earlier registration.\n\nThen add three `inline` extension functions with a `reified` type parameter so callers never write `::class`: `registry.single<Api> { ... }`, `registry.factory<Api> { ... }` and `registry.get<Api>()`, each forwarding with `T::class`.',
+    functionSignature: 'class ServiceRegistry { fun <T : Any> single(type: KClass<T>, create: () -> T); fun <T : Any> factory(type: KClass<T>, create: () -> T); fun <T : Any> get(type: KClass<T>): T }; inline fun <reified T : Any> ServiceRegistry.get(): T',
+    buggyCode: `import kotlin.reflect.KClass
+
+class ServiceRegistry {
+    private val providers = mutableMapOf<KClass<*>, () -> Any>()
+
+    fun <T : Any> single(type: KClass<T>, create: () -> T) {
+        TODO()
+    }
+
+    fun <T : Any> factory(type: KClass<T>, create: () -> T) {
+        TODO()
+    }
+
+    fun <T : Any> get(type: KClass<T>): T = TODO()
+}
+
+// TODO: inline reified extensions: registry.single<Api> { ... }, registry.factory<Api> { ... }, registry.get<Api>()
+`,
+    solution: `import kotlin.reflect.KClass
+
+class ServiceRegistry {
+    private val providers = mutableMapOf<KClass<*>, () -> Any>()
+
+    fun <T : Any> single(type: KClass<T>, create: () -> T) {
+        val holder = lazy(create)
+        providers[type] = { holder.value }
+    }
+
+    fun <T : Any> factory(type: KClass<T>, create: () -> T) {
+        providers[type] = create
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun <T : Any> get(type: KClass<T>): T {
+        val provider = providers[type] ?: error("No provider registered for " + type.simpleName)
+        return provider() as T
+    }
+}
+
+inline fun <reified T : Any> ServiceRegistry.single(noinline create: () -> T) = single(T::class, create)
+
+inline fun <reified T : Any> ServiceRegistry.factory(noinline create: () -> T) = factory(T::class, create)
+
+inline fun <reified T : Any> ServiceRegistry.get(): T = get(T::class)
+`,
+    hint: 'Store one `() -> Any` per class. For a singleton that lambda reads the `value` of a `Lazy`; for a factory it is `create` itself. A `reified T` lets an inline function use `T::class`.',
+    explanation:
+      'Type parameters are erased at runtime, so a registry cannot normally ask "which class is `T`?". An `inline` function with a `reified` parameter is compiled into each call site, where the concrete type is known, which makes `T::class` legal and gives the call sites the clean `get<Api>()` form. Keeping the real logic in non-inline functions that take a `KClass` avoids exposing the private map to inlined code. `lazy` provides exactly the singleton contract: nothing is built at registration (important for start-up time and for tests that never touch a service), the first `get` builds it, and later calls reuse it; storing `create` directly is the factory contract. A missing registration is a wiring bug, hence `IllegalStateException` rather than a nullable result.',
+    rules: [
+      { label: 'Provides inline extensions with a reified type parameter', type: 'mustContain', pattern: 'inline\\s+fun\\s*<\\s*reified\\s+T\\b', regex: true },
+      { label: 'Forwards the class with T::class', type: 'mustContain', pattern: 'T::class', regex: true },
+      { label: 'single creates its instance lazily, once', type: 'mustContain', pattern: '\\blazy\\s*[({]', regex: true },
+      { label: 'get fails with IllegalStateException when nothing is registered', type: 'mustContain', pattern: '\\berror\\s*\\(|IllegalStateException|checkNotNull\\s*\\(', regex: true },
+      { label: 'No TODO() placeholder remains', type: 'mustNotContain', pattern: 'TODO()' },
+    ],
+  },
+  // ------------------------------------------------------------ Performance
+  {
+    id: 'kotlin-build-chat-roster-presence-join',
+    number: 60,
+    language: 'kotlin',
+    kind: 'build',
+    title: 'Chat Roster Presence Join',
+    difficulty: 'Easy',
+    topic: 'Performance',
+    statement:
+      'A chat app builds its roster by attaching the online flag to each contact. With 5,000 contacts and 5,000 presence records, searching the presence list once per contact (`find`, `firstOrNull`, `lastOrNull`, `any`) makes scrolling stutter. Implement `buildRoster(contacts, presence)` in linear time:\n\n- first index the presence records **once** in a `Map` keyed by `contactId` (for example with `associate` or `associateBy`); when a contact id occurs several times the **last** record wins,\n- then map every contact, in the given order, to `RosterRow(name, online)`,\n- a contact without a presence record is offline (`false`).',
+    functionSignature: 'fun buildRoster(contacts: List<Contact>, presence: List<Presence>): List<RosterRow>',
+    buggyCode: `data class Contact(val id: String, val name: String)
+data class Presence(val contactId: String, val online: Boolean)
+data class RosterRow(val name: String, val online: Boolean)
+
+fun buildRoster(contacts: List<Contact>, presence: List<Presence>): List<RosterRow> {
+    // TODO: index presence by contactId once, then map the contacts
+    return contacts.map { TODO() }
+}
+`,
+    solution: `data class Contact(val id: String, val name: String)
+data class Presence(val contactId: String, val online: Boolean)
+data class RosterRow(val name: String, val online: Boolean)
+
+fun buildRoster(contacts: List<Contact>, presence: List<Presence>): List<RosterRow> {
+    val onlineById = presence.associate { it.contactId to it.online }
+    return contacts.map { contact ->
+        RosterRow(contact.name, onlineById[contact.id] ?: false)
+    }
+}
+`,
+    hint: '`associate { key to value }` builds a map in one pass and a later pair with the same key overwrites the earlier one.',
+    explanation:
+      'A lookup inside a loop decides the complexity: `presence.find { ... }` per contact is O(n * m), which is 25 million comparisons for two lists of 5,000 and happens on the main thread during a list update. Building a hash map once costs O(m), every lookup after that is O(1), and the whole join is O(n + m). `associate` and `associateBy` keep the last element for a duplicated key, which matches the rule that the newest presence record wins. The elvis operator supplies the offline default for contacts the server has not reported.',
+    rules: [
+      { label: 'Indexes the presence records once in a map', type: 'mustContain', pattern: 'associate(By|With|To|ByTo)?\\s*[({]|groupBy\\s*[({]|toMap\\s*\\(|mutableMapOf|HashMap\\s*[<(]|buildMap', regex: true },
+      { label: 'A contact without a record is offline', type: 'mustContain', pattern: '\\?:\\s*false|==\\s*true|getOrDefault\\s*\\([^)]*false|getOrElse\\s*\\(', regex: true },
+      { label: 'No linear search through presence per contact', type: 'mustNotContain', pattern: '\\.(find|findLast|firstOrNull|first|lastOrNull|last|any|none|indexOfFirst|indexOfLast|singleOrNull|filter)\\s*\\{', regex: true },
+      { label: 'No TODO() placeholder remains', type: 'mustNotContain', pattern: 'TODO()' },
+    ],
+  },
 ];
