@@ -532,7 +532,7 @@ export const problems: BugFixProblem[] = [
       '- `t` is the unix time in seconds at which the sender signed (at most one `t` appears).\n' +
       '- Every `v1` is a candidate signature; several may be present while the sender rotates secrets.\n' +
       '\n' +
-      'The signature of a delivery is computed over the string `secret + \'.\' + t + \'.\' + body`, using `t` exactly as written in the header: start with `h = 5381`; for each character, `h = (h * 33 + charCode) % 4294967296`; the signature is `h` in lowercase hexadecimal, left-padded with zeros to 8 characters.\n' +
+      'The signature of a delivery is computed over the string `secret + \'.\' + t + \'.\' + body`, using the trimmed `t` text as it appears in the header (do not convert it to a number first): start with `h = 5381`; for each character, `h = (h * 33 + charCode) % 4294967296`; the signature is `h` in lowercase hexadecimal, left-padded with zeros to 8 characters.\n' +
       '\n' +
       'Return the first that applies:\n' +
       '1. No `t`, a `t` that is not all digits, or no `v1` at all: `{ ok: false, reason: \'malformed\' }`.\n' +
@@ -1557,7 +1557,7 @@ export const problems: BugFixProblem[] = [
       '  - Known string or number: the value is the text after the first `=`; without `=` it is the NEXT token, consumed whatever it looks like (even `-1` or `--x`). If there is no next token, record `missing value for --name`.\n' +
       '  - Otherwise, a token `--no-<name>` without `=`, where `<name>` is a known boolean, sets that flag to `false`.\n' +
       '  - Anything else: record `unknown flag: --<name>`.\n' +
-      '- Any other token that starts with `-` and is longer than one character is a bundle of short flags, handled one letter at a time: an unknown letter records `unknown flag: -<letter>`; a boolean is set to `true`; a string or number flag takes the next token as its value if its letter is the LAST in the bundle, and otherwise records `missing value for --<name>` (using the long name).\n' +
+      '- Any other token that starts with `-` and is longer than one character is a bundle of short flags, handled one letter at a time: an unknown letter records `unknown flag: -<letter>`; a boolean is set to `true`; a string or number flag takes the next token as its value if its letter is the LAST in the bundle, and otherwise records `missing value for --<name>` (using the long name). If its letter is last but there is no next token, it also records `missing value for --<name>`.\n' +
       '- Everything else, including a lone `-`, is a positional.\n' +
       '\n' +
       'Values: a number value must be non-blank and `Number(value)` must be finite, otherwise record `invalid number for --<name>: <value>` and assign nothing; store the number. For `multiple` flags append each value to an array in order; for other flags the last assignment wins.\n' +

@@ -1328,7 +1328,7 @@ export const problems: BugFixProblem[] = [
       '\n' +
       '- `[\'sub\', client, filter]`: if the client already holds this exact filter, do nothing at all. Otherwise add the subscription, then immediately deliver to this client every retained message whose topic matches the filter, in ascending topic order (plain string comparison).\n' +
       '- `[\'unsub\', client, filter]`: remove that exact subscription if it exists.\n' +
-      '- `[\'pub\', topic, payload, retain]`: if `retain` is `true` and `payload` is `null`, forget the retained message of that topic and deliver nothing. Otherwise deliver the message to every client that has at least one matching subscription, once per client, ordering clients by the creation order of their first matching subscription; and if `retain` is `true`, store the payload as that topic\'s retained message (replacing any earlier one).\n' +
+      '- `[\'pub\', topic, payload, retain]`: if `retain` is `true` and `payload` is `null`, forget the retained message of that topic and deliver nothing. Otherwise (including a `null` payload when `retain` is `false`, which is an ordinary message delivered as `null`) deliver the message to every client that has at least one matching subscription, once per client, ordering clients by the creation order of their first matching subscription; and if `retain` is `true`, store the payload as that topic\'s retained message (replacing any earlier one).\n' +
       '\n' +
       'Return the delivery log: an array of `[client, topic, payload]` triples in the order they were delivered.',
     functionName: 'runBroker',
