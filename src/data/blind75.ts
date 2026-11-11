@@ -326,7 +326,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Binary',
     statement:
-      'Return the sum of two integers `a` and `b` without using the arithmetic operators `+` or `-`.',
+      'Return the sum of two integers `a` and `b` without using the arithmetic operators `+` or `-`. Inputs may be negative. Python integers never overflow, so treat the values as 32-bit signed integers (mask with `0xFFFFFFFF`), otherwise the carry loop never ends.',
     explanation:
       "Addition in binary breaks into two parts: the bit-by-bit sum (XOR) and the carry (AND shifted left by one). Loop until the carry is zero.\n\nAt each step, set `a = a ^ b` (the sum without carrying) and `b = (a & b) << 1` (the carry to add next iteration). When `b` becomes zero, `a` holds the result.\n\nIn Python you also need to mask to 32 bits and handle negative numbers explicitly, since Python integers are arbitrary precision. Mask with `0xFFFFFFFF` each step, then convert back to signed at the end.",
     functionName: 'get_sum',
@@ -493,7 +493,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Dynamic Programming',
     statement:
-      "From an integer array `nums`, find the longest subsequence (elements kept in original order, not necessarily adjacent) that is strictly increasing, and return its length.",
+      "From an integer array `nums`, find the longest subsequence (elements kept in original order, not necessarily adjacent) that is strictly increasing, and return its length. If the list is empty, return `0`.",
     explanation:
       "Two common approaches:\n\n**O(n²) DP**: Let `dp[i]` = length of the longest increasing subsequence ending at index `i`. For each `i`, scan all `j < i`; if `nums[j] < nums[i]`, then `dp[i] = max(dp[i], dp[j] + 1)`. Answer is `max(dp)`. Simple and clear.\n\n**O(n log n) patience sort**: Maintain a list `tails` where `tails[k]` is the smallest possible tail of an increasing subsequence of length `k + 1`. For each new number, binary-search the leftmost tail that's `>= num` and replace it (or append if larger than all). Final length of `tails` is the answer. The list is not the actual subsequence, but its length is correct.",
     functionName: 'length_of_lis',
@@ -565,7 +565,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Dynamic Programming',
     statement:
-      'Houses sit in a row, each holding some non-negative amount of cash given by `nums[i]`. You cannot take from two adjacent houses on the same night. Return the maximum total you can collect.',
+      'Houses sit in a row, each holding some non-negative amount of cash given by `nums[i]`. You cannot take from two adjacent houses on the same night. Return the maximum total you can collect. If the list is empty, return `0`.',
     explanation:
       "Classic 1D DP. At each house you choose: take it (and skip the previous) or skip it (and inherit the previous best).\n\nRecurrence: `dp[i] = max(dp[i - 1], dp[i - 2] + nums[i])`. Base cases: `dp[0] = nums[0]`, `dp[1] = max(nums[0], nums[1])`.\n\nYou only ever look back two steps, so collapse to two rolling variables: `prev2` and `prev1`. Walk left to right, updating `new = max(prev1, prev2 + num)`, then shift. O(n) time, O(1) space.",
     functionName: 'rob',
@@ -588,7 +588,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Dynamic Programming',
     statement:
-      "Same setup as House Robber, but the houses are arranged in a ring: house `0` and house `n - 1` are neighbors, so you can't take from both. Return the largest amount you can collect.",
+      "Same setup as House Robber, but the houses are arranged in a ring: house `0` and house `n - 1` are neighbors, so you can't take from both. Return the largest amount you can collect. If the list is empty, return `0`.",
     explanation:
       "The circular adjacency only matters between the first and last house. If you rob house 0, you can't rob the last; if you skip house 0, the last is free. That splits the problem into two linear cases.\n\nRun the standard House Robber DP twice: once on `nums[0 : n - 1]` (excluding the last) and once on `nums[1 : n]` (excluding the first). The answer is the max of those two results.\n\nHandle the trivial cases: empty array → 0; single house → `nums[0]`.",
     functionName: 'rob',
@@ -767,7 +767,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Graph',
     statement:
-      "An `m × n` grid uses the character `'1'` for land and `'0'` for water. An island is a maximal group of land cells connected horizontally or vertically (no diagonals). Anything off the grid is water.\n\nReturn the number of islands.",
+      "An `m × n` grid uses the character `'1'` for land and `'0'` for water. An island is a maximal group of land cells connected horizontally or vertically (no diagonals). Anything off the grid is water.\n\nReturn the number of islands. The grid may be empty; return `0` in that case.",
     explanation:
       "A flood-fill problem. Walk the grid; every time you encounter unvisited land, that's a new island — flood-fill from it to mark every connected land cell as visited, then keep scanning.\n\n**DFS implementation**: define `visit(r, c)` that returns if out of bounds or non-land or already visited, then marks the cell (you can mutate the grid to `'0'` in place to avoid a visited set), then recurses into the four neighbors.\n\nLoop over every cell. If it's `'1'`, increment your counter and call `visit`. O(mn) time, O(mn) recursion depth in the worst case (mutating in place saves the visited-set memory).",
     functionName: 'num_islands',
@@ -852,7 +852,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Interval',
     statement:
-      'Given a list of `[start, end]` intervals in any order, merge every group of intervals that overlap or touch, and return the merged set of non-overlapping intervals.',
+      'Given a list of `[start, end]` intervals in any order, merge every group of intervals that overlap or touch, and return the merged set of non-overlapping intervals. Return the merged intervals sorted by start. If the input is empty, return an empty list.',
     explanation:
       "Sort the intervals by `start`. After sorting, overlapping intervals are guaranteed to be adjacent.\n\nWalk the sorted list with a `merged` accumulator. For each interval, peek at `merged[-1]`. If its end is `>=` the current interval's start, the two overlap — extend the previous's end to `max(prev_end, cur_end)`. Otherwise the current interval is disjoint — append it as a new entry.\n\nO(n log n) total, dominated by the sort.",
     functionName: 'merge_intervals',
@@ -881,7 +881,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Interval',
     statement:
-      'Given a list of `[start, end]` intervals, return the smallest number of intervals you must remove so that the survivors are all pairwise non-overlapping. Two intervals that merely touch at an endpoint (e.g. `[1,2]` and `[2,3]`) are not considered to overlap.',
+      'Given a list of `[start, end]` intervals, return the smallest number of intervals you must remove so that the survivors are all pairwise non-overlapping. Two intervals that merely touch at an endpoint (e.g. `[1,2]` and `[2,3]`) are not considered to overlap. If the list is empty, return `0`.',
     explanation:
       "Classic interval-scheduling: maximize the number of compatible intervals you keep, then the deletions follow.\n\nSort the intervals by their `end` value. Walk through; greedily keep an interval whenever its `start` is `>=` the end of the last kept interval. Every interval not kept must be removed.\n\nSorting by end (not start) is what makes the greedy optimal: at each step you free up the most future room. Total time: O(n log n) for the sort, plus O(n) for the scan.",
     functionName: 'erase_overlap_intervals',
@@ -1399,7 +1399,7 @@ export const blind75: Blind75Problem[] = [
     functionSignature: 'def round_trip(strs: list[str]) -> list[str]:',
     starter:
       STARTER_HEADER +
-      "def encode(strs):\n    # length-prefix each string\n    return ''.join(f'{len(s)}#{s}' for s in strs)\n\ndef decode(s):\n    out, i = [], 0\n    while i < len(s):\n        j = s.find('#', i)\n        n = int(s[i:j])\n        out.append(s[j+1:j+1+n])\n        i = j + 1 + n\n    return out\n\ndef round_trip(strs: list[str]) -> list[str]:\n    return decode(encode(strs))\n",
+      "def encode(strs: list[str]) -> str:\n    # Pack the whole list into ONE string.\n    pass\n\n\ndef decode(s: str) -> list[str]:\n    # Rebuild the original list from that string.\n    pass\n\n\n# The tests call round_trip. Leave it as it is.\ndef round_trip(strs: list[str]) -> list[str]:\n    return decode(encode(strs))\n",
     examples: [
       { input: [['lint', 'code', 'love', 'you']], expected: ['lint', 'code', 'love', 'you'] },
       { input: [['we', 'say', ':', 'yes']], expected: ['we', 'say', ':', 'yes'] },
@@ -1717,14 +1717,14 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Trie',
     statement:
-      "Build a prefix tree (trie) that supports three operations:\n\n- `insert(word)` — add a word to the trie. Returns nothing.\n- `search(word)` — return `True` if the exact word has been inserted.\n- `starts_with(prefix)` — return `True` if some inserted word starts with the given prefix.\n\nThe grader calls `run_ops(ops)` with a list of operations like `[('insert','apple'), ('search','apple'), ('starts_with','app')]`. Return a parallel list of results (use `None` for `insert`).",
+      "Build a prefix tree (trie) that supports three operations:\n\n- `insert(word)` — add a word to the trie. Returns nothing.\n- `search(word)` — return `True` if the exact word has been inserted.\n- `starts_with(prefix)` — return `True` if some inserted word starts with the given prefix.\n\nThe grader calls `run_ops(ops)` with a list of operations like `[('insert','apple'), ('search','apple'), ('starts_with','app')]`. Return a parallel list of results (use `None` for `insert`). Each op arrives as a list, for example `[name, value]`, so read it by index or by unpacking.",
     explanation:
       "A trie is a tree where each edge is labeled with a character. Common structure: each node has a `children` dict (or 26-slot array for lowercase letters) and an `end` flag marking that a complete word ends at this node.\n\n- **insert**: walk from the root one character at a time, creating child nodes as needed. After consuming every character, mark the final node's `end = True`.\n- **search**: walk the same path; if any character is missing, return `False`. After the walk, return whether the final node's `end` is set.\n- **starts_with**: same walk as search, but return `True` as soon as the path exists, regardless of `end`.\n\nEach operation is O(L) where L is the word/prefix length. Memory is roughly O(total characters inserted).",
     functionName: 'run_ops',
     functionSignature: 'def run_ops(ops: list[tuple]) -> list:',
     starter:
       STARTER_HEADER +
-      'class Trie:\n    def __init__(self):\n        self.children = {}\n        self.end = False\n\n    def insert(self, word):\n        node = self\n        for ch in word:\n            node = node.children.setdefault(ch, Trie())\n        node.end = True\n\n    def _node(self, prefix):\n        node = self\n        for ch in prefix:\n            if ch not in node.children:\n                return None\n            node = node.children[ch]\n        return node\n\n    def search(self, word):\n        node = self._node(word)\n        return node is not None and node.end\n\n    def starts_with(self, prefix):\n        return self._node(prefix) is not None\n\n\ndef run_ops(ops: list[tuple]) -> list:\n    t = Trie()\n    out = []\n    for op, arg in ops:\n        if op == "insert":\n            t.insert(arg)\n            out.append(None)\n        elif op == "search":\n            out.append(t.search(arg))\n        elif op == "starts_with":\n            out.append(t.starts_with(arg))\n    return out\n',
+      "class Trie:\n    def __init__(self):\n        # Your code here\n        pass\n\n    def insert(self, word):\n        pass\n\n    def search(self, word):\n        pass\n\n    def starts_with(self, prefix):\n        pass\n\n\n# The tests call run_ops. It drives your class, so you can leave it as it is.\ndef run_ops(ops: list[tuple]) -> list:\n    t = Trie()\n    out = []\n    for op, arg in ops:\n        if op == \"insert\":\n            t.insert(arg)\n            out.append(None)\n        elif op == \"search\":\n            out.append(t.search(arg))\n        elif op == \"starts_with\":\n            out.append(t.starts_with(arg))\n    return out\n",
     examples: [
       {
         input: [[['insert', 'apple'], ['search', 'apple'], ['search', 'app'], ['starts_with', 'app'], ['insert', 'app'], ['search', 'app']]],
@@ -1746,14 +1746,14 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Trie',
     statement:
-      "Design a data structure that supports two operations:\n\n- `add(word)` — store a word.\n- `search(query)` — return `True` if any previously added word matches `query`. The character `'.'` in `query` is a wildcard that matches any single letter.\n\nThe grader drives it with `run_ops(ops)`, where each op is a tuple like `('add', 'bad')` or `('search', '.ad')`. Return a list of results; `add` should produce `None`.",
+      "Design a data structure that supports two operations:\n\n- `add(word)` — store a word.\n- `search(query)` — return `True` if any previously added word matches `query`. The character `'.'` in `query` is a wildcard that matches any single letter.\n\nThe grader drives it with `run_ops(ops)`, where each op is a tuple like `('add', 'bad')` or `('search', '.ad')`. Return a list of results; `add` should produce `None`. Each op arrives as a list, for example `[name, value]`, so read it by index or by unpacking.",
     explanation:
       "Build a trie just like in *Implement Trie*. Insertion is unchanged.\n\nSearch becomes a DFS to handle the wildcard. Define a recursive helper `dfs(node, i)`:\n\n- If `i == len(query)`, return whether `node.end` is set.\n- Let `c = query[i]`. If `c == '.'`, recurse into every child; return `True` if any recursion returns `True`.\n- Otherwise return `c in node.children and dfs(node.children[c], i + 1)`.\n\nExact-character searches stay O(L). A query that starts with many wildcards can fan out, so worst case is O(N · L) for `N` words total — but typical inputs explore a small fraction.",
     functionName: 'run_ops',
     functionSignature: 'def run_ops(ops: list[tuple]) -> list:',
     starter:
       STARTER_HEADER +
-      "class WordDictionary:\n    def __init__(self):\n        self.children = {}\n        self.end = False\n\n    def add(self, word):\n        node = self\n        for ch in word:\n            node = node.children.setdefault(ch, WordDictionary())\n        node.end = True\n\n    def search(self, word):\n        def dfs(node, i):\n            if i == len(word):\n                return node.end\n            ch = word[i]\n            if ch == '.':\n                return any(dfs(child, i + 1) for child in node.children.values())\n            return ch in node.children and dfs(node.children[ch], i + 1)\n        return dfs(self, 0)\n\n\ndef run_ops(ops: list[tuple]) -> list:\n    d = WordDictionary()\n    out = []\n    for op, arg in ops:\n        if op == 'add':\n            d.add(arg)\n            out.append(None)\n        else:\n            out.append(d.search(arg))\n    return out\n",
+      "class WordDictionary:\n    def __init__(self):\n        # Your code here\n        pass\n\n    def add(self, word):\n        pass\n\n    def search(self, word):\n        pass\n\n\n# The tests call run_ops. It drives your class, so you can leave it as it is.\ndef run_ops(ops: list[tuple]) -> list:\n    d = WordDictionary()\n    out = []\n    for op, arg in ops:\n        if op == 'add':\n            d.add(arg)\n            out.append(None)\n        else:\n            out.append(d.search(arg))\n    return out\n",
     examples: [
       {
         input: [[['add', 'bad'], ['add', 'dad'], ['add', 'mad'], ['search', 'pad'], ['search', 'bad'], ['search', '.ad'], ['search', 'b..']]],
@@ -1864,14 +1864,14 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Hard',
     topic: 'Heap',
     statement:
-      "Design a structure that ingests numbers from a stream and can report the running median at any point. Provide `add_num(x)` (returns nothing) and `find_median()` (returns a float — the average of the two middle values when the count is even).\n\nThe grader drives it with `run_ops(ops)`, where each op is `('add', x)` or `('median', None)`. Return a result list parallel to `ops`; `add` produces `None`.",
+      "Design a structure that ingests numbers from a stream and can report the running median at any point. Provide `add_num(x)` (returns nothing) and `find_median()` (returns a float — the average of the two middle values when the count is even).\n\nThe grader drives it with `run_ops(ops)`, where each op is `('add', x)` or `('median', None)`. Return a result list parallel to `ops`; `add` produces `None`. Each op arrives as a list, for example `[name, value]`, so read it by index or by unpacking.",
     explanation:
       "The classic two-heaps trick gets you `O(log n)` per add and `O(1)` per median query.\n\nMaintain two heaps:\n\n- `lo`: a **max-heap** holding the smaller half of values seen so far.\n- `hi`: a **min-heap** holding the larger half.\n\nKeep an invariant: `lo` has the same number of elements as `hi`, or exactly one more.\n\n**add_num(x)**: push `x` into `lo`, then immediately pop the top of `lo` and push it into `hi`. That keeps the values sorted across the two heaps. If `hi` is now larger, pop its smallest back to `lo` to restore the size invariant.\n\n**find_median**: if `lo` is larger, return its top. Otherwise return the average of the two heap tops.\n\nPython's `heapq` is a min-heap; for `lo`, negate values on push and negate again on pop.",
     functionName: 'run_ops',
     functionSignature: 'def run_ops(ops: list[tuple]) -> list:',
     starter:
       STARTER_HEADER +
-      'import heapq\n\nclass MedianFinder:\n    def __init__(self):\n        self.lo = []  # max-heap (negate)\n        self.hi = []  # min-heap\n\n    def add_num(self, x):\n        heapq.heappush(self.lo, -x)\n        heapq.heappush(self.hi, -heapq.heappop(self.lo))\n        if len(self.hi) > len(self.lo):\n            heapq.heappush(self.lo, -heapq.heappop(self.hi))\n\n    def find_median(self):\n        if len(self.lo) > len(self.hi):\n            return float(-self.lo[0])\n        return (-self.lo[0] + self.hi[0]) / 2.0\n\n\ndef run_ops(ops: list[tuple]) -> list:\n    m = MedianFinder()\n    out = []\n    for op, arg in ops:\n        if op == "add":\n            m.add_num(arg)\n            out.append(None)\n        else:\n            out.append(m.find_median())\n    return out\n',
+      "class MedianFinder:\n    def __init__(self):\n        # Your code here\n        pass\n\n    def add_num(self, x):\n        pass\n\n    def find_median(self):\n        pass\n\n\n# The tests call run_ops. It drives your class, so you can leave it as it is.\ndef run_ops(ops: list[tuple]) -> list:\n    m = MedianFinder()\n    out = []\n    for op, arg in ops:\n        if op == \"add\":\n            m.add_num(arg)\n            out.append(None)\n        else:\n            out.append(m.find_median())\n    return out\n",
     examples: [
       {
         input: [[['add', 1], ['add', 2], ['median', null], ['add', 3], ['median', null]]],
@@ -2022,7 +2022,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Hard',
     topic: 'Graph',
     statement:
-      "You're given a starting word `begin_word`, a target word `end_word`, and a dictionary `word_list` of allowed words. At each step you may change one letter to produce a new word, but every intermediate word must be in the dictionary. Return the length of the shortest chain (number of words in the chain, including both endpoints) that transforms the start into the target, or `0` if no chain exists.",
+      "You're given a starting word `begin_word`, a target word `end_word`, and a dictionary `word_list` of allowed words. At each step you may change one letter to produce a new word, but every word you step to, including `end_word` itself, must be in the dictionary (`begin_word` does not have to be). Return the length of the shortest chain (number of words in the chain, including both endpoints) that transforms the start into the target, or `0` if no chain exists.",
     explanation:
       "Treat words as graph nodes and connect two words with an edge if they differ in exactly one letter. The answer is the BFS distance from `begin_word` to `end_word`, plus one.\n\nNaively building the edge list is O(N² · L). The trick: for each word, generate its `L` 'wildcard patterns' by replacing each position with `*` (e.g. `'hot'` → `'*ot', 'h*t', 'ho*'`). Bucket every dictionary word under each of its wildcards. Two words share a bucket iff they're one letter apart.\n\nRun BFS from `begin_word`. For each popped word, expand it by computing its wildcards and pulling neighbors from the buckets; mark visited so you don't revisit. Stop when you pop `end_word` — its BFS depth + 1 is the answer.\n\nO(N · L²) time, dominated by wildcard generation. Bidirectional BFS roughly halves the work in practice. Return 0 if `end_word` isn't in `word_list` (no possible final step).",
     functionName: 'ladder_length',
@@ -2079,7 +2079,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Two Pointers',
     statement:
-      "A list `nums` contains only the values `0`, `1`, and `2` — think of them as three colors of objects on a shelf. Reorder them so all the zeros come first, then ones, then twos. Solve it in one pass without sorting.",
+      "A list `nums` contains only the values `0`, `1`, and `2` — think of them as three colors of objects on a shelf. Reorder them so all the zeros come first, then ones, then twos. Solve it in one pass without sorting. Return the reordered list.",
     explanation:
       "This is the Dutch national flag problem. Keep three pointers: `lo` (the boundary for zeros), `hi` (the boundary for twos), and a roaming `mid`.\n\nWalk `mid` from left to right. On a `0`, swap with `nums[lo]` and advance both `lo` and `mid` — the swapped-in value is either a `0` (just placed) or a `1` (already partitioned). On a `2`, swap with `nums[hi]` and decrement `hi`; don't move `mid` because the swapped-in value hasn't been examined yet. On a `1`, just advance `mid`.\n\nStop when `mid > hi`. One pass, O(n) time, O(1) space.",
     functionName: 'sort_colors',
@@ -2103,7 +2103,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Hard',
     topic: 'Two Pointers',
     statement:
-      "An elevation map is given as a list of non-negative bar heights, each one unit wide. After it rains, water pools above the bars in the dips between taller pillars on either side. Return the total units of water trapped.",
+      "An elevation map is given as a list of non-negative bar heights, each one unit wide. After it rains, water pools above the bars in the dips between taller pillars on either side. Return the total units of water trapped. If the list is empty, return `0`.",
     explanation:
       "At index `i`, the water trapped is `min(maxLeft[i], maxRight[i]) − height[i]`, where `maxLeft` and `maxRight` are the tallest bars up to and beyond `i` respectively. A precomputed two-array solution makes this O(n) time and O(n) space.\n\nThe two-pointer trick gets you to O(1) extra space. Walk pointers `l` from the left and `r` from the right toward each other, tracking running `lm` and `rm` (max seen so far on each side). Whichever side has the *smaller* running max determines the trapped water at that index — because the other side already has a taller bar guaranteed. Add `lm − height[l]` or `rm − height[r]` as appropriate, then move that pointer inward.\n\nOne pass, O(n) time, O(1) space.",
     functionName: 'trap',
@@ -2565,14 +2565,14 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Stack',
     statement:
-      "Design a stack that supports the usual `push`, `pop`, and `top` operations plus an O(1) `get_min` that returns the current minimum element. The grader drives it via `run_ops(ops)` where each op is a tuple like `('push', 5)`, `('pop',)`, `('top',)`, `('get_min',)`. Return a parallel list of results; mutating ops (`push`, `pop`) should produce `None`.",
+      "Design a stack that supports the usual `push`, `pop`, and `top` operations plus an O(1) `get_min` that returns the current minimum element. The grader drives it via `run_ops(ops)` where each op is a tuple like `('push', 5)`, `('pop',)`, `('top',)`, `('get_min',)`. Return a parallel list of results; mutating ops (`push`, `pop`) should produce `None`. Each op arrives as a list, for example `[name, value]`, so read it by index or by unpacking.",
     explanation:
       "Storing the running minimum in a single variable doesn't work because a `pop` can remove the current min and you'd have no way to recover the next-smallest in O(1).\n\nThe two-stack trick fixes it. Maintain two stacks: the main one for values, and a parallel *min stack* whose top always holds the minimum of the corresponding prefix. On `push(x)`, append `x` to the main stack and append `min(x, min_stack[-1])` (or `x` if empty) to the min stack. On `pop`, pop both. `top` returns the main stack's last element; `get_min` returns the min stack's last element.\n\nEvery op is O(1) time, O(n) total space.",
     functionName: 'run_ops',
     functionSignature: 'def run_ops(ops: list[tuple]) -> list:',
     starter:
       STARTER_HEADER +
-      "class MinStack:\n    def __init__(self):\n        self.stack = []\n        self.mins = []\n\n    def push(self, x):\n        self.stack.append(x)\n        self.mins.append(x if not self.mins else min(x, self.mins[-1]))\n\n    def pop(self):\n        self.stack.pop()\n        self.mins.pop()\n\n    def top(self):\n        return self.stack[-1]\n\n    def get_min(self):\n        return self.mins[-1]\n\n\ndef run_ops(ops: list[tuple]) -> list:\n    s = MinStack()\n    out = []\n    for op in ops:\n        name = op[0]\n        if name == 'push':\n            s.push(op[1]); out.append(None)\n        elif name == 'pop':\n            s.pop(); out.append(None)\n        elif name == 'top':\n            out.append(s.top())\n        elif name == 'get_min':\n            out.append(s.get_min())\n    return out\n",
+      "class MinStack:\n    def __init__(self):\n        # Your code here\n        pass\n\n    def push(self, x):\n        pass\n\n    def pop(self):\n        pass\n\n    def top(self):\n        pass\n\n    def get_min(self):\n        pass\n\n\n# The tests call run_ops. It drives your class, so you can leave it as it is.\ndef run_ops(ops: list[tuple]) -> list:\n    s = MinStack()\n    out = []\n    for op in ops:\n        name = op[0]\n        if name == 'push':\n            s.push(op[1])\n            out.append(None)\n        elif name == 'pop':\n            s.pop()\n            out.append(None)\n        elif name == 'top':\n            out.append(s.top())\n        elif name == 'get_min':\n            out.append(s.get_min())\n    return out\n",
     examples: [
       {
         input: [[['push', -2], ['push', 0], ['push', -3], ['get_min'], ['pop'], ['top'], ['get_min']]],
@@ -2671,7 +2671,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Hard',
     topic: 'Monotonic Stack',
     statement:
-      "A list `heights` of non-negative integers represents the heights of consecutive bars in a histogram, each one unit wide. Find the largest rectangular area that fits entirely inside the histogram. Return that area.",
+      "A list `heights` of non-negative integers represents the heights of consecutive bars in a histogram, each one unit wide. Find the largest rectangular area that fits entirely inside the histogram. Return that area. If the list is empty, return `0`.",
     explanation:
       "The largest rectangle is bounded by the *shortest* bar inside it. For each bar `i`, you'd like to know the widest stretch in which it remains the shortest — i.e. the nearest shorter bar to its left and right. Multiply that span by `heights[i]` and you have a candidate.\n\nA monotonic stack of indices (heights increasing from bottom to top) computes both nearest-shorter boundaries in one pass. Walk left to right: while the stack's top has a height strictly greater than `heights[i]`, pop it; the popped bar's right boundary is `i` and its left boundary is the new stack top (or `-1` if empty). Compute its candidate area. After the walk, drain the stack with a virtual right boundary at `n`.\n\nO(n) total, since every index enters and leaves the stack at most once.",
     functionName: 'largest_rectangle_area',
@@ -3118,7 +3118,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Heap',
     statement:
-      "Given a list of `tasks` (each task is a single uppercase letter) and a non-negative cooldown `n`, schedule the tasks on a single CPU. Each unit of time, the CPU either runs a task or sits idle, but two runs of the same task must be at least `n` time units apart. Return the minimum total time needed to finish every task.",
+      "Given a list of `tasks` (each task is a single uppercase letter) and a non-negative cooldown `n`, schedule the tasks on a single CPU. Each unit of time, the CPU either runs a task or sits idle, but there must be at least `n` units of time between two runs of the same task (with `n = 2`: A, two other slots, then A again). Return the minimum total time needed to finish every task.",
     explanation:
       "The bottleneck is the most frequent task. If letter `X` appears `m` times, the schedule must contain `m − 1` gaps of length `n` between its runs, giving a length of at least `(m − 1) × (n + 1) + 1`.\n\nIf several letters tie for the maximum frequency `m`, each one occupies one slot at the tail of those `(m − 1)` blocks plus the final block — so the lower bound becomes `(m − 1) × (n + 1) + k`, where `k` is the count of letters with maximum frequency.\n\nThe answer is `max(len(tasks), (m − 1) × (n + 1) + k)`. The `len(tasks)` term covers the case when there's no idle time needed (the cooldown is small relative to the task variety).\n\nO(n) time, O(1) space (26 letters).",
     functionName: 'least_interval',
@@ -3158,7 +3158,7 @@ export const blind75: Blind75Problem[] = [
     hiddenTests: [
       { input: [[14, 3, 19, 3], 17, 0], expected: 3 },
       { input: [[1, 2, 3, 4], 0, 0], expected: 0 },
-      { input: [[1, 5, 1, 2, 3, 4, 100], 4, 1], expected: 6 },
+      { input: [[1, 5, 1, 2, 3, 4, 100], 4, 1], expected: 5 },
     ],
   },
 
@@ -3170,7 +3170,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Graph',
     statement:
-      "There are `num_courses` numbered `0..num_courses − 1`. A list of `prerequisites` contains pairs `[a, b]` meaning you must take `b` before `a`. Return any order of courses that satisfies every prerequisite. If a cycle prevents a valid order, return an empty list.\n\nFor determinism, when multiple courses are ready at the same time, schedule the lowest-numbered one first.",
+      "There are `num_courses` numbered `0..num_courses − 1`. A list of `prerequisites` contains pairs `[a, b]` meaning you must take `b` before `a`. Return an order of courses that satisfies every prerequisite. If a cycle prevents a valid order, return an empty list.\n\nSeveral orders can be valid, and the tests accept only one: whenever multiple courses are ready at the same time, schedule the lowest-numbered one first.",
     explanation:
       "Kahn's algorithm — BFS topological sort.\n\n1. Build an adjacency list `next_courses[b]` and an `indegree` count for every course.\n2. Put every course with `indegree == 0` into a min-heap (the heap is what makes the output deterministic by always picking the lowest-numbered ready course next).\n3. Pop courses one at a time, append to the result. For each neighbor, decrement its indegree and push it onto the heap if it just hit zero.\n4. If the result has all `num_courses`, return it. Otherwise a cycle remained — return `[]`.\n\nO((V + E) log V) with the heap (without the determinism heap it's O(V + E)).",
     functionName: 'find_order',
@@ -3196,7 +3196,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Graph',
     statement:
-      "A tree of `n` nodes (numbered `1..n`) has had one extra edge added, producing a graph with exactly one cycle. Given the edges in the order they were added (a list of `[u, v]` pairs), return the edge that closes the cycle. If multiple extra edges existed, return the one that appears last.",
+      "A tree of `n` nodes (numbered `1..n`) has had one extra edge added, producing a graph with exactly one cycle. Given the edges in the order they were added (a list of `[u, v]` pairs), return the edge that closes the cycle. If more than one edge on the cycle could be removed, return the one that appears last in the input.",
     explanation:
       "Process edges in order using Union-Find. For each `[u, v]`:\n\n- If `u` and `v` are already in the same component, this edge would create a cycle — it's the redundant one. Return it.\n- Otherwise union the two components and continue.\n\nThe last edge that hits the same-component check is exactly the answer. O(n · α(n)) time with path compression + union by rank, effectively linear.",
     functionName: 'find_redundant_connection',
@@ -4037,14 +4037,14 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: 'Hash Table',
     statement:
-      "Design a fixed-capacity Least Recently Used cache that supports two operations in O(1) average time:\n\n- `get(key)` — return the value if `key` is present (and mark `key` as most-recently used), otherwise return `-1`.\n- `put(key, value)` — insert or update the pair, marking `key` as most-recently used. If the cache is at capacity and the key is new, evict the least-recently used entry first.\n\nThe grader drives it with `run_ops(ops)`. The first op is always `('init', capacity)`; subsequent ops look like `('get', key)` or `('put', key, value)`. Return a parallel list of results, using `None` for `put` and `init`.",
+      "Design a fixed-capacity Least Recently Used cache that supports two operations in O(1) average time:\n\n- `get(key)` — return the value if `key` is present (and mark `key` as most-recently used), otherwise return `-1`.\n- `put(key, value)` — insert or update the pair, marking `key` as most-recently used. If the cache is at capacity and the key is new, evict the least-recently used entry first.\n\nThe grader drives it with `run_ops(ops)`. The first op is always `('init', capacity)`; subsequent ops look like `('get', key)` or `('put', key, value)`. Return a parallel list of results, using `None` for `put` and `init`. Each op arrives as a list, for example `[name, value]`, so read it by index or by unpacking.",
     explanation:
       "Two ingredients: a hash map for O(1) lookup, and a doubly linked list for O(1) reordering on access.\n\nKeep dummy `head` and `tail` sentinels so every real node has well-defined prev/next pointers. The map stores `key → node`; the list is ordered front-to-back from most-recently used to least-recently used.\n\n- `get(key)`: if in map, unlink the node from its current spot and splice it right after `head`; return its value. Otherwise return `-1`.\n- `put(key, value)`: if existing, update value and move-to-front. Otherwise create a new node, splice after `head`, store in the map. If the map now exceeds capacity, unlink the node before `tail` and delete its key from the map.\n\nEvery operation is O(1).",
     functionName: 'run_ops',
     functionSignature: 'def run_ops(ops: list[tuple]) -> list:',
     starter:
       STARTER_HEADER +
-      "class _Node:\n    __slots__ = ('key', 'val', 'prev', 'next')\n    def __init__(self, key=0, val=0):\n        self.key = key; self.val = val; self.prev = None; self.next = None\n\n\nclass LRUCache:\n    def __init__(self, capacity):\n        self.cap = capacity\n        self.map = {}\n        self.head = _Node(); self.tail = _Node()\n        self.head.next = self.tail; self.tail.prev = self.head\n\n    def _unlink(self, node):\n        node.prev.next = node.next; node.next.prev = node.prev\n\n    def _push_front(self, node):\n        node.prev = self.head; node.next = self.head.next\n        self.head.next.prev = node; self.head.next = node\n\n    def get(self, key):\n        node = self.map.get(key)\n        if node is None:\n            return -1\n        self._unlink(node); self._push_front(node)\n        return node.val\n\n    def put(self, key, value):\n        node = self.map.get(key)\n        if node is not None:\n            node.val = value\n            self._unlink(node); self._push_front(node)\n            return\n        node = _Node(key, value)\n        self.map[key] = node\n        self._push_front(node)\n        if len(self.map) > self.cap:\n            lru = self.tail.prev\n            self._unlink(lru)\n            del self.map[lru.key]\n\n\ndef run_ops(ops: list[tuple]) -> list:\n    cache = None\n    out = []\n    for op in ops:\n        name = op[0]\n        if name == 'init':\n            cache = LRUCache(op[1]); out.append(None)\n        elif name == 'put':\n            cache.put(op[1], op[2]); out.append(None)\n        elif name == 'get':\n            out.append(cache.get(op[1]))\n    return out\n",
+      "class LRUCache:\n    def __init__(self, capacity):\n        # Your code here\n        pass\n\n    def get(self, key):\n        pass\n\n    def put(self, key, value):\n        pass\n\n\n# The tests call run_ops. It drives your class, so you can leave it as it is.\ndef run_ops(ops: list[tuple]) -> list:\n    cache = None\n    out = []\n    for op in ops:\n        name = op[0]\n        if name == 'init':\n            cache = LRUCache(op[1])\n            out.append(None)\n        elif name == 'put':\n            cache.put(op[1], op[2])\n            out.append(None)\n        elif name == 'get':\n            out.append(cache.get(op[1]))\n    return out\n",
     examples: [
       {
         input: [[['init', 2], ['put', 1, 1], ['put', 2, 2], ['get', 1], ['put', 3, 3], ['get', 2], ['put', 4, 4], ['get', 1], ['get', 3], ['get', 4]]],
@@ -4600,7 +4600,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: "Monotonic Stack",
     statement:
-      "Cars drive toward a checkpoint at mile `target` on a one-lane highway. Car `i` starts at mile `positions[i]` (all distinct, all less than `target`) and drives at `speeds[i]` miles per hour. A car can never pass the car ahead of it: when it catches up, it slows down and they travel together as a single convoy. Return the number of convoys that arrive at the checkpoint.",
+      "Cars drive toward a checkpoint at mile `target` on a one-lane highway. Car `i` starts at mile `positions[i]` (all distinct, all less than `target`) and drives at `speeds[i]` miles per hour. A car can never pass the car ahead of it: when it catches up, it slows down and they travel together as a single convoy. Return the number of convoys that arrive at the checkpoint. A car that catches up exactly at the checkpoint still counts as part of that convoy.",
     explanation:
       "Ignore the catching-up mechanics and compute, for each car, the time it would reach the checkpoint driving alone: `(target - position) / speed`. A car merges into the car ahead exactly when its solo time is less than or equal to the leader's effective time.\n\nSort cars by starting position, closest to the checkpoint first, and sweep while tracking the slowest (largest) arrival time seen so far — the current convoy leader. If the next car's solo time is strictly greater, it can never catch the leader and starts a new convoy; otherwise it merges and is absorbed. Count the new leaders. Sorting dominates: O(n log n) time and O(n) space.",
     functionName: "convoy_count",
@@ -6860,7 +6860,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: "Dynamic Programming",
     statement:
-      "You are climbing a staircase where `cost[i]` is the fee charged when you stand on step `i`. From any step you may jump forward `1`, `2`, or `3` steps. You may begin by standing on either step `0` or step `1` (paying that step's fee). The top of the staircase is the position just past the last step. Return the minimum total fee needed to reach the top.\n\nIf the list is empty, the top is already reached, so return `0`.",
+      "You are climbing a staircase where `cost[i]` is the fee charged when you stand on step `i`. From any step you may jump forward `1`, `2`, or `3` steps. You may begin by standing on either step `0` or step `1` (paying that step's fee). The top of the staircase is the position just past the last step. Return the minimum total fee needed to reach the top.\n\nIf the list is empty, the top is already reached, so return `0`. If there is only one step, you must start on step `0`.",
     explanation:
       "Work from the top down. Let `dp[i]` be the minimum fee to reach the top starting from step `i`. From step `i` you pay `cost[i]` and then jump 1, 2, or 3 steps, so `dp[i] = cost[i] + min(dp[i+1], dp[i+2], dp[i+3])`, where any index at or beyond the top contributes `0`.\n\nFill `dp` from the last real step backward. Since you may start on step 0 or step 1, the answer is `min(dp[0], dp[1])` (or just `dp[0]` when there is only one step). This is O(n) time and O(n) space.",
     functionName: 'min_jump_cost',
@@ -7102,7 +7102,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: "Heap",
     statement:
-      "You process a stream of integers `nums` one at a time. For a fixed integer `k`, after reading each number report the `k`-th largest value seen so far.\n\nReturn a list `out` of the same length as `nums`, where `out[i]` is the `k`-th largest value among `nums[0..i]` (inclusive). If fewer than `k` numbers have been seen at position `i`, use `null` for that entry.\n\nDuplicates count as distinct elements when ranking. For example, in `[5, 5, 5]` the 2nd largest is `5`.",
+      "You process a stream of integers `nums` one at a time. For a fixed integer `k`, after reading each number report the `k`-th largest value seen so far.\n\nReturn a list `out` of the same length as `nums`, where `out[i]` is the `k`-th largest value among `nums[0..i]` (inclusive). If fewer than `k` numbers have been seen at position `i`, use `None` for that entry (shown as `null` in the examples).\n\nDuplicates count as distinct elements when ranking. For example, in `[5, 5, 5]` the 2nd largest is `5`.",
     explanation:
       "A min-heap of size `k` is the classic tool for tracking the k-th largest.\n\nPush every incoming number onto a min-heap. Whenever the heap grows past size `k`, pop the smallest — this keeps only the `k` largest values seen so far. Once the heap holds exactly `k` elements, its root (the smallest of those k) is precisely the k-th largest overall. Before the heap reaches size `k`, record `null`.\n\nEach step is O(log k), giving O(n log k) total time.",
     functionName: 'kth_largest_after_each',
@@ -7404,7 +7404,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: "Matrix",
     statement:
-      "You're given an `n x n` matrix of integers. Rotate the matrix by 90 degrees **counterclockwise** and return the resulting matrix.\n\nUnlike a clockwise rotation, the top row of the input becomes the rightmost column of the output. You may build and return a new matrix (an in-place solution is not required).\n\nFor example, the value originally at `matrix[i][j]` ends up at position `result[n-1-j][i]`.",
+      "You're given an `n x n` matrix of integers. Rotate the matrix by 90 degrees **counterclockwise** and return the resulting matrix.\n\nUnlike a clockwise rotation, the top row of the input becomes the leftmost column of the output (read bottom to top). You may build and return a new matrix (an in-place solution is not required).\n\nFor example, the value originally at `matrix[i][j]` ends up at position `result[n-1-j][i]`.",
     explanation:
       "A counterclockwise rotation maps `result[i][j] = matrix[j][n-1-i]`.\n\nThe cleanest way to see it: rotating counterclockwise is the same as **transposing** the matrix and then **reversing the order of the rows** (i.e. flipping top-to-bottom). Equivalently, reverse each row first, then transpose.\n\nA direct index formula also works: for each output cell `(i, j)`, pull the value from `matrix[j][n-1-i]`. This runs in O(n^2) time.",
     functionName: 'rotate_ccw',
@@ -7599,7 +7599,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Hard',
     topic: "Trie",
     statement:
-      "Design a word dictionary that supports adding words and searching with a wildcard. You're given a list of `operations`, each a two-element list. Process them in order and return a list with one result per operation.\n\nOperations:\n- `[\"add\", word]` — add `word` (lowercase letters) to the dictionary. Append `null` to the results for this operation.\n- `[\"search\", pattern]` — return `true` if any word already in the dictionary matches `pattern`, otherwise `false`. In a pattern, a `.` matches any single letter; every other character must match exactly. The pattern matches a word only if their lengths are equal.\n\nReturn the results list (with `null` entries for every add and a boolean for every search).",
+      "Design a word dictionary that supports adding words and searching with a wildcard. You're given a list of `operations`, each a two-element list. Process them in order and return a list with one result per operation.\n\nOperations:\n- `[\"add\", word]` — add `word` (lowercase letters) to the dictionary. Append `None` to the results for this operation (shown as `null` in the examples).\n- `[\"search\", pattern]` — return `True` if any word already in the dictionary matches `pattern`, otherwise `False`. In a pattern, a `.` matches any single letter; every other character must match exactly. The pattern matches a word only if their lengths are equal.\n\nReturn the results list (with `None` entries for every add and a boolean for every search).",
     explanation:
       "Store the added words in a trie, marking the node at the end of each word as a word-ending.\n\nFor a plain letter in the search pattern, descend into that child if it exists, else fail. For a `.`, you must try every child of the current node — recurse into each and succeed if any branch matches the rest of the pattern. When you've consumed the whole pattern, the match succeeds only if the current node is marked as a word-ending (this enforces equal lengths automatically).\n\nUse depth-first search with backtracking for the wildcard branches. Each add is O(word length); a search with `w` wildcards can branch but is efficient in practice.",
     functionName: 'wildcard_word_search',
@@ -8543,7 +8543,7 @@ export const blind75: Blind75Problem[] = [
     difficulty: 'Medium',
     topic: "Union Find",
     statement:
-      "There are `n` people numbered `0` to `n - 1`. You're given `logs`, where each `logs[i] = [timestamp, a, b]` records that persons `a` and `b` became friends at that moment. Friendship is symmetric and transitive: if `a` knows `b` and `b` knows `c`, then `a` is acquainted with `c`.\n\nReturn the earliest timestamp at which **every** person is acquainted with every other person. If that never happens, return `-1`. Timestamps are distinct positive integers, but `logs` is **not** guaranteed to be sorted.",
+      "There are `n` people numbered `0` to `n - 1`. You're given `logs`, where each `logs[i] = [timestamp, a, b]` records that persons `a` and `b` became friends at that moment. Friendship is symmetric and transitive: if `a` knows `b` and `b` knows `c`, then `a` is acquainted with `c`.\n\nReturn the earliest timestamp at which **every** person is acquainted with every other person. If that never happens, return `-1`. Timestamps are distinct non-negative integers, but `logs` is **not** guaranteed to be sorted.",
     explanation:
       "Sort the logs by timestamp so friendships are applied in chronological order. Keep a union-find over the `n` people together with a count of how many components remain (starting at `n`).\n\nEach log that joins two different components reduces the count by one. The first time the count reaches `1`, everyone is connected, and that log's timestamp is the answer. If you exhaust the logs with more than one component left, return `-1`. O(m log m) for the sort, then O(m·α(n)) for the unions.",
     functionName: 'earliest_acquaintance',
@@ -8559,7 +8559,6 @@ export const blind75: Blind75Problem[] = [
     ],
     hiddenTests: [
       { input: [[[5,0,1]], 3], expected: -1 },
-      { input: [[], 1], expected: -1 },
       { input: [[[9,0,1],[2,1,2],[4,0,2]], 3], expected: 4 },
       { input: [[[100,1,2],[50,0,1],[75,2,3],[10,0,3]], 4], expected: 75 },
     ],

@@ -58,7 +58,14 @@ export function gradeJava(code: string, rules: BugFixRule[]): ExecResult {
     (r) => r.type === 'acceptedFix' && normalize(code) === normalize(r.pattern),
   );
 
-  const cases = rules.map((rule) => {
+  // An acceptedFix is only a shortcut: matching it passes everything, but NOT
+  // matching it must never count against a fix that satisfies the real checks
+  // (it used to show up as a permanently failing "matches the reference
+  // exactly" case for any correct fix written slightly differently).
+  const checks = rules.filter((r) => r.type !== 'acceptedFix');
+  const graded = checks.length > 0 ? checks : rules;
+
+  const cases = graded.map((rule) => {
     const ok = accepted ? true : ruleMatches(rule, code);
     return {
       hidden: false,
@@ -74,7 +81,7 @@ export function gradeJava(code: string, rules: BugFixRule[]): ExecResult {
   const passed = cases.filter((c) => c.pass).length;
   return {
     passed,
-    total: rules.length,
+    total: graded.length,
     cases,
     totalRuntimeMs: 0,
   };

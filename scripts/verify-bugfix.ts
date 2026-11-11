@@ -211,8 +211,11 @@ function ruleMatches(rule: BugFixRule, rawCode: string): boolean {
 }
 function gradeRules(code: string, rules: BugFixRule[]) {
   const accepted = rules.find((r) => r.type === 'acceptedFix' && normalizeCode(code) === normalizeCode(r.pattern));
-  const fails = rules.filter((r) => !(accepted || ruleMatches(r, code))).map((r) => r.label);
-  return { passed: rules.length - fails.length, total: rules.length, detail: fails.join('; ') };
+  // Mirrors gradeJava: an acceptedFix is a shortcut, never a required check.
+  const checks = rules.filter((r) => r.type !== 'acceptedFix');
+  const graded = checks.length > 0 ? checks : rules;
+  const fails = graded.filter((r) => !(accepted || ruleMatches(r, code))).map((r) => r.label);
+  return { passed: graded.length - fails.length, total: graded.length, detail: fails.join('; ') };
 }
 
 // ---------------------------------------------------------------- compilers
