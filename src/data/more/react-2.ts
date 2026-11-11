@@ -559,7 +559,7 @@ export default function ReadMore({ text, limit = 80 }) {
     title: 'Quantity Picker with Typed Input',
     difficulty: 'Medium',
     topic: 'State & Events',
-    statement: `Build \`QuantityPicker({ min = 1, max = 10, initial })\`, a quantity control with two buttons and a field you can type in. \`initial\` defaults to \`min\`.
+    statement: `Build \`QuantityPicker({ min = 1, max = 10, initial })\`, a quantity control with two buttons and a field you can type in. \`initial\` defaults to \`min\` and is always within \`min\` to \`max\`.
 
 The component tracks two things: the **committed quantity** (always a whole number from \`min\` to \`max\`) and the text currently in the field.
 
@@ -1388,7 +1388,7 @@ export default function TicTacToe() {
     title: 'Show More List',
     difficulty: 'Easy',
     topic: 'Derived & Lists',
-    statement: `Build \`ShowMoreList({ items, step = 3 })\`, where \`items\` is an array of strings.
+    statement: `Build \`ShowMoreList({ items, step = 3 })\`, where \`items\` is an array of unique strings.
 
 - If \`items\` is empty, render only a \`<p>\` reading \`Nothing here yet\` (no list, no summary, no button).
 - Otherwise render the visible items in a \`<ul>\`, one \`<li>\` each, in order. At first the first \`step\` items are visible (all of them if there are fewer).
@@ -3067,6 +3067,777 @@ export default function PermissionTree({ nodes, onChange }) {
         ))}
       </ul>
       <p data-testid="summary">{checked.length} of {allLeaves.length} permissions selected</p>
+    </div>
+  );
+}
+`,
+  },
+
+  {
+    id: 'react-onboarding-wizard',
+    number: 71,
+    title: 'Multi-Step Wizard',
+    difficulty: 'Hard',
+    topic: 'Forms',
+    statement: `Build \`OnboardingWizard({ onComplete })\`, a three-step form. Only the current step is in the DOM, but everything the user entered is remembered while they move back and forth.
+
+- \`<h2 data-testid="step">\` reads \`Step 1 of 3: Account\`, \`Step 2 of 3: Profile\` or \`Step 3 of 3: Review\`.
+- **Step 1, Account**: a text input labelled \`Email\`, empty at first.
+- **Step 2, Profile**: a text input labelled \`Display name\` (empty at first) and a \`<select>\` labelled \`Role\` with the options \`Developer\`, \`Designer\` and \`Manager\` (value and text are the same; \`Developer\` is selected at first).
+- **Step 3, Review**: \`<p data-testid="review-email">\` reading \`Email: {email}\`, \`<p data-testid="review-name">\` reading \`Display name: {name}\` and \`<p data-testid="review-role">\` reading \`Role: {role}\`. The email and the name are shown trimmed.
+- Buttons: \`Next\` on steps 1 and 2, \`Finish\` on step 3, and \`Back\` on steps 2 and 3. There is no \`Back\` button on step 1.
+- \`Next\` validates the current step. Step 1 needs an email that contains \`@\`; otherwise stay on the step and show \`<p role="alert">Enter a valid email</p>\`. Step 2 needs a display name that is not empty after trimming; otherwise stay and show \`<p role="alert">Display name is required</p>\`. A successful \`Next\` removes the alert, and so does \`Back\`.
+- \`Back\` never validates and never loses data.
+- \`Finish\` calls \`onComplete({ email, name, role })\` with the trimmed email and name, then replaces the whole wizard with \`<p data-testid="done">All set, {name}!</p>\`: no heading, fields or buttons remain.`,
+    componentName: 'OnboardingWizard',
+    starter: `import React, { useState } from 'react';
+
+export default function OnboardingWizard({ onComplete }) {
+  const [step, setStep] = useState(1);
+
+  // TODO: keep all the answers here in the parent, validate on Next, add Back, Review and Finish
+
+  return (
+    <div>
+      <h2 data-testid="step">Step 1 of 3: Account</h2>
+      <label>
+        Email <input type="text" />
+      </label>
+      <button type="button" onClick={() => setStep(step + 1)}>Next</button>
+    </div>
+  );
+}
+`,
+    previewProps: {},
+    previewSetup: 'return { onComplete: () => {} };',
+    tests: [
+      {
+        name: 'starts on the Account step with no Back button',
+        code: `const { getByTestId, getByLabelText, getByRole, queryByRole, getAllByRole } = render({ onComplete: () => {} });
+expect(getByTestId('step').textContent).toBe('Step 1 of 3: Account');
+expect(getByLabelText('Email').value).toBe('');
+expect(getAllByRole('textbox')).toHaveLength(1);
+expect(queryByRole('combobox')).toBeNull();
+expect(queryByRole('button', { name: 'Back' })).toBeNull();
+expect(queryByRole('button', { name: 'Finish' })).toBeNull();
+expect(getByRole('button', { name: 'Next' })).toBeTruthy();`,
+      },
+      {
+        name: 'Next refuses an email without @ and continues once it is valid',
+        code: `const { getByTestId, getByLabelText, getByRole, queryByRole } = render({ onComplete: () => {} });
+fireEvent.change(getByLabelText('Email'), 'ada.example.com');
+fireEvent.click(getByRole('button', { name: 'Next' }));
+expect(getByTestId('step').textContent).toBe('Step 1 of 3: Account');
+expect(getByRole('alert').textContent).toBe('Enter a valid email');
+fireEvent.change(getByLabelText('Email'), 'ada@example.com');
+fireEvent.click(getByRole('button', { name: 'Next' }));
+expect(getByTestId('step').textContent).toBe('Step 2 of 3: Profile');
+expect(queryByRole('alert')).toBeNull();
+expect(getByLabelText('Display name').value).toBe('');
+expect(getByLabelText('Role').value).toBe('Developer');
+expect(Array.from(getByLabelText('Role').querySelectorAll('option')).map((o) => o.value)).toEqual(['Developer', 'Designer', 'Manager']);
+expect(getByRole('button', { name: 'Back' })).toBeTruthy();`,
+      },
+      {
+        name: 'Back and Next keep everything that was entered',
+        code: `const { getByTestId, getByLabelText, getByRole } = render({ onComplete: () => {} });
+fireEvent.change(getByLabelText('Email'), 'ada@example.com');
+fireEvent.click(getByRole('button', { name: 'Next' }));
+fireEvent.change(getByLabelText('Display name'), 'Ada');
+fireEvent.change(getByLabelText('Role'), 'Designer');
+fireEvent.click(getByRole('button', { name: 'Back' }));
+expect(getByTestId('step').textContent).toBe('Step 1 of 3: Account');
+expect(getByLabelText('Email').value).toBe('ada@example.com');
+fireEvent.click(getByRole('button', { name: 'Next' }));
+expect(getByLabelText('Display name').value).toBe('Ada');
+expect(getByLabelText('Role').value).toBe('Designer');`,
+      },
+      {
+        name: 'the Profile step requires a display name, and Back clears the alert',
+        code: `const { getByTestId, getByLabelText, getByRole, queryByRole } = render({ onComplete: () => {} });
+fireEvent.change(getByLabelText('Email'), 'ada@example.com');
+fireEvent.click(getByRole('button', { name: 'Next' }));
+fireEvent.change(getByLabelText('Display name'), '   ');
+fireEvent.click(getByRole('button', { name: 'Next' }));
+expect(getByTestId('step').textContent).toBe('Step 2 of 3: Profile');
+expect(getByRole('alert').textContent).toBe('Display name is required');
+fireEvent.click(getByRole('button', { name: 'Back' }));
+expect(getByTestId('step').textContent).toBe('Step 1 of 3: Account');
+expect(queryByRole('alert')).toBeNull();
+fireEvent.click(getByRole('button', { name: 'Next' }));
+expect(getByTestId('step').textContent).toBe('Step 2 of 3: Profile');
+expect(queryByRole('alert')).toBeNull();`,
+      },
+      {
+        name: 'Review shows the trimmed answers and Finish reports them once',
+        code: `const calls = [];
+const { getByTestId, queryByTestId, getByLabelText, getByRole, queryByRole } = render({ onComplete: (data) => calls.push(data) });
+fireEvent.change(getByLabelText('Email'), ' ada@example.com ');
+fireEvent.click(getByRole('button', { name: 'Next' }));
+fireEvent.change(getByLabelText('Display name'), '  Ada L ');
+fireEvent.change(getByLabelText('Role'), 'Manager');
+fireEvent.click(getByRole('button', { name: 'Next' }));
+expect(getByTestId('step').textContent).toBe('Step 3 of 3: Review');
+expect(queryByRole('textbox')).toBeNull();
+expect(queryByRole('button', { name: 'Next' })).toBeNull();
+expect(getByTestId('review-email').textContent).toBe('Email: ada@example.com');
+expect(getByTestId('review-name').textContent).toBe('Display name: Ada L');
+expect(getByTestId('review-role').textContent).toBe('Role: Manager');
+expect(calls).toEqual([]);
+fireEvent.click(getByRole('button', { name: 'Finish' }));
+expect(calls).toEqual([{ email: 'ada@example.com', name: 'Ada L', role: 'Manager' }]);
+expect(getByTestId('done').textContent).toBe('All set, Ada L!');
+expect(queryByTestId('step')).toBeNull();
+expect(queryByRole('button')).toBeNull();`,
+      },
+      {
+        name: 'answers can be changed after going back from Review',
+        code: `const calls = [];
+const { getByTestId, getByLabelText, getByRole } = render({ onComplete: (data) => calls.push(data) });
+fireEvent.change(getByLabelText('Email'), 'kai@example.com');
+fireEvent.click(getByRole('button', { name: 'Next' }));
+fireEvent.change(getByLabelText('Display name'), 'Kai');
+fireEvent.click(getByRole('button', { name: 'Next' }));
+expect(getByTestId('review-role').textContent).toBe('Role: Developer');
+fireEvent.click(getByRole('button', { name: 'Back' }));
+expect(getByLabelText('Display name').value).toBe('Kai');
+fireEvent.change(getByLabelText('Role'), 'Designer');
+fireEvent.click(getByRole('button', { name: 'Back' }));
+expect(getByLabelText('Email').value).toBe('kai@example.com');
+fireEvent.click(getByRole('button', { name: 'Next' }));
+fireEvent.click(getByRole('button', { name: 'Next' }));
+expect(getByTestId('review-role').textContent).toBe('Role: Designer');
+fireEvent.click(getByRole('button', { name: 'Finish' }));
+expect(calls).toEqual([{ email: 'kai@example.com', name: 'Kai', role: 'Designer' }]);`,
+      },
+    ],
+    hint: 'Lift every field into the top-level component as one `form` object, next to a `step` number. Steps then come and go without taking their values with them.',
+    explanation:
+      'A wizard unmounts the fields of every step except the current one. Anything stored inside a step, whether as local `useState` or in uncontrolled inputs, is destroyed when that step leaves the screen, so pressing Back shows empty fields. The fix is to lift the data: one `form` object and a `step` number live in the wizard itself, and each step is just controlled inputs reading from and writing to that object. ' +
+      'Navigation is then simple. `Next` runs the validation for the current step and either sets an error message or clears it and increments the step. `Back` decrements and clears the error without validating, because the user should never be trapped on a step by its own validation. ' +
+      'The review step and the final payload both use the trimmed values, computed once. A `done` flag switches to the confirmation after `onComplete` has been called, so the callback cannot fire twice. ' +
+      'With more steps or fields the same shape scales well as a reducer, but two or three `useState` calls are enough here.',
+    solution: `import React, { useState } from 'react';
+
+const TITLES = ['Account', 'Profile', 'Review'];
+const ROLES = ['Developer', 'Designer', 'Manager'];
+
+export default function OnboardingWizard({ onComplete }) {
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState({ email: '', name: '', role: 'Developer' });
+  const [error, setError] = useState('');
+  const [done, setDone] = useState(false);
+
+  const email = form.email.trim();
+  const name = form.name.trim();
+  const setField = (field) => (e) => setForm({ ...form, [field]: e.target.value });
+
+  const next = () => {
+    if (step === 1 && !email.includes('@')) return setError('Enter a valid email');
+    if (step === 2 && name === '') return setError('Display name is required');
+    setError('');
+    setStep(step + 1);
+  };
+
+  const back = () => {
+    setError('');
+    setStep(step - 1);
+  };
+
+  const finish = () => {
+    onComplete({ email, name, role: form.role });
+    setDone(true);
+  };
+
+  if (done) return <p data-testid="done">All set, {name}!</p>;
+
+  return (
+    <div>
+      <h2 data-testid="step">Step {step} of 3: {TITLES[step - 1]}</h2>
+
+      {step === 1 && (
+        <label>
+          Email <input type="text" value={form.email} onChange={setField('email')} />
+        </label>
+      )}
+
+      {step === 2 && (
+        <div>
+          <label>
+            Display name <input type="text" value={form.name} onChange={setField('name')} />
+          </label>{' '}
+          <label>
+            Role{' '}
+            <select value={form.role} onChange={setField('role')}>
+              {ROLES.map((role) => (
+                <option key={role} value={role}>{role}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+
+      {step === 3 && (
+        <div>
+          <p data-testid="review-email">Email: {email}</p>
+          <p data-testid="review-name">Display name: {name}</p>
+          <p data-testid="review-role">Role: {form.role}</p>
+        </div>
+      )}
+
+      {error && <p role="alert">{error}</p>}
+
+      <div style={{ marginTop: 8 }}>
+        {step > 1 && <button type="button" onClick={back}>Back</button>}{' '}
+        {step < 3 ? (
+          <button type="button" onClick={next}>Next</button>
+        ) : (
+          <button type="button" onClick={finish}>Finish</button>
+        )}
+      </div>
+    </div>
+  );
+}
+`,
+  },
+
+  // ───────────────────────────── Composition & Patterns ─────────────────────────────
+  {
+    id: 'react-page-layout-slots',
+    number: 72,
+    title: 'Page Layout with Optional Slots',
+    difficulty: 'Easy',
+    topic: 'Composition & Patterns',
+    statement: `Build \`PageLayout({ header, sidebar, footer, children })\`, a layout with optional slots. Each prop is anything React can render (text or elements), or is left out.
+
+- The root element has \`data-testid="layout"\` and contains everything else.
+- \`header\`, \`sidebar\` and \`footer\` are rendered inside elements with \`data-testid="layout-header"\`, \`"layout-sidebar"\` and \`"layout-footer"\`. A slot whose prop is missing (\`undefined\` or \`null\`) must not leave an empty wrapper behind: that element is not rendered at all.
+- \`children\` is rendered inside an element with \`data-testid="layout-main"\`, which is always present. If there are no children (\`undefined\` or \`null\`), the main area shows the text \`Nothing to show\` instead.
+- The root has \`data-columns="2"\` when a sidebar is given and \`data-columns="1"\` otherwise.`,
+    componentName: 'PageLayout',
+    starter: `import React from 'react';
+
+export default function PageLayout({ header, sidebar, footer, children }) {
+  // TODO: render each slot only when it was provided, plus the fallback and data-columns
+  return (
+    <div data-testid="layout">
+      <main data-testid="layout-main">{children}</main>
+    </div>
+  );
+}
+`,
+    previewProps: {
+      header: 'Acme Admin',
+      sidebar: 'Dashboard · Orders · Settings',
+      footer: 'Signed in as ada@example.com',
+      children: 'Welcome back! You have 3 new orders.',
+    },
+    tests: [
+      {
+        name: 'renders every slot it is given inside the root',
+        code: `const { getByTestId } = render({
+  header: React.createElement('h1', null, 'Dashboard'),
+  sidebar: 'Menu',
+  footer: React.createElement('small', null, 'v1.2'),
+  children: React.createElement('p', null, 'Hello there'),
+});
+const root = getByTestId('layout');
+expect(within(getByTestId('layout-header')).getByRole('heading').textContent).toBe('Dashboard');
+expect(getByTestId('layout-sidebar').textContent).toBe('Menu');
+expect(getByTestId('layout-footer').textContent).toBe('v1.2');
+expect(getByTestId('layout-main').textContent).toBe('Hello there');
+for (const id of ['layout-header', 'layout-sidebar', 'layout-footer', 'layout-main']) expect(root.contains(getByTestId(id))).toBe(true);`,
+      },
+      {
+        name: 'leaves no wrapper behind for a missing slot',
+        code: `const { getByTestId, queryByTestId } = render({ children: 'Just the page' });
+expect(getByTestId('layout-main').textContent).toBe('Just the page');
+expect(queryByTestId('layout-header')).toBeNull();
+expect(queryByTestId('layout-sidebar')).toBeNull();
+expect(queryByTestId('layout-footer')).toBeNull();`,
+      },
+      {
+        name: 'treats null like a missing slot',
+        code: `const { getByTestId, queryByTestId } = render({ header: null, sidebar: null, footer: 'Footer text', children: 'Body' });
+expect(queryByTestId('layout-header')).toBeNull();
+expect(queryByTestId('layout-sidebar')).toBeNull();
+expect(getByTestId('layout-footer').textContent).toBe('Footer text');
+expect(getByTestId('layout')).toHaveAttribute('data-columns', '1');`,
+      },
+      {
+        name: 'reports one or two columns depending on the sidebar',
+        code: `const { getByTestId, queryByTestId, rerender } = render({ children: 'Body' });
+expect(getByTestId('layout')).toHaveAttribute('data-columns', '1');
+rerender({ sidebar: React.createElement('nav', null, 'Links'), children: 'Body' });
+expect(getByTestId('layout')).toHaveAttribute('data-columns', '2');
+expect(getByTestId('layout-sidebar').textContent).toBe('Links');
+rerender({ header: 'Top', children: 'Body' });
+expect(getByTestId('layout')).toHaveAttribute('data-columns', '1');
+expect(queryByTestId('layout-sidebar')).toBeNull();
+expect(getByTestId('layout-header').textContent).toBe('Top');`,
+      },
+      {
+        name: 'shows a fallback when there are no children',
+        code: `const { getByTestId, rerender } = render({ header: 'Top' });
+expect(getByTestId('layout-main').textContent).toBe('Nothing to show');
+rerender({ header: 'Top', children: null });
+expect(getByTestId('layout-main').textContent).toBe('Nothing to show');
+rerender({ header: 'Top', children: React.createElement('p', null, 'Real content') });
+expect(getByTestId('layout-main').textContent).toBe('Real content');`,
+      },
+    ],
+    hint: 'Elements are values, so a slot is just a prop you place in JSX. Guard each wrapper with `header != null && (...)`; the loose `!= null` covers both `undefined` and `null`.',
+    explanation:
+      'React elements are ordinary values, so a component can accept several of them through named props and decide where each one goes. That is the "slots" pattern: the layout owns the structure, the caller owns the content, and neither needs to know the other\'s details. `children` is simply the default slot. ' +
+      'The detail that matters is conditional wrappers. Writing `<aside>{sidebar}</aside>` unconditionally leaves an empty `<aside>` in the page when no sidebar is passed, which still takes up a grid column and is announced as a landmark. Each wrapper is therefore rendered only when its prop is present. ' +
+      'Use `!= null` rather than a truthiness check for the test: it treats `undefined` and `null` as missing but still renders legitimate falsy content such as the number `0`. The same check drives `data-columns` and the main-area fallback (`children ?? \'Nothing to show\'`).',
+    solution: `import React from 'react';
+
+export default function PageLayout({ header, sidebar, footer, children }) {
+  const hasSidebar = sidebar != null;
+
+  return (
+    <div data-testid="layout" data-columns={hasSidebar ? '2' : '1'}>
+      {header != null && <header data-testid="layout-header">{header}</header>}
+      <div style={{ display: 'flex', gap: 16 }}>
+        {hasSidebar && <aside data-testid="layout-sidebar">{sidebar}</aside>}
+        <main data-testid="layout-main">{children != null ? children : 'Nothing to show'}</main>
+      </div>
+      {footer != null && <footer data-testid="layout-footer">{footer}</footer>}
+    </div>
+  );
+}
+`,
+  },
+
+  {
+    id: 'react-compound-steps',
+    number: 73,
+    title: 'Compound Steps Indicator',
+    difficulty: 'Medium',
+    topic: 'Composition & Patterns',
+    statement: `Implement a small compound component, \`<Steps>\` with \`<Steps.Step>\`, and use it in \`CheckoutProgress({ steps, current })\`. \`steps\` is an array of unique titles and \`current\` is the zero-based index of the step the user is on (it equals \`steps.length\` when everything is finished).
+
+\`CheckoutProgress\` is already written in the starter and should keep this shape:
+
+\`<Steps current={current}>{steps.map((title) => <Steps.Step key={title} title={title} />)}</Steps>\`
+
+Notice that a \`Steps.Step\` is only given its \`title\`. \`Steps\` has to work out each child's position and pass the extra information down itself, for example with \`Children.map\` and \`cloneElement\`.
+
+Required output:
+- \`Steps\` renders an \`<ol>\` containing the steps and a \`<p data-testid="steps-summary">\`.
+- Each \`Steps.Step\` renders an \`<li>\` reading \`{n}. {title}\`, with n starting at 1, e.g. \`2. Shipping\`.
+- Each \`<li>\` has \`data-status\`: \`complete\` for the steps before \`current\`, \`current\` for the step at \`current\` and \`upcoming\` for the steps after it.
+- Only the current step's \`<li>\` has an \`aria-current\` attribute, with the value \`step\`.
+- The summary reads \`Step X of Y\` (X is \`current + 1\`, Y is the number of steps), or \`All steps complete\` when \`current\` equals the number of steps.`,
+    componentName: 'CheckoutProgress',
+    starter: `import React, { Children, cloneElement } from 'react';
+
+function Steps({ current, children }) {
+  // TODO: give every child its index and status, and render the summary
+  return (
+    <div>
+      <ol>{children}</ol>
+      <p data-testid="steps-summary" />
+    </div>
+  );
+}
+
+Steps.Step = function Step({ title }) {
+  // TODO: use the extra props injected by <Steps>
+  return <li>{title}</li>;
+};
+
+export default function CheckoutProgress({ steps, current }) {
+  return (
+    <Steps current={current}>
+      {steps.map((title) => (
+        <Steps.Step key={title} title={title} />
+      ))}
+    </Steps>
+  );
+}
+`,
+    previewProps: { steps: ['Cart', 'Shipping', 'Payment', 'Review'], current: 1 },
+    tests: [
+      {
+        name: 'numbers the steps from 1',
+        code: `const { getAllByRole } = render({ steps: ['Cart', 'Shipping', 'Payment', 'Review'], current: 1 });
+expect(getAllByRole('listitem').map((li) => li.textContent)).toEqual(['1. Cart', '2. Shipping', '3. Payment', '4. Review']);`,
+      },
+      {
+        name: 'marks steps as complete, current or upcoming',
+        code: `const { getAllByRole, rerender } = render({ steps: ['Cart', 'Shipping', 'Payment', 'Review'], current: 1 });
+const statuses = () => getAllByRole('listitem').map((li) => li.getAttribute('data-status'));
+expect(statuses()).toEqual(['complete', 'current', 'upcoming', 'upcoming']);
+rerender({ steps: ['Cart', 'Shipping', 'Payment', 'Review'], current: 0 });
+expect(statuses()).toEqual(['current', 'upcoming', 'upcoming', 'upcoming']);
+rerender({ steps: ['Cart', 'Shipping', 'Payment', 'Review'], current: 3 });
+expect(statuses()).toEqual(['complete', 'complete', 'complete', 'current']);`,
+      },
+      {
+        name: 'only the current step carries aria-current',
+        code: `const { container } = render({ steps: ['Cart', 'Shipping', 'Payment', 'Review'], current: 1 });
+const marked = container.querySelectorAll('[aria-current]');
+expect(marked).toHaveLength(1);
+expect(marked[0].getAttribute('aria-current')).toBe('step');
+expect(marked[0].textContent).toBe('2. Shipping');`,
+      },
+      {
+        name: 'the summary follows the current step',
+        code: `const { getByTestId, rerender } = render({ steps: ['Cart', 'Shipping', 'Payment', 'Review'], current: 1 });
+expect(getByTestId('steps-summary').textContent).toBe('Step 2 of 4');
+rerender({ steps: ['Cart', 'Shipping', 'Payment', 'Review'], current: 3 });
+expect(getByTestId('steps-summary').textContent).toBe('Step 4 of 4');
+rerender({ steps: ['Sign up', 'Verify'], current: 0 });
+expect(getByTestId('steps-summary').textContent).toBe('Step 1 of 2');`,
+      },
+      {
+        name: 'handles the finished state',
+        code: `const { container, getAllByRole, getByTestId } = render({ steps: ['Cart', 'Shipping', 'Payment'], current: 3 });
+expect(getAllByRole('listitem').map((li) => li.getAttribute('data-status'))).toEqual(['complete', 'complete', 'complete']);
+expect(container.querySelectorAll('[aria-current]')).toHaveLength(0);
+expect(getByTestId('steps-summary').textContent).toBe('All steps complete');`,
+      },
+    ],
+    hint: '`Children.map(children, (child, index) => cloneElement(child, { index, status }))` returns copies of the children with extra props; `Children.count(children)` gives the total for the summary.',
+    explanation:
+      'In a compound component the parent and its sub-components cooperate behind the caller\'s back. The caller writes a flat, readable list of `<Steps.Step title=... />`, and the parent supplies what each child cannot know by itself: its position and how that compares with `current`. ' +
+      'Here the parent does it with `Children.map` and `cloneElement`. `Children.map` walks the children with their index, and `cloneElement(child, extraProps)` returns a copy of each element with the injected `index` and `status` merged into its props. The `Step` then only formats what it receives. `Children.count` provides the total for the summary. ' +
+      'The edge is the finished state: when `current` equals the number of steps there is no current step, so every status is `complete`, nothing has `aria-current`, and the summary must switch wording instead of printing `Step 4 of 3`. ' +
+      '`cloneElement` only reaches direct children; if steps might be wrapped in other elements, sharing the data through context is the sturdier variant of the same pattern.',
+    solution: `import React, { Children, cloneElement } from 'react';
+
+function Steps({ current, children }) {
+  const total = Children.count(children);
+  return (
+    <div>
+      <ol style={{ listStyle: 'none', padding: 0 }}>
+        {Children.map(children, (child, index) =>
+          cloneElement(child, {
+            index,
+            status: index < current ? 'complete' : index === current ? 'current' : 'upcoming',
+          })
+        )}
+      </ol>
+      <p data-testid="steps-summary">
+        {current >= total ? 'All steps complete' : 'Step ' + (current + 1) + ' of ' + total}
+      </p>
+    </div>
+  );
+}
+
+Steps.Step = function Step({ title, index, status }) {
+  return (
+    <li
+      data-status={status}
+      aria-current={status === 'current' ? 'step' : undefined}
+      style={{ fontWeight: status === 'current' ? 'bold' : 'normal', opacity: status === 'upcoming' ? 0.6 : 1 }}
+    >
+      {index + 1}. {title}
+    </li>
+  );
+};
+
+export default function CheckoutProgress({ steps, current }) {
+  return (
+    <Steps current={current}>
+      {steps.map((title) => (
+        <Steps.Step key={title} title={title} />
+      ))}
+    </Steps>
+  );
+}
+`,
+  },
+
+  {
+    id: 'react-headless-selection',
+    number: 74,
+    title: 'Headless Selection with a Child Function',
+    difficulty: 'Medium',
+    topic: 'Composition & Patterns',
+    statement: `Build \`Selection({ initial = [], max, children })\`, a headless multi-select. It owns the selection state but has no UI of its own: \`children\` is a **function** that receives the selection API and returns the UI.
+
+Render \`<div data-testid="selection">\` containing whatever \`children(api)\` returns, and call it on every render. \`api\` is an object with:
+
+- \`selected\`: an array of the selected ids in the order they were selected (it starts as \`initial\`). Hand the caller a new array whenever the selection changes; never mutate the previous one.
+- \`count\`: the number of selected ids.
+- \`isSelected(id)\`: \`true\` or \`false\`.
+- \`isFull\`: \`true\` when \`max\` is given and \`count\` has reached it; otherwise \`false\`.
+- \`toggle(id)\`: removes the id if it is selected. If it is not selected, appends it, unless the selection is full, in which case nothing happens.
+- \`clear()\`: empties the selection.
+
+Tests pass a \`children\` function built with \`React.createElement\`, for example one button per id whose \`aria-pressed\` comes from \`isSelected\`.`,
+    componentName: 'Selection',
+    starter: `import React, { useState } from 'react';
+
+export default function Selection({ initial = [], max, children }) {
+  const [selected, setSelected] = useState(initial);
+
+  // TODO: make every part of the api real, then pass it to children
+  const api = {
+    selected,
+    count: 0,
+    isSelected: (id) => false,
+    isFull: false,
+    toggle: (id) => {},
+    clear: () => {},
+  };
+
+  return <div data-testid="selection">{children(api)}</div>;
+}
+`,
+    previewProps: { initial: ['tea'], max: 2 },
+    previewSetup:
+      "return { children: (api) => React.createElement('div', null, ['coffee', 'tea', 'juice', 'water'].map((id) => React.createElement('button', { key: id, type: 'button', 'aria-pressed': api.isSelected(id) ? 'true' : 'false', onClick: () => api.toggle(id), style: { fontWeight: api.isSelected(id) ? 'bold' : 'normal', marginRight: 6 } }, id)), React.createElement('p', null, 'Picked ' + api.count + ': ' + (api.selected.join(', ') || 'nothing') + (api.isFull ? ' (full)' : '')), React.createElement('button', { type: 'button', onClick: () => api.clear() }, 'Clear')) };",
+    tests: [
+      {
+        name: 'renders what the child function returns, starting from initial',
+        code: `const ui = (api) => React.createElement('div', null,
+  ['a', 'b', 'c'].map((id) => React.createElement('button', { key: id, type: 'button', 'aria-pressed': api.isSelected(id) ? 'true' : 'false', onClick: () => api.toggle(id) }, id)),
+  React.createElement('p', { 'data-testid': 'out' }, api.selected.join(',') + '|' + api.count + '|' + String(api.isFull)));
+const first = render({ children: ui });
+expect(first.getByTestId('selection').contains(first.getByTestId('out'))).toBe(true);
+expect(first.getByTestId('out').textContent).toBe('|0|false');
+first.unmount();
+const second = render({ initial: ['b'], children: ui });
+expect(second.getByTestId('out').textContent).toBe('b|1|false');
+expect(second.getByRole('button', { name: 'b' })).toHaveAttribute('aria-pressed', 'true');
+expect(second.getByRole('button', { name: 'a' })).toHaveAttribute('aria-pressed', 'false');`,
+      },
+      {
+        name: 'toggle adds in selection order and removes',
+        code: `const ui = (api) => React.createElement('div', null,
+  ['a', 'b', 'c'].map((id) => React.createElement('button', { key: id, type: 'button', 'aria-pressed': api.isSelected(id) ? 'true' : 'false', onClick: () => api.toggle(id) }, id)),
+  React.createElement('p', { 'data-testid': 'out' }, api.selected.join(',') + '|' + api.count + '|' + String(api.isFull)));
+const { getByRole, getByTestId } = render({ children: ui });
+fireEvent.click(getByRole('button', { name: 'c' }));
+fireEvent.click(getByRole('button', { name: 'a' }));
+expect(getByTestId('out').textContent).toBe('c,a|2|false');
+expect(getByRole('button', { name: 'c' })).toHaveAttribute('aria-pressed', 'true');
+expect(getByRole('button', { name: 'b' })).toHaveAttribute('aria-pressed', 'false');
+fireEvent.click(getByRole('button', { name: 'c' }));
+expect(getByTestId('out').textContent).toBe('a|1|false');
+expect(getByRole('button', { name: 'c' })).toHaveAttribute('aria-pressed', 'false');
+fireEvent.click(getByRole('button', { name: 'c' }));
+expect(getByTestId('out').textContent).toBe('a,c|2|false');`,
+      },
+      {
+        name: 'a full selection ignores additions but still allows removals',
+        code: `const ui = (api) => React.createElement('div', null,
+  ['a', 'b', 'c'].map((id) => React.createElement('button', { key: id, type: 'button', onClick: () => api.toggle(id) }, id)),
+  React.createElement('p', { 'data-testid': 'out' }, api.selected.join(',') + '|' + api.count + '|' + String(api.isFull)));
+const { getByRole, getByTestId } = render({ max: 2, children: ui });
+fireEvent.click(getByRole('button', { name: 'a' }));
+expect(getByTestId('out').textContent).toBe('a|1|false');
+fireEvent.click(getByRole('button', { name: 'b' }));
+expect(getByTestId('out').textContent).toBe('a,b|2|true');
+fireEvent.click(getByRole('button', { name: 'c' }));
+expect(getByTestId('out').textContent).toBe('a,b|2|true');
+fireEvent.click(getByRole('button', { name: 'a' }));
+expect(getByTestId('out').textContent).toBe('b|1|false');
+fireEvent.click(getByRole('button', { name: 'c' }));
+expect(getByTestId('out').textContent).toBe('b,c|2|true');`,
+      },
+      {
+        name: 'without max the selection is never full',
+        code: `const ui = (api) => React.createElement('div', null,
+  ['a', 'b', 'c', 'd'].map((id) => React.createElement('button', { key: id, type: 'button', onClick: () => api.toggle(id) }, id)),
+  React.createElement('p', { 'data-testid': 'out' }, api.selected.join(',') + '|' + api.count + '|' + String(api.isFull)));
+const { getByRole, getByTestId } = render({ children: ui });
+['d', 'c', 'b', 'a'].forEach((id) => fireEvent.click(getByRole('button', { name: id })));
+expect(getByTestId('out').textContent).toBe('d,c,b,a|4|false');`,
+      },
+      {
+        name: 'clear empties the selection',
+        code: `const ui = (api) => React.createElement('div', null,
+  React.createElement('button', { type: 'button', onClick: () => api.toggle('x') }, 'x'),
+  React.createElement('button', { type: 'button', onClick: () => api.clear() }, 'Clear'),
+  React.createElement('p', { 'data-testid': 'out' }, api.selected.join(',') + '|' + api.count + '|' + String(api.isFull)));
+const { getByRole, getByTestId } = render({ initial: ['p', 'q'], max: 3, children: ui });
+fireEvent.click(getByRole('button', { name: 'x' }));
+expect(getByTestId('out').textContent).toBe('p,q,x|3|true');
+fireEvent.click(getByRole('button', { name: 'Clear' }));
+expect(getByTestId('out').textContent).toBe('|0|false');
+fireEvent.click(getByRole('button', { name: 'x' }));
+expect(getByTestId('out').textContent).toBe('x|1|false');`,
+      },
+      {
+        name: 'hands out a new array instead of mutating the old one',
+        code: `const seen = [];
+const ui = (api) => { seen.push(api.selected); return React.createElement('button', { type: 'button', onClick: () => api.toggle('a') }, 'toggle ' + api.count); };
+const { getByRole } = render({ children: ui });
+const before = seen[seen.length - 1];
+fireEvent.click(getByRole('button'));
+expect(getByRole('button').textContent).toBe('toggle 1');
+const after = seen[seen.length - 1];
+expect(after).toEqual(['a']);
+expect(before).toEqual([]);
+expect(after === before).toBe(false);`,
+      },
+    ],
+    hint: 'Keep the array in `useState` and always replace it: `[...selected, id]` to add and `selected.filter(...)` to remove. Then call `children({ selected, count, isSelected, isFull, toggle, clear })` inside the wrapper.',
+    explanation:
+      'A headless component separates behaviour from markup. `Selection` knows the rules (toggle, limit, clear) and exposes them as an object; the caller\'s function decides whether that becomes buttons, chips or checkboxes. Because `children` is called during every render with fresh values, the caller\'s UI is always in step with the state. ' +
+      'The rule that makes it work is immutability. React decides whether to re-render by comparing the new state with the old one. `selected.push(id); setSelected(selected)` hands React the same array object it already has, so it skips the render and the screen never changes, even though the array did. Adding with spread and removing with `filter` produce new arrays, which both triggers the render and keeps every array the caller has already received unchanged. ' +
+      '`toggle` checks membership first, so removing is always possible, and only then applies the limit to additions. `isFull` is derived (`max !== undefined && selected.length >= max`), not stored.',
+    solution: `import React, { useState } from 'react';
+
+export default function Selection({ initial = [], max, children }) {
+  const [selected, setSelected] = useState(initial);
+
+  const isFull = max !== undefined && selected.length >= max;
+  const isSelected = (id) => selected.includes(id);
+
+  const toggle = (id) => {
+    if (selected.includes(id)) {
+      setSelected(selected.filter((x) => x !== id));
+    } else if (!isFull) {
+      setSelected([...selected, id]);
+    }
+  };
+
+  const clear = () => setSelected([]);
+
+  return (
+    <div data-testid="selection">
+      {children({ selected, count: selected.length, isSelected, isFull, toggle, clear })}
+    </div>
+  );
+}
+`,
+  },
+
+  {
+    id: 'react-controllable-segmented-control',
+    number: 75,
+    title: 'Controlled or Uncontrolled Segmented Control',
+    difficulty: 'Medium',
+    topic: 'Composition & Patterns',
+    statement: `Build \`SegmentedControl({ options, value, defaultValue, onChange })\` so that it works both **controlled** and **uncontrolled**, the way a native \`<input>\` does. \`options\` is an array of unique strings; \`onChange\` is optional.
+
+- Render one \`<button>\` per option whose text is the option. The selected option's button has \`aria-pressed="true"\`; all the others have \`aria-pressed="false"\`.
+- **Controlled** (the \`value\` prop is not \`undefined\`): the selected option is always \`value\`. Clicking another option calls \`onChange(option)\` but must not change what is displayed. The display changes only when the parent passes a new \`value\`.
+- **Uncontrolled** (\`value\` is \`undefined\`): the component keeps the selection in its own state, starting from \`defaultValue\`. If that is missing too, nothing is selected at first. Clicking an option selects it and calls \`onChange(option)\`. Later changes to the \`defaultValue\` prop are ignored.
+- In both modes, clicking the option that is already selected does nothing and does not call \`onChange\`.`,
+    componentName: 'SegmentedControl',
+    starter: `import React, { useState } from 'react';
+
+export default function SegmentedControl({ options, value, defaultValue, onChange }) {
+  // TODO: support both modes. Controlled: show \`value\`. Uncontrolled: own state from \`defaultValue\`.
+  return (
+    <div role="group">
+      {options.map((option) => (
+        <button key={option} type="button" aria-pressed="false">
+          {option}
+        </button>
+      ))}
+    </div>
+  );
+}
+`,
+    previewProps: { options: ['Day', 'Week', 'Month'], defaultValue: 'Week' },
+    tests: [
+      {
+        name: 'uncontrolled: starts from defaultValue and updates itself',
+        code: `const calls = [];
+const { getByRole } = render({ options: ['Day', 'Week', 'Month'], defaultValue: 'Week', onChange: (v) => calls.push(v) });
+const pressed = (name) => getByRole('button', { name }).getAttribute('aria-pressed');
+expect([pressed('Day'), pressed('Week'), pressed('Month')]).toEqual(['false', 'true', 'false']);
+fireEvent.click(getByRole('button', { name: 'Month' }));
+expect([pressed('Day'), pressed('Week'), pressed('Month')]).toEqual(['false', 'false', 'true']);
+expect(calls).toEqual(['Month']);`,
+      },
+      {
+        name: 'uncontrolled: works with no defaultValue and no onChange',
+        code: `const { getByRole } = render({ options: ['Day', 'Week', 'Month'] });
+const pressed = (name) => getByRole('button', { name }).getAttribute('aria-pressed');
+expect([pressed('Day'), pressed('Week'), pressed('Month')]).toEqual(['false', 'false', 'false']);
+fireEvent.click(getByRole('button', { name: 'Day' }));
+expect([pressed('Day'), pressed('Week'), pressed('Month')]).toEqual(['true', 'false', 'false']);`,
+      },
+      {
+        name: 'controlled: a click reports the option but does not change the display',
+        code: `const calls = [];
+const { getByRole } = render({ options: ['Day', 'Week', 'Month'], value: 'Day', onChange: (v) => calls.push(v) });
+const pressed = (name) => getByRole('button', { name }).getAttribute('aria-pressed');
+expect([pressed('Day'), pressed('Week'), pressed('Month')]).toEqual(['true', 'false', 'false']);
+fireEvent.click(getByRole('button', { name: 'Month' }));
+expect(calls).toEqual(['Month']);
+expect([pressed('Day'), pressed('Week'), pressed('Month')]).toEqual(['true', 'false', 'false']);`,
+      },
+      {
+        name: 'controlled: follows the value prop',
+        code: `const calls = [];
+const onChange = (v) => calls.push(v);
+const { getByRole, rerender } = render({ options: ['Day', 'Week', 'Month'], value: 'Day', onChange });
+const pressed = (name) => getByRole('button', { name }).getAttribute('aria-pressed');
+fireEvent.click(getByRole('button', { name: 'Week' }));
+rerender({ options: ['Day', 'Week', 'Month'], value: 'Month', onChange });
+expect([pressed('Day'), pressed('Week'), pressed('Month')]).toEqual(['false', 'false', 'true']);
+rerender({ options: ['Day', 'Week', 'Month'], value: 'Day', onChange });
+expect([pressed('Day'), pressed('Week'), pressed('Month')]).toEqual(['true', 'false', 'false']);
+expect(calls).toEqual(['Week']);`,
+      },
+      {
+        name: 'clicking the selected option does not call onChange',
+        code: `const calls = [];
+const onChange = (v) => calls.push(v);
+const first = render({ options: ['Day', 'Week'], defaultValue: 'Week', onChange });
+fireEvent.click(first.getByRole('button', { name: 'Week' }));
+expect(calls).toEqual([]);
+fireEvent.click(first.getByRole('button', { name: 'Day' }));
+fireEvent.click(first.getByRole('button', { name: 'Day' }));
+expect(calls).toEqual(['Day']);
+first.unmount();
+const second = render({ options: ['Day', 'Week'], value: 'Day', onChange });
+fireEvent.click(second.getByRole('button', { name: 'Day' }));
+expect(calls).toEqual(['Day']);`,
+      },
+      {
+        name: 'uncontrolled: later defaultValue changes are ignored',
+        code: `const { getByRole, rerender } = render({ options: ['Day', 'Week', 'Month'], defaultValue: 'Day' });
+const pressed = (name) => getByRole('button', { name }).getAttribute('aria-pressed');
+rerender({ options: ['Day', 'Week', 'Month'], defaultValue: 'Month' });
+expect([pressed('Day'), pressed('Week'), pressed('Month')]).toEqual(['true', 'false', 'false']);
+fireEvent.click(getByRole('button', { name: 'Week' }));
+rerender({ options: ['Day', 'Week', 'Month'], defaultValue: 'Month' });
+expect([pressed('Day'), pressed('Week'), pressed('Month')]).toEqual(['false', 'true', 'false']);`,
+      },
+    ],
+    hint: 'Compute `const isControlled = value !== undefined` and `const selected = isControlled ? value : internal`. In the click handler, update the internal state only when not controlled, and call `onChange` either way.',
+    explanation:
+      'This is the contract every native form element follows, and reusable components are expected to follow it too. The question to settle is who owns the state. If the parent passes `value`, the parent owns it: the component renders that value and only *asks* for a change through `onChange`. If not, the component owns it and `defaultValue` is merely the starting point. ' +
+      'The implementation keeps an internal `useState(defaultValue)` in both cases but reads from it only when uncontrolled: `selected = isControlled ? value : internal`. The click handler updates the internal state only in uncontrolled mode and calls `onChange` in both. ' +
+      'The classic mistake is `useState(value)`. That copies the prop once at mount, so the component then shows its own copy: a controlled parent that rejects a change sees the control change anyway, and later updates to `value` are ignored. ' +
+      'Because `useState` reads its argument only on the first render, later `defaultValue` changes are ignored without any extra code, which is exactly how `<input defaultValue>` behaves.',
+    solution: `import React, { useState } from 'react';
+
+export default function SegmentedControl({ options, value, defaultValue, onChange }) {
+  const [internal, setInternal] = useState(defaultValue);
+  const isControlled = value !== undefined;
+  const selected = isControlled ? value : internal;
+
+  const select = (option) => {
+    if (option === selected) return;
+    if (!isControlled) setInternal(option);
+    if (onChange) onChange(option);
+  };
+
+  return (
+    <div role="group">
+      {options.map((option) => (
+        <button
+          key={option}
+          type="button"
+          aria-pressed={option === selected}
+          onClick={() => select(option)}
+          style={{ fontWeight: option === selected ? 'bold' : 'normal' }}
+        >
+          {option}
+        </button>
+      ))}
     </div>
   );
 }

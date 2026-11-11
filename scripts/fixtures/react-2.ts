@@ -500,4 +500,138 @@ function PermissionTree({ nodes, onChange }) {
   );
 }
 `,
+
+  // each step keeps its own local state, which is lost when the step unmounts
+  'react-onboarding-wizard': `
+function AccountStep({ onNext }) {
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const next = () => (email.trim().includes('@') ? onNext({ email: email.trim() }) : setError('Enter a valid email'));
+  return (
+    <div>
+      <label>Email <input type="text" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+      {error && <p role="alert">{error}</p>}
+      <button type="button" onClick={next}>Next</button>
+    </div>
+  );
+}
+function ProfileStep({ onNext, onBack }) {
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('Developer');
+  const [error, setError] = useState('');
+  const next = () => (name.trim() !== '' ? onNext({ name: name.trim(), role }) : setError('Display name is required'));
+  return (
+    <div>
+      <label>Display name <input type="text" value={name} onChange={(e) => setName(e.target.value)} /></label>
+      <label>Role <select value={role} onChange={(e) => setRole(e.target.value)}>
+        <option value="Developer">Developer</option><option value="Designer">Designer</option><option value="Manager">Manager</option>
+      </select></label>
+      {error && <p role="alert">{error}</p>}
+      <button type="button" onClick={onBack}>Back</button>
+      <button type="button" onClick={next}>Next</button>
+    </div>
+  );
+}
+function OnboardingWizard({ onComplete }) {
+  const [step, setStep] = useState(1);
+  const [data, setData] = useState({});
+  const [done, setDone] = useState(false);
+  const titles = ['Account', 'Profile', 'Review'];
+  const advance = (part) => { setData({ ...data, ...part }); setStep(step + 1); };
+  if (done) return <p data-testid="done">All set, {data.name}!</p>;
+  return (
+    <div>
+      <h2 data-testid="step">Step {step} of 3: {titles[step - 1]}</h2>
+      {step === 1 && <AccountStep onNext={advance} />}
+      {step === 2 && <ProfileStep onNext={advance} onBack={() => setStep(1)} />}
+      {step === 3 && (
+        <div>
+          <p data-testid="review-email">Email: {data.email}</p>
+          <p data-testid="review-name">Display name: {data.name}</p>
+          <p data-testid="review-role">Role: {data.role}</p>
+          <button type="button" onClick={() => setStep(2)}>Back</button>
+          <button type="button" onClick={() => { onComplete({ email: data.email, name: data.name, role: data.role }); setDone(true); }}>Finish</button>
+        </div>
+      )}
+    </div>
+  );
+}
+`,
+  // always renders the slot wrappers, leaving empty elements behind
+  'react-page-layout-slots': `
+function PageLayout({ header, sidebar, footer, children }) {
+  return (
+    <div data-testid="layout" data-columns={sidebar != null ? '2' : '1'}>
+      <header data-testid="layout-header">{header}</header>
+      <aside data-testid="layout-sidebar">{sidebar}</aside>
+      <main data-testid="layout-main">{children != null ? children : 'Nothing to show'}</main>
+      <footer data-testid="layout-footer">{footer}</footer>
+    </div>
+  );
+}
+`,
+  // forgets the finished state: prints "Step 4 of 3"
+  'react-compound-steps': `
+function Steps({ current, children }) {
+  const total = Children.count(children);
+  return (
+    <div>
+      <ol>
+        {Children.map(children, (child, index) => cloneElement(child, {
+          index,
+          status: index < current ? 'complete' : index === current ? 'current' : 'upcoming',
+        }))}
+      </ol>
+      <p data-testid="steps-summary">Step {current + 1} of {total}</p>
+    </div>
+  );
+}
+Steps.Step = function Step({ title, index, status }) {
+  return <li data-status={status} aria-current={status === 'current' ? 'step' : undefined}>{index + 1}. {title}</li>;
+};
+function CheckoutProgress({ steps, current }) {
+  return (
+    <Steps current={current}>
+      {steps.map((title) => <Steps.Step key={title} title={title} />)}
+    </Steps>
+  );
+}
+`,
+  // mutates the array and sets the same reference: React never re-renders
+  'react-headless-selection': `
+function Selection({ initial = [], max, children }) {
+  const [selected, setSelected] = useState(initial);
+  const isFull = max !== undefined && selected.length >= max;
+  const toggle = (id) => {
+    const at = selected.indexOf(id);
+    if (at !== -1) selected.splice(at, 1);
+    else if (!isFull) selected.push(id);
+    setSelected(selected);
+  };
+  const clear = () => { selected.length = 0; setSelected(selected); };
+  return (
+    <div data-testid="selection">
+      {children({ selected, count: selected.length, isSelected: (id) => selected.includes(id), isFull, toggle, clear })}
+    </div>
+  );
+}
+`,
+  // copies the value prop into state once: controlled mode shows its own copy
+  'react-controllable-segmented-control': `
+function SegmentedControl({ options, value, defaultValue, onChange }) {
+  const [selected, setSelected] = useState(value !== undefined ? value : defaultValue);
+  const select = (option) => {
+    if (option === selected) return;
+    setSelected(option);
+    if (onChange) onChange(option);
+  };
+  return (
+    <div role="group">
+      {options.map((option) => (
+        <button key={option} type="button" aria-pressed={option === selected} onClick={() => select(option)}>{option}</button>
+      ))}
+    </div>
+  );
+}
+`,
 };
