@@ -393,7 +393,7 @@ function buildSettings(overrides) {
     difficulty: 'Medium',
     topic: 'Numbers',
     statement:
-      'A payment API wants amounts as a string holding a whole number of cents. `centsField(dollars)` receives a non-negative price with at most two decimal places (for example `19.99`) and should return that string (`"1999"`). Some prices are arriving one cent short.',
+      'A payment API wants amounts as a string holding a whole number of cents. `centsField(dollars)` receives a non-negative price with at most two decimal places (for example `19.99`) and should return that string (`"1999"`). Some prices are arriving one cent short. The result has no leading zeros: 0 gives the string 0 and 0.29 gives 29.',
     functionName: 'centsField',
     functionSignature: 'function centsField(dollars: number): string',
     buggyCode: `function centsField(dollars) {
@@ -889,14 +889,14 @@ function roleLevel(role) {
     examples: [
       { input: ['1.005'], expected: '1.01' },
       { input: ['1.2'], expected: '1.20' },
-      { input: ['2.675'], expected: '2.68' },
+      { input: ['4.015'], expected: '4.02' },
     ],
     hiddenTests: [
       { input: ['10'], expected: '10.00' },
       { input: ['1.004'], expected: '1.00' },
       { input: ['0.995'], expected: '1.00' },
       { input: ['8.345'], expected: '8.35' },
-      { input: ['4.015'], expected: '4.02' },
+      { input: ['2.675'], expected: '2.68' },
       { input: ['0.07'], expected: '0.07' },
     ],
   },

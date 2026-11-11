@@ -163,10 +163,11 @@ const store = {
   subscribe: (l) => { listeners.add(l); return () => listeners.delete(l); },
 };
 let n = 0;
-setInterval(() => {
+const timer = setInterval(() => {
   n += 1;
   state = { items: n % 4 === 0 ? [] : state.items.concat('Item ' + n) };
   listeners.forEach((l) => l());
+  if (n >= 12) clearInterval(timer);
 }, 1500);
 return { store };`,
     tests: [
@@ -652,6 +653,2528 @@ export default function ResponsiveNav({ matchMedia }) {
   const isMobile = useMediaQuery(matchMedia, QUERY);
   return <p data-testid="layout">{isMobile ? 'Mobile layout' : 'Desktop layout'}</p>;
 }
+`,
+  },
+  {
+    id: 'react-stored-draft-hook',
+    number: 81,
+    title: 'Draft Note Saved to Injected Storage',
+    difficulty: 'Medium',
+    topic: 'Composition & Patterns',
+    statement: `Build a custom hook \`useStoredState(storage, key, initialValue)\` and use it in \`DraftNote({ storage, storageKey = 'draft' })\`.
+
+\`storage\` is injected and behaves like \`localStorage\`: \`getItem(key)\` returns a string or \`null\`, \`setItem(key, string)\` stores a string, \`removeItem(key)\` deletes the key.
+
+The hook returns \`[value, setValue, clear]\`:
+- First render: read \`storage.getItem(key)\`. If it returns a string that is valid JSON, start with the parsed value. If it returns \`null\` or text that is not valid JSON, start with \`initialValue\` (do not crash).
+- \`setValue(next)\` updates the value and stores it as JSON: \`storage.setItem(key, JSON.stringify(next))\`. So the text \`Hello\` is stored as \`"Hello"\`, with the double quotes.
+- \`clear()\` resets the value to \`initialValue\` and removes the key with \`storage.removeItem(key)\`. Afterwards \`storage.getItem(key)\` must return \`null\` (not an empty string, not \`""\`).
+
+\`DraftNote\` uses the hook with \`initialValue\` \`''\` and renders:
+- \`<textarea aria-label="Note">\` bound to the value.
+- \`<p data-testid="count">Characters: <n></p>\` with the length of the text.
+- A button \`Clear draft\` that calls \`clear()\`.
+
+\`storage\` and \`storageKey\` do not change while the component is mounted.`,
+    componentName: 'DraftNote',
+    starter: `import React, { useState } from 'react';
+
+function useStoredState(storage, key, initialValue) {
+  // TODO: read from storage on the first render, write on change, support clear()
+  const [value, setValue] = useState(initialValue);
+  const clear = () => {};
+  return [value, setValue, clear];
+}
+
+export default function DraftNote({ storage, storageKey = 'draft' }) {
+  const [text, setText, clear] = useStoredState(storage, storageKey, '');
+  return (
+    <div>
+      <textarea aria-label="Note" value={text} onChange={(e) => setText(e.target.value)} />
+      <p data-testid="count">Characters: {text.length}</p>
+      <button type="button" onClick={clear}>Clear draft</button>
+    </div>
+  );
+}
+`,
+    previewProps: {"storageKey": "draft"},
+    previewSetup: `const data = { draft: JSON.stringify('Remember to water the plants') };
+return {
+  storage: {
+    getItem: (key) => (key in data ? data[key] : null),
+    setItem: (key, value) => { data[key] = String(value); },
+    removeItem: (key) => { delete data[key]; },
+  },
+};`,
+    tests: [
+      {
+        name: 'starts empty when storage has nothing',
+        code: `function makeStorage(seed) { const m = new Map(Object.entries(seed || {})); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)); }, removeItem: (k) => { m.delete(k); } }; }
+const { getByLabelText, getByTestId } = render({ storage: makeStorage() });
+expect(getByLabelText('Note').value).toBe('');
+expect(getByTestId('count').textContent).toBe('Characters: 0');`,
+      },
+      {
+        name: 'restores a saved JSON draft on the first render',
+        code: `function makeStorage(seed) { const m = new Map(Object.entries(seed || {})); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)); }, removeItem: (k) => { m.delete(k); } }; }
+const storage = makeStorage({ draft: '"Buy milk"', other: '"Wrong key"' });
+const { getByLabelText, getByTestId } = render({ storage });
+expect(getByLabelText('Note').value).toBe('Buy milk');
+expect(getByTestId('count').textContent).toBe('Characters: 8');`,
+      },
+      {
+        name: 'typing stores the text as JSON under storageKey',
+        code: `function makeStorage(seed) { const m = new Map(Object.entries(seed || {})); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)); }, removeItem: (k) => { m.delete(k); } }; }
+const storage = makeStorage();
+const { getByLabelText, getByTestId } = render({ storage, storageKey: 'note-7' });
+fireEvent.change(getByLabelText('Note'), 'Hello');
+expect(getByLabelText('Note').value).toBe('Hello');
+expect(getByTestId('count').textContent).toBe('Characters: 5');
+expect(storage.getItem('note-7')).toBe('"Hello"');
+fireEvent.change(getByLabelText('Note'), 'Hello "you"');
+expect(JSON.parse(storage.getItem('note-7'))).toBe('Hello "you"');
+expect(storage.getItem('draft')).toBeNull();`,
+      },
+      {
+        name: 'text that is not valid JSON falls back to an empty note',
+        code: `function makeStorage(seed) { const m = new Map(Object.entries(seed || {})); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)); }, removeItem: (k) => { m.delete(k); } }; }
+const storage = makeStorage({ draft: '{oops' });
+const { getByLabelText, getByTestId } = render({ storage });
+expect(getByLabelText('Note').value).toBe('');
+expect(getByTestId('count').textContent).toBe('Characters: 0');`,
+      },
+      {
+        name: 'Clear draft empties the note and removes the key',
+        code: `function makeStorage(seed) { const m = new Map(Object.entries(seed || {})); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)); }, removeItem: (k) => { m.delete(k); } }; }
+const storage = makeStorage({ draft: '"Old text"' });
+const { getByLabelText, getByRole, getByTestId } = render({ storage });
+fireEvent.change(getByLabelText('Note'), 'Old text plus more');
+fireEvent.click(getByRole('button', { name: 'Clear draft' }));
+expect(getByLabelText('Note').value).toBe('');
+expect(getByTestId('count').textContent).toBe('Characters: 0');
+expect(storage.getItem('draft')).toBeNull();`,
+      },
+      {
+        name: 'a new mount picks up what was typed before',
+        code: `function makeStorage(seed) { const m = new Map(Object.entries(seed || {})); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)); }, removeItem: (k) => { m.delete(k); } }; }
+const storage = makeStorage();
+const first = render({ storage, storageKey: 'trip' });
+fireEvent.change(first.getByLabelText('Note'), 'Pack the tent');
+first.unmount();
+const second = render({ storage, storageKey: 'trip' });
+expect(second.getByLabelText('Note').value).toBe('Pack the tent');`,
+      },
+    ],
+    hint: `Give \`useState\` a function so storage is read once: inside it call \`storage.getItem(key)\`, return \`initialValue\` for \`null\`, and wrap \`JSON.parse\` in \`try / catch\`. The setter you return is your own function that both updates state and calls \`storage.setItem\`. If you sync with an effect instead, make sure \`clear()\` does not write the initial value straight back.`,
+    explanation: `The hook wraps \`useState\` with a read on the way in and a write on the way out.
+
+Reading: a lazy initialiser (\`useState(() => ...)\`) runs only on the first render, so storage is not hit on every keystroke. Storage holds strings, so values are serialised as JSON. Two things can go wrong when reading: the key is missing (\`null\`) or someone stored text that is not JSON. Both fall back to \`initialValue\`, and \`JSON.parse\` sits in a \`try / catch\` because it throws on bad input. Storing the raw string instead of JSON looks fine until a saved value like \`"Buy milk"\` comes back with its quotes, or you want to store a number or an object.
+
+Writing: the reference returns its own \`setValue\` that calls the state setter and \`storage.setItem(key, JSON.stringify(next))\` together. \`clear\` sets the state back to the initial value and calls \`removeItem\`. An effect that mirrors every value into storage is a common alternative, but it also runs after \`clear()\` and would store \`""\` again, so it needs a flag to tell "cleared" from "edited".
+
+Injecting \`storage\` keeps the hook testable and lets the same code run where \`localStorage\` does not exist. Each call costs one serialisation of the value.`,
+    solution: `import React, { useState } from 'react';
+
+function useStoredState(storage, key, initialValue) {
+  const [value, setValueState] = useState(() => {
+    const raw = storage.getItem(key);
+    if (raw === null || raw === undefined) return initialValue;
+    try {
+      return JSON.parse(raw);
+    } catch (error) {
+      return initialValue;
+    }
+  });
+
+  function setValue(next) {
+    setValueState(next);
+    storage.setItem(key, JSON.stringify(next));
+  }
+
+  function clear() {
+    setValueState(initialValue);
+    storage.removeItem(key);
+  }
+
+  return [value, setValue, clear];
+}
+
+export default function DraftNote({ storage, storageKey = 'draft' }) {
+  const [text, setText, clear] = useStoredState(storage, storageKey, '');
+  return (
+    <div>
+      <textarea aria-label="Note" value={text} onChange={(e) => setText(e.target.value)} />
+      <p data-testid="count">{'Characters: ' + text.length}</p>
+      <button type="button" onClick={clear}>Clear draft</button>
+    </div>
+  );
+}
+`,
+  },
+  {
+    id: 'react-autosave-steady-interval',
+    number: 82,
+    title: 'Autosave on a Steady Interval',
+    difficulty: 'Medium',
+    topic: 'Effects & Lifecycle',
+    statement: `Build \`AutosaveNote({ save, everyMs = 2000 })\`, a note field that saves itself on a fixed rhythm. \`save(text)\` is a plain synchronous function.
+
+Render:
+- \`<textarea aria-label="Note">\`, empty at first.
+- \`<p data-testid="status">\` reading \`All changes saved\` when the text equals the last saved text, otherwise \`Unsaved changes\`. The last saved text starts as the empty string, so the first render shows \`All changes saved\`.
+
+Behaviour:
+- Start ONE interval with period \`everyMs\` when the component mounts.
+- On each tick: if the text differs from the last saved text, call \`save(text)\` once with the LATEST text and remember it as the last saved text (the status flips back to \`All changes saved\`). If nothing changed since the last save, the tick does nothing and \`save\` is not called.
+- Typing must not restart the interval. Someone who keeps typing without a pause still gets a save roughly every \`everyMs\` ms, not only after they stop.
+- Clear the interval on unmount. \`save\` must never be called after the unmount, even if there were unsaved changes.`,
+    componentName: 'AutosaveNote',
+    starter: `import React, { useState, useEffect, useRef } from 'react';
+
+export default function AutosaveNote({ save, everyMs = 2000 }) {
+  const [text, setText] = useState('');
+  // TODO: one interval that saves the latest text when it changed
+  return (
+    <div>
+      <textarea aria-label="Note" value={text} onChange={(e) => setText(e.target.value)} />
+      <p data-testid="status">All changes saved</p>
+    </div>
+  );
+}
+`,
+    previewProps: {"everyMs": 2000},
+    previewSetup: `return { save: (text) => { console.log('saved', text); } };`,
+    tests: [
+      {
+        name: 'starts saved and does not call save while nothing changes',
+        code: `const calls = [];
+const { getByTestId } = render({ save: (t) => calls.push(t), everyMs: 15 });
+expect(getByTestId('status').textContent).toBe('All changes saved');
+await sleep(70);
+expect(calls).toEqual([]);
+expect(getByTestId('status').textContent).toBe('All changes saved');`,
+      },
+      {
+        name: 'typing shows Unsaved changes, then one save with the latest text',
+        code: `const calls = [];
+const { getByTestId, getByLabelText } = render({ save: (t) => calls.push(t), everyMs: 30 });
+fireEvent.change(getByLabelText('Note'), 'a');
+fireEvent.change(getByLabelText('Note'), 'ab');
+expect(getByTestId('status').textContent).toBe('Unsaved changes');
+await waitFor(() => { if (calls.length < 1) throw new Error('not saved yet'); });
+expect(calls).toEqual(['ab']);
+await waitFor(() => expect(getByTestId('status').textContent).toBe('All changes saved'));`,
+      },
+      {
+        name: 'saves again only after another edit',
+        code: `const calls = [];
+const { getByTestId, getByLabelText } = render({ save: (t) => calls.push(t), everyMs: 15 });
+fireEvent.change(getByLabelText('Note'), 'one');
+await waitFor(() => { if (calls.length < 1) throw new Error('not saved yet'); });
+await sleep(70);
+expect(calls).toEqual(['one']);
+fireEvent.change(getByLabelText('Note'), 'one two');
+expect(getByTestId('status').textContent).toBe('Unsaved changes');
+await waitFor(() => { if (calls.length < 2) throw new Error('not saved yet'); });
+await sleep(50);
+expect(calls).toEqual(['one', 'one two']);`,
+      },
+      {
+        name: 'continuous typing does not postpone the save',
+        code: `const calls = [];
+const { getByLabelText } = render({ save: (t) => calls.push(t), everyMs: 40 });
+const full = 'abcdefghijklmnopqrst';
+for (let i = 1; i <= full.length; i++) {
+  fireEvent.change(getByLabelText('Note'), full.slice(0, i));
+  await sleep(8);
+}
+expect(calls.length).toBeGreaterThan(0);
+expect(calls.every((c) => c.length > 0 && full.startsWith(c))).toBe(true);`,
+      },
+      {
+        name: 'never saves after unmount',
+        code: `const calls = [];
+const { getByLabelText, unmount } = render({ save: (t) => calls.push(t), everyMs: 20 });
+fireEvent.change(getByLabelText('Note'), 'draft');
+unmount();
+await sleep(80);
+expect(calls).toEqual([]);`,
+      },
+    ],
+    hint: `If the interval effect lists \`text\` as a dependency, every keystroke clears the timer and starts a new one. Keep the effect's dependencies to \`[everyMs]\` and let the tick read the newest text (and the last saved text) from a ref that you update on every render.`,
+    explanation: `Two requirements pull in opposite directions: the interval must be created once, and its callback must see the newest text. A callback created on mount closes over the first render's \`text\`, which is always the empty string.
+
+The tempting fix is to add \`text\` to the effect's dependencies. That gives the callback fresh data, but the cleanup now runs on every keystroke, so the timer restarts each time. Someone typing steadily never reaches a tick, and the autosave degrades into a debounce. The "continuous typing" test catches this.
+
+The reference separates the two concerns. A ref holds the live values (\`text\`, the last saved text, the \`save\` prop) and is refreshed on every render. The interval is created in an effect that depends only on \`everyMs\`, and each tick reads from the ref, compares, saves and records what it saved. A small piece of state mirrors the saved text so the status line re-renders. The cleanup clears the interval, which is what guarantees no save after unmount.
+
+This "latest value in a ref, stable timer" pattern is what a general \`useInterval(callback, delay)\` hook does. Each tick is O(1) plus the cost of \`save\`.`,
+    solution: `import React, { useState, useEffect, useRef } from 'react';
+
+export default function AutosaveNote({ save, everyMs = 2000 }) {
+  const [text, setText] = useState('');
+  const [savedText, setSavedText] = useState('');
+  const live = useRef({ text: '', saved: '', save });
+  live.current.text = text;
+  live.current.save = save;
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = live.current;
+      if (now.text === now.saved) return;
+      now.saved = now.text;
+      now.save(now.text);
+      setSavedText(now.text);
+    }, everyMs);
+    return () => clearInterval(id);
+  }, [everyMs]);
+
+  return (
+    <div>
+      <textarea aria-label="Note" value={text} onChange={(e) => setText(e.target.value)} />
+      <p data-testid="status">{text === savedText ? 'All changes saved' : 'Unsaved changes'}</p>
+    </div>
+  );
+}
+`,
+  },
+  {
+    id: 'react-click-outside-menu',
+    number: 83,
+    title: 'Options Menu That Closes on Outside Click',
+    difficulty: 'Medium',
+    topic: 'Effects & Lifecycle',
+    statement: `Build \`OptionsMenu({ options, onSelect, onDismiss })\`, a small dropdown. \`options\` is an array of unique strings.
+
+Render:
+- A button with the text \`Options\`. It has \`aria-expanded="false"\` while the menu is closed and \`aria-expanded="true"\` while it is open. Clicking it toggles the menu.
+- While open, an element with \`role="menu"\` that contains one element with \`role="menuitem"\` per option (the option text). Nothing with \`role="menu"\` exists while closed.
+
+Behaviour:
+- Clicking a menu item calls \`onSelect(option)\` and closes the menu.
+- While the menu is open, a \`click\` anywhere in the document OUTSIDE the component closes it and calls \`onDismiss()\` once. "Inside the component" means the \`Options\` button, the \`role="menu"\` element and everything in them: a click on the menu element itself (for example its padding) keeps the menu open and does not call \`onDismiss\`.
+- Closing with the \`Options\` button or by picking an item does not call \`onDismiss\`.
+- The click that opens the menu must not immediately close it again.
+- Outside clicks while the menu is closed do nothing, and after the component unmounts (even if it was open) outside clicks must not call \`onDismiss\`. Use a \`click\` listener on \`document\` and remove it in the effect cleanup.
+
+\`onSelect\` and \`onDismiss\` are optional.`,
+    componentName: 'OptionsMenu',
+    starter: `import React, { useState, useEffect, useRef } from 'react';
+
+export default function OptionsMenu({ options, onSelect, onDismiss }) {
+  const [open, setOpen] = useState(false);
+  // TODO: close on a document click outside this component (with cleanup)
+  return (
+    <div>
+      <button type="button" aria-expanded={open ? 'true' : 'false'} onClick={() => setOpen(!open)}>Options</button>
+    </div>
+  );
+}
+`,
+    previewProps: {"options": ["Rename", "Duplicate", "Archive"]},
+    previewSetup: `return { onSelect: (option) => console.log('selected', option), onDismiss: () => console.log('dismissed') };`,
+    tests: [
+      {
+        name: 'the Options button opens and closes the menu',
+        code: `const { getByRole, queryByRole, getAllByRole } = render({ options: ['Rename', 'Duplicate', 'Archive'] });
+const button = getByRole('button', { name: 'Options' });
+expect(button).toHaveAttribute('aria-expanded', 'false');
+expect(queryByRole('menu')).toBeNull();
+fireEvent.click(button);
+expect(button).toHaveAttribute('aria-expanded', 'true');
+expect(getByRole('menu')).toBeTruthy();
+expect(getAllByRole('menuitem').map((el) => el.textContent)).toEqual(['Rename', 'Duplicate', 'Archive']);
+fireEvent.click(button);
+expect(queryByRole('menu')).toBeNull();
+expect(button).toHaveAttribute('aria-expanded', 'false');`,
+      },
+      {
+        name: 'picking an item calls onSelect and closes without onDismiss',
+        code: `const picked = [];
+let dismissed = 0;
+const { getByRole, queryByRole } = render({ options: ['Rename', 'Archive'], onSelect: (o) => picked.push(o), onDismiss: () => { dismissed += 1; } });
+fireEvent.click(getByRole('button', { name: 'Options' }));
+fireEvent.click(getByRole('menuitem', { name: 'Archive' }));
+expect(picked).toEqual(['Archive']);
+expect(queryByRole('menu')).toBeNull();
+expect(dismissed).toBe(0);`,
+      },
+      {
+        name: 'a click outside closes the menu and calls onDismiss once',
+        code: `let dismissed = 0;
+const { getByRole, queryByRole } = render({ options: ['Rename', 'Archive'], onDismiss: () => { dismissed += 1; } });
+const outside = document.createElement('p');
+outside.textContent = 'Somewhere else';
+document.body.appendChild(outside);
+fireEvent.click(outside);
+expect(dismissed).toBe(0);
+fireEvent.click(getByRole('button', { name: 'Options' }));
+expect(getByRole('menu')).toBeTruthy();
+fireEvent.click(outside);
+expect(queryByRole('menu')).toBeNull();
+expect(getByRole('button', { name: 'Options' })).toHaveAttribute('aria-expanded', 'false');
+expect(dismissed).toBe(1);
+fireEvent.click(outside);
+expect(dismissed).toBe(1);
+outside.remove();`,
+      },
+      {
+        name: 'a click on the menu element itself keeps it open',
+        code: `let dismissed = 0;
+const picked = [];
+const { getByRole, queryByRole } = render({ options: ['Rename', 'Archive'], onSelect: (o) => picked.push(o), onDismiss: () => { dismissed += 1; } });
+fireEvent.click(getByRole('button', { name: 'Options' }));
+fireEvent.click(getByRole('menu'));
+expect(queryByRole('menu')).toBeTruthy();
+expect(dismissed).toBe(0);
+expect(picked).toEqual([]);`,
+      },
+      {
+        name: 'it can be reopened and dismissed again',
+        code: `let dismissed = 0;
+const { getByRole, queryByRole } = render({ options: ['Rename'], onDismiss: () => { dismissed += 1; } });
+fireEvent.click(getByRole('button', { name: 'Options' }));
+fireEvent.click(document.body);
+expect(queryByRole('menu')).toBeNull();
+fireEvent.click(getByRole('button', { name: 'Options' }));
+expect(getByRole('menu')).toBeTruthy();
+fireEvent.click(document.body);
+expect(queryByRole('menu')).toBeNull();
+expect(dismissed).toBe(2);`,
+      },
+      {
+        name: 'no onDismiss after unmounting while open',
+        code: `let dismissed = 0;
+const { getByRole, unmount } = render({ options: ['Rename'], onDismiss: () => { dismissed += 1; } });
+fireEvent.click(getByRole('button', { name: 'Options' }));
+unmount();
+fireEvent.click(document.body);
+expect(dismissed).toBe(0);`,
+      },
+    ],
+    hint: `Put a ref on the element that wraps BOTH the button and the menu. In an effect that runs only while \`open\` is true, add a document \`click\` listener that checks \`wrapperRef.current.contains(event.target)\` and closes only when that is false. Return a cleanup that removes the listener.`,
+    explanation: `"Click outside" cannot be expressed with React props on your own elements, because the interesting clicks land on elements you do not render. The listener therefore goes on \`document\`, and the question becomes: was the click target inside my subtree? \`node.contains(target)\` answers that.
+
+Where you put the ref matters. If it wraps only the menu, the click on the \`Options\` button counts as outside: the document listener closes the menu and the button's own handler opens it again, or the opening click itself is treated as an outside click and the menu never appears. Wrapping button and menu in one element with the ref avoids both.
+
+The effect depends on \`open\` and returns early when the menu is closed, so the listener exists only while it is needed. React runs the cleanup when \`open\` flips back to false and when the component unmounts, which is what stops \`onDismiss\` from firing for a menu that is gone. A handler that closes on every document click (no \`contains\` check) fails as soon as the user clicks the menu's own padding.
+
+Each document click costs one \`contains\` walk up from the target, O(depth of the DOM).`,
+    solution: `import React, { useState, useEffect, useRef } from 'react';
+
+export default function OptionsMenu({ options, onSelect, onDismiss }) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef(null);
+  const dismissRef = useRef(onDismiss);
+  dismissRef.current = onDismiss;
+
+  useEffect(() => {
+    if (!open) return undefined;
+    function onDocumentClick(event) {
+      if (wrapperRef.current && wrapperRef.current.contains(event.target)) return;
+      setOpen(false);
+      if (dismissRef.current) dismissRef.current();
+    }
+    document.addEventListener('click', onDocumentClick);
+    return () => document.removeEventListener('click', onDocumentClick);
+  }, [open]);
+
+  function choose(option) {
+    setOpen(false);
+    if (onSelect) onSelect(option);
+  }
+
+  return (
+    <div ref={wrapperRef} style={{ display: 'inline-block', position: 'relative' }}>
+      <button type="button" aria-expanded={open ? 'true' : 'false'} onClick={() => setOpen((o) => !o)}>Options</button>
+      {open && (
+        <ul role="menu" style={{ listStyle: 'none', margin: 0, padding: 8, border: '1px solid #ccc' }}>
+          {options.map((option) => (
+            <li key={option} role="menuitem" onClick={() => choose(option)} style={{ cursor: 'pointer' }}>{option}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+`,
+  },
+  {
+    id: 'react-lazy-initial-scores',
+    number: 84,
+    title: 'Lazy Initial State for a Scoreboard',
+    difficulty: 'Easy',
+    topic: 'Performance & Hooks',
+    statement: `Build \`ScoreBoard({ createInitialScores })\`. \`createInitialScores()\` is an EXPENSIVE function that returns the starting scores as an array of \`{ name, points }\` (names are unique). Your job is to call it only when the result is really needed.
+
+Render:
+- For every player a \`<span data-testid="score-<name>">\` reading \`<name>: <points>\`, for example \`<span data-testid="score-Ada">Ada: 3</span>\`, in the order of the array.
+- For every player a button with \`aria-label="Add point to <name>"\` that adds 1 point to that player.
+- \`<p data-testid="total">Total: <sum of all points></p>\`.
+- A button \`Reset\` that starts over with a fresh \`createInitialScores()\` result.
+
+Rules:
+- Call \`createInitialScores\` exactly once when the component mounts. Re-renders (adding points, the parent re-rendering) must NOT call it again.
+- Each click on \`Reset\` calls it exactly one more time.
+- Never mutate the array or the objects that \`createInitialScores\` returned. Build new ones when a score changes.`,
+    componentName: 'ScoreBoard',
+    starter: `import React, { useState } from 'react';
+
+export default function ScoreBoard({ createInitialScores }) {
+  // TODO: initialise from createInitialScores without calling it on every render
+  const scores = [];
+  return (
+    <div>
+      <p data-testid="total">Total: 0</p>
+      <button type="button">Reset</button>
+    </div>
+  );
+}
+`,
+    previewProps: {},
+    previewSetup: `return { createInitialScores: () => [{ name: 'Ada', points: 3 }, { name: 'Linus', points: 1 }, { name: 'Grace', points: 0 }] };`,
+    tests: [
+      {
+        name: 'renders every player and the total',
+        code: `const make = () => [{ name: 'Ada', points: 3 }, { name: 'Linus', points: 1 }, { name: 'Grace', points: 0 }];
+const { getByTestId, getAllByRole } = render({ createInitialScores: make });
+expect(getByTestId('score-Ada').textContent).toBe('Ada: 3');
+expect(getByTestId('score-Linus').textContent).toBe('Linus: 1');
+expect(getByTestId('score-Grace').textContent).toBe('Grace: 0');
+expect(getByTestId('total').textContent).toBe('Total: 4');
+expect(getAllByRole('button').map((b) => b.getAttribute('aria-label')).filter(Boolean)).toEqual(['Add point to Ada', 'Add point to Linus', 'Add point to Grace']);`,
+      },
+      {
+        name: 'createInitialScores runs exactly once on mount, not on re-renders',
+        code: `let calls = 0;
+const make = () => { calls += 1; return [{ name: 'Ada', points: 3 }]; };
+const { rerender, getByTestId } = render({ createInitialScores: make });
+expect(calls).toBe(1);
+rerender({ createInitialScores: make });
+rerender({ createInitialScores: make });
+expect(calls).toBe(1);
+expect(getByTestId('score-Ada').textContent).toBe('Ada: 3');`,
+      },
+      {
+        name: 'adding points updates the row and total without recomputing',
+        code: `let calls = 0;
+const make = () => { calls += 1; return [{ name: 'Ada', points: 3 }, { name: 'Linus', points: 1 }]; };
+const { getByLabelText, getByTestId } = render({ createInitialScores: make });
+fireEvent.click(getByLabelText('Add point to Linus'));
+fireEvent.click(getByLabelText('Add point to Linus'));
+fireEvent.click(getByLabelText('Add point to Ada'));
+expect(getByTestId('score-Linus').textContent).toBe('Linus: 3');
+expect(getByTestId('score-Ada').textContent).toBe('Ada: 4');
+expect(getByTestId('total').textContent).toBe('Total: 7');
+expect(calls).toBe(1);`,
+      },
+      {
+        name: 'Reset calls it once more and restores the starting scores',
+        code: `let calls = 0;
+const make = () => { calls += 1; return [{ name: 'Ada', points: 3 }, { name: 'Linus', points: 1 }]; };
+const { getByLabelText, getByTestId, getByRole } = render({ createInitialScores: make });
+fireEvent.click(getByLabelText('Add point to Ada'));
+fireEvent.click(getByRole('button', { name: 'Reset' }));
+expect(calls).toBe(2);
+expect(getByTestId('score-Ada').textContent).toBe('Ada: 3');
+expect(getByTestId('total').textContent).toBe('Total: 4');
+fireEvent.click(getByLabelText('Add point to Linus'));
+expect(getByTestId('total').textContent).toBe('Total: 5');
+expect(calls).toBe(2);`,
+      },
+      {
+        name: 'the returned data is never mutated',
+        code: `const original = [{ name: 'Ada', points: 3 }, { name: 'Linus', points: 1 }];
+const { getByLabelText, getByTestId } = render({ createInitialScores: () => original });
+fireEvent.click(getByLabelText('Add point to Ada'));
+fireEvent.click(getByLabelText('Add point to Linus'));
+expect(getByTestId('score-Ada').textContent).toBe('Ada: 4');
+expect(getByTestId('total').textContent).toBe('Total: 6');
+expect(original).toEqual([{ name: 'Ada', points: 3 }, { name: 'Linus', points: 1 }]);`,
+      },
+    ],
+    hint: `\`useState(createInitialScores())\` calls the function on every render and throws the result away on all but the first. Pass the function itself: \`useState(createInitialScores)\` or \`useState(() => createInitialScores())\`.`,
+    explanation: `\`useState(initial)\` only uses its argument on the first render, but JavaScript still evaluates the argument expression every time the component function runs. Writing \`useState(createInitialScores())\` therefore repeats the expensive work on every render and discards it. When you pass a function instead, React calls it once, on mount, and never again. That is the lazy initialiser. \`useReducer\` has the same feature through its third argument.
+
+Reset is an ordinary event: calling \`createInitialScores()\` inside the click handler runs it once per click, which is exactly what is wanted.
+
+Adding a point maps the array to a new array and creates a new object only for the changed player. The originals are left alone, so anything else holding the array returned by \`createInitialScores\` is unaffected, and React sees a new reference and re-renders. The total is derived during render with a \`reduce\`; storing it in state would only create a second value to keep in sync.
+
+Cost: one O(n) pass per render for the rows and the total, and the expensive call only on mount and on Reset.`,
+    solution: `import React, { useState } from 'react';
+
+export default function ScoreBoard({ createInitialScores }) {
+  const [scores, setScores] = useState(() => createInitialScores());
+
+  function addPoint(name) {
+    setScores((current) => current.map((player) => (
+      player.name === name ? { ...player, points: player.points + 1 } : player
+    )));
+  }
+
+  const total = scores.reduce((sum, player) => sum + player.points, 0);
+
+  return (
+    <div>
+      <ul>
+        {scores.map((player) => (
+          <li key={player.name}>
+            <span data-testid={'score-' + player.name}>{player.name + ': ' + player.points}</span>{' '}
+            <button type="button" aria-label={'Add point to ' + player.name} onClick={() => addPoint(player.name)}>+1</button>
+          </li>
+        ))}
+      </ul>
+      <p data-testid="total">{'Total: ' + total}</p>
+      <button type="button" onClick={() => setScores(createInitialScores())}>Reset</button>
+    </div>
+  );
+}
+`,
+  },
+  {
+    id: 'react-load-more-feed',
+    number: 85,
+    title: 'Load More with a Cursor',
+    difficulty: 'Medium',
+    topic: 'Async & Data',
+    statement: `Build \`PostFeed({ loadPage })\`, a feed that loads one page at a time.
+
+\`loadPage(cursor)\` returns a Promise of \`{ items, nextCursor }\`. \`items\` is an array of \`{ id, title }\`. \`nextCursor\` is the value to pass for the following page, or \`null\` when this was the last page.
+
+- On mount call \`loadPage(null)\` for the first page.
+- Render every post loaded so far as an \`<li>\` (its \`title\`) inside ONE \`<ul>\`, in the order the pages arrived. A new page is appended; earlier posts stay.
+- While a request is pending render \`<p>Loading...</p>\` and do not render the \`Load more\` button.
+- When no request is pending and the last response had a non-null \`nextCursor\`, render a button \`Load more\`. Clicking it calls \`loadPage(nextCursor)\`.
+- When the last page has been loaded (\`nextCursor\` is \`null\`): render \`<p>No more posts</p>\` if at least one post is shown, or \`<p>No posts yet</p>\` if the feed is completely empty. Never both, and no \`Load more\` button.
+- If a request rejects: render \`<p role="alert">Could not load posts</p>\` and a button \`Retry\`, keep the posts already loaded, and do not render \`Load more\`. \`Retry\` repeats the failed request with the same cursor; while it is pending the alert is gone and \`Loading...\` shows again.`,
+    componentName: 'PostFeed',
+    starter: `import React, { useState, useEffect } from 'react';
+
+export default function PostFeed({ loadPage }) {
+  const [posts, setPosts] = useState([]);
+  // TODO: load the first page on mount, then page by page with "Load more"
+  return (
+    <div>
+      <ul>
+        {posts.map((post) => <li key={post.id}>{post.title}</li>)}
+      </ul>
+      <p>Loading...</p>
+    </div>
+  );
+}
+`,
+    previewProps: {},
+    previewSetup: `const pages = {
+  start: { items: [{ id: 1, title: 'Hello world' }, { id: 2, title: 'Second post' }], nextCursor: 'p2' },
+  p2: { items: [{ id: 3, title: 'Cursor pagination' }, { id: 4, title: 'Appending pages' }], nextCursor: 'p3' },
+  p3: { items: [{ id: 5, title: 'The last one' }], nextCursor: null },
+};
+return { loadPage: (cursor) => new Promise((resolve) => setTimeout(() => resolve(pages[cursor === null ? 'start' : cursor]), 400)) };`,
+    tests: [
+      {
+        name: 'loads the first page on mount with a null cursor',
+        code: `const cursors = [];
+const loadPage = async (cursor) => { cursors.push(cursor); return { items: [{ id: 1, title: 'Alpha' }, { id: 2, title: 'Beta' }], nextCursor: 'c2' }; };
+const { getByText, getAllByRole, getByRole, queryByText, queryByRole } = render({ loadPage });
+expect(getByText('Loading...')).toBeTruthy();
+expect(queryByRole('button', { name: 'Load more' })).toBeNull();
+await waitFor(() => getByRole('button', { name: 'Load more' }));
+expect(cursors).toEqual([null]);
+expect(getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Alpha', 'Beta']);
+expect(queryByText('Loading...')).toBeNull();
+expect(queryByText('No more posts')).toBeNull();`,
+      },
+      {
+        name: 'Load more passes the cursor and appends the next page',
+        code: `const cursors = [];
+const pages = { first: { items: [{ id: 1, title: 'Alpha' }, { id: 2, title: 'Beta' }], nextCursor: 'c2' }, c2: { items: [{ id: 3, title: 'Gamma' }], nextCursor: 'c3' }, c3: { items: [{ id: 4, title: 'Delta' }], nextCursor: null } };
+let release = null;
+const loadPage = (cursor) => { cursors.push(cursor); if (cursor === null) return Promise.resolve(pages.first); return new Promise((resolve) => { release = () => resolve(pages[cursor]); }); };
+const { getByText, getAllByRole, getByRole, queryByRole, queryByText } = render({ loadPage });
+await waitFor(() => getByRole('button', { name: 'Load more' }));
+fireEvent.click(getByRole('button', { name: 'Load more' }));
+expect(cursors).toEqual([null, 'c2']);
+expect(getByText('Loading...')).toBeTruthy();
+expect(queryByRole('button', { name: 'Load more' })).toBeNull();
+expect(getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Alpha', 'Beta']);
+release();
+await waitFor(() => getByRole('button', { name: 'Load more' }));
+expect(getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Alpha', 'Beta', 'Gamma']);
+expect(getAllByRole('list')).toHaveLength(1);
+fireEvent.click(getByRole('button', { name: 'Load more' }));
+expect(cursors).toEqual([null, 'c2', 'c3']);
+release();
+await waitFor(() => getByText('No more posts'));
+expect(getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Alpha', 'Beta', 'Gamma', 'Delta']);
+expect(queryByText('Loading...')).toBeNull();`,
+      },
+      {
+        name: 'the last page shows No more posts and no button',
+        code: `const loadPage = async () => ({ items: [{ id: 1, title: 'Only post' }], nextCursor: null });
+const { getByText, queryByRole, queryByText } = render({ loadPage });
+await waitFor(() => getByText('No more posts'));
+expect(getByText('Only post')).toBeTruthy();
+expect(queryByRole('button', { name: 'Load more' })).toBeNull();
+expect(queryByText('No posts yet')).toBeNull();`,
+      },
+      {
+        name: 'an empty feed shows No posts yet',
+        code: `const loadPage = async () => ({ items: [], nextCursor: null });
+const { getByText, queryByRole, queryByText } = render({ loadPage });
+await waitFor(() => getByText('No posts yet'));
+expect(queryByText('No more posts')).toBeNull();
+expect(queryByText('Loading...')).toBeNull();
+expect(queryByRole('button', { name: 'Load more' })).toBeNull();
+expect(queryByRole('listitem')).toBeNull();`,
+      },
+      {
+        name: 'a failed page keeps the posts and Retry repeats the same cursor',
+        code: `const cursors = [];
+let failNext = true;
+const loadPage = async (cursor) => {
+  cursors.push(cursor);
+  if (cursor === null) return { items: [{ id: 1, title: 'Alpha' }], nextCursor: 'c2' };
+  if (failNext) { failNext = false; throw new Error('offline'); }
+  return { items: [{ id: 2, title: 'Beta' }], nextCursor: null };
+};
+const { getByText, getAllByRole, getByRole, queryByRole, queryByText } = render({ loadPage });
+await waitFor(() => getByRole('button', { name: 'Load more' }));
+fireEvent.click(getByRole('button', { name: 'Load more' }));
+await waitFor(() => getByRole('alert'));
+expect(getByRole('alert').textContent).toBe('Could not load posts');
+expect(getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Alpha']);
+expect(queryByRole('button', { name: 'Load more' })).toBeNull();
+expect(queryByText('Loading...')).toBeNull();
+fireEvent.click(getByRole('button', { name: 'Retry' }));
+expect(queryByRole('alert')).toBeNull();
+expect(getByText('Loading...')).toBeTruthy();
+await waitFor(() => getByText('No more posts'));
+expect(cursors).toEqual([null, 'c2', 'c2']);
+expect(getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Alpha', 'Beta']);
+expect(queryByRole('button', { name: 'Retry' })).toBeNull();`,
+      },
+      {
+        name: 'a failing first page can be retried',
+        code: `let attempts = 0;
+const loadPage = async (cursor) => { attempts += 1; if (attempts === 1) throw new Error('boom'); return { items: [{ id: 1, title: 'Alpha' }], nextCursor: null }; };
+const { getByText, getByRole, queryByText } = render({ loadPage });
+await waitFor(() => getByRole('alert'));
+expect(queryByText('No posts yet')).toBeNull();
+fireEvent.click(getByRole('button', { name: 'Retry' }));
+await waitFor(() => getByText('Alpha'));
+expect(getByText('No more posts')).toBeTruthy();`,
+      },
+    ],
+    hint: `Keep four things: the posts so far, the cursor for the NEXT request, a status (\`loading\`, \`idle\`, \`error\`) and whether the end was reached. One \`fetchPage(cursor)\` function sets the status to loading, then appends with \`setPosts((prev) => prev.concat(page.items))\`. Because the cursor only advances on success, Retry can simply call \`fetchPage\` with the cursor you already have.`,
+    explanation: `Cursor pagination is a small state machine around an accumulating list.
+
+The list only grows: each successful page is appended with a functional update (\`prev.concat(page.items)\`), so nothing depends on a stale copy of the array. Replacing the list with the newest page is the most common bug and is what the append test catches.
+
+Next to the list, the component tracks which cursor to request next, whether a request is running, whether the last one failed and whether the server said there is nothing more (\`nextCursor === null\`). The reference stores the cursor in state and advances it only inside the success branch. That makes Retry trivial: the cursor still points at the page that failed, so the same \`fetchPage(cursor)\` call repeats the request.
+
+The UI is derived from the status. \`loading\` shows the Loading line and hides every button, which also prevents double requests. \`error\` shows the alert and Retry. Otherwise it shows \`Load more\`, or one of the two end messages depending on whether any posts are on screen. The first page is requested from an effect with an empty dependency array, and every later page from a click handler.
+
+Each page costs one request and an O(k) append for its k items.`,
+    solution: `import React, { useState, useEffect } from 'react';
+
+export default function PostFeed({ loadPage }) {
+  const [posts, setPosts] = useState([]);
+  const [cursor, setCursor] = useState(null);
+  const [status, setStatus] = useState('loading');
+  const [done, setDone] = useState(false);
+
+  function fetchPage(at) {
+    setStatus('loading');
+    loadPage(at).then(
+      (page) => {
+        setPosts((prev) => prev.concat(page.items));
+        setCursor(page.nextCursor);
+        setDone(page.nextCursor === null);
+        setStatus('idle');
+      },
+      () => setStatus('error')
+    );
+  }
+
+  useEffect(() => {
+    fetchPage(null);
+  }, []);
+
+  return (
+    <div>
+      <ul>
+        {posts.map((post) => <li key={post.id}>{post.title}</li>)}
+      </ul>
+      {status === 'loading' && <p>Loading...</p>}
+      {status === 'error' && (
+        <div>
+          <p role="alert">Could not load posts</p>
+          <button type="button" onClick={() => fetchPage(cursor)}>Retry</button>
+        </div>
+      )}
+      {status === 'idle' && !done && (
+        <button type="button" onClick={() => fetchPage(cursor)}>Load more</button>
+      )}
+      {status === 'idle' && done && (
+        <p>{posts.length > 0 ? 'No more posts' : 'No posts yet'}</p>
+      )}
+    </div>
+  );
+}
+`,
+  },
+  {
+    id: 'react-refresh-keep-stale',
+    number: 86,
+    title: 'Refresh Without Losing the Old Data',
+    difficulty: 'Medium',
+    topic: 'Async & Data',
+    statement: `Build \`QuoteCard({ load })\`. \`load()\` returns a Promise of \`{ price, time }\` (a number and a string) and may reject with an \`Error\`.
+
+First load:
+- Call \`load()\` once on mount. Until it settles render only \`<p>Loading...</p>\`.
+- If it rejects, render \`<p role="alert">Could not load: <error.message></p>\` and a button \`Try again\`. \`Try again\` starts the first load over (back to \`Loading...\`, alert gone).
+
+After a successful load render:
+- \`<p data-testid="price">Price: <price></p>\` and \`<p data-testid="updated">Updated: <time></p>\`.
+- A button \`Refresh\` that calls \`load()\` again.
+
+Refreshing must keep the old data on screen:
+- While a refresh is pending, the previous price and time stay visible, \`Loading...\` is NOT shown, and the button is disabled and reads \`Refreshing...\`.
+- When the refresh resolves, show the new price and time and a normal \`Refresh\` button.
+- When the refresh rejects, keep the previous price and time, show \`<p role="alert">Refresh failed: <error.message></p>\` and a normal \`Refresh\` button.
+- The \`Refresh failed\` alert disappears as soon as the next refresh starts.`,
+    componentName: 'QuoteCard',
+    starter: `import React, { useState, useEffect } from 'react';
+
+export default function QuoteCard({ load }) {
+  const [quote, setQuote] = useState(null);
+  // TODO: first load, refresh that keeps the old quote, both error cases
+  return (
+    <div>
+      <p>Loading...</p>
+    </div>
+  );
+}
+`,
+    previewProps: {},
+    previewSetup: `let n = 0;
+return {
+  load: () => new Promise((resolve, reject) => setTimeout(() => {
+    n += 1;
+    if (n % 3 === 0) reject(new Error('Server busy'));
+    else resolve({ price: 100 + n * 3, time: '10:0' + (n % 10) });
+  }, 700)),
+};`,
+    tests: [
+      {
+        name: 'shows Loading... and then the first quote',
+        code: `const pending = [];
+const load = () => new Promise((resolve, reject) => { pending.push({ resolve, reject }); });
+const { getByText, getByTestId, getByRole, queryByText, queryByTestId, queryByRole } = render({ load });
+expect(getByText('Loading...')).toBeTruthy();
+expect(queryByTestId('price')).toBeNull();
+expect(queryByRole('button')).toBeNull();
+expect(pending).toHaveLength(1);
+pending[0].resolve({ price: 101, time: '09:30' });
+await waitFor(() => getByTestId('price'));
+expect(getByTestId('price').textContent).toBe('Price: 101');
+expect(getByTestId('updated').textContent).toBe('Updated: 09:30');
+expect(queryByText('Loading...')).toBeNull();
+expect(getByRole('button', { name: 'Refresh' })).not.toBeDisabled();`,
+      },
+      {
+        name: 'a refresh keeps the old quote visible until the new one arrives',
+        code: `const pending = [];
+const load = () => new Promise((resolve, reject) => { pending.push({ resolve, reject }); });
+const { getByTestId, getByRole, queryByText, queryByRole } = render({ load });
+pending[0].resolve({ price: 101, time: '09:30' });
+await waitFor(() => getByTestId('price'));
+fireEvent.click(getByRole('button', { name: 'Refresh' }));
+expect(pending).toHaveLength(2);
+expect(getByTestId('price').textContent).toBe('Price: 101');
+expect(getByTestId('updated').textContent).toBe('Updated: 09:30');
+expect(queryByText('Loading...')).toBeNull();
+expect(getByRole('button', { name: 'Refreshing...' })).toBeDisabled();
+expect(queryByRole('button', { name: 'Refresh' })).toBeNull();
+pending[1].resolve({ price: 107, time: '09:31' });
+await waitFor(() => expect(getByTestId('price').textContent).toBe('Price: 107'));
+expect(getByTestId('updated').textContent).toBe('Updated: 09:31');
+expect(getByRole('button', { name: 'Refresh' })).not.toBeDisabled();`,
+      },
+      {
+        name: 'a failed refresh keeps the old quote and shows Refresh failed',
+        code: `const pending = [];
+const load = () => new Promise((resolve, reject) => { pending.push({ resolve, reject }); });
+const { getByTestId, getByRole, queryByRole } = render({ load });
+pending[0].resolve({ price: 55, time: '12:00' });
+await waitFor(() => getByTestId('price'));
+fireEvent.click(getByRole('button', { name: 'Refresh' }));
+pending[1].reject(new Error('Server busy'));
+await waitFor(() => getByRole('alert'));
+expect(getByRole('alert').textContent).toBe('Refresh failed: Server busy');
+expect(getByTestId('price').textContent).toBe('Price: 55');
+expect(getByTestId('updated').textContent).toBe('Updated: 12:00');
+expect(getByRole('button', { name: 'Refresh' })).not.toBeDisabled();
+fireEvent.click(getByRole('button', { name: 'Refresh' }));
+expect(queryByRole('alert')).toBeNull();
+expect(getByTestId('price').textContent).toBe('Price: 55');
+pending[2].resolve({ price: 58, time: '12:02' });
+await waitFor(() => expect(getByTestId('price').textContent).toBe('Price: 58'));
+expect(queryByRole('alert')).toBeNull();`,
+      },
+      {
+        name: 'a failed first load offers Try again',
+        code: `const pending = [];
+const load = () => new Promise((resolve, reject) => { pending.push({ resolve, reject }); });
+const { getByTestId, getByRole, getByText, queryByRole, queryByText, queryByTestId } = render({ load });
+pending[0].reject(new Error('No network'));
+await waitFor(() => getByRole('alert'));
+expect(getByRole('alert').textContent).toBe('Could not load: No network');
+expect(queryByText('Loading...')).toBeNull();
+expect(queryByTestId('price')).toBeNull();
+expect(queryByRole('button', { name: 'Refresh' })).toBeNull();
+fireEvent.click(getByRole('button', { name: 'Try again' }));
+expect(getByText('Loading...')).toBeTruthy();
+expect(queryByRole('alert')).toBeNull();
+expect(pending).toHaveLength(2);
+pending[1].resolve({ price: 9, time: '08:00' });
+await waitFor(() => getByTestId('price'));
+expect(getByTestId('price').textContent).toBe('Price: 9');
+expect(queryByRole('button', { name: 'Try again' })).toBeNull();`,
+      },
+      {
+        name: 'load runs once on mount and once per refresh',
+        code: `let calls = 0;
+const load = async () => { calls += 1; return { price: calls * 10, time: 't' + calls }; };
+const { getByTestId, getByRole } = render({ load });
+await waitFor(() => getByTestId('price'));
+expect(calls).toBe(1);
+fireEvent.click(getByRole('button', { name: 'Refresh' }));
+await waitFor(() => expect(getByTestId('price').textContent).toBe('Price: 20'));
+fireEvent.click(getByRole('button', { name: 'Refresh' }));
+await waitFor(() => expect(getByTestId('price').textContent).toBe('Price: 30'));
+expect(getByTestId('updated').textContent).toBe('Updated: t3');
+expect(calls).toBe(3);`,
+      },
+    ],
+    hint: `Do not model this as a single \`loading\` flag that hides everything. Keep the data (\`quote\`, possibly null), a \`busy\` flag and an \`error\` message as separate pieces of state. What to draw depends on whether you HAVE data: no data means the first-load screens, data means the card plus an optional refresh state on top.`,
+    explanation: `A plain "loading / error / data" switch throws the data away whenever a request starts, so every refresh flashes a spinner and a failed refresh leaves the user with nothing. The better model keeps the last good data and treats "a request is running" and "the last request failed" as extra facts next to it.
+
+The reference stores three independent values: \`quote\` (null until the first success), \`busy\` and \`error\`. One \`run()\` function sets \`busy\`, clears \`error\`, calls \`load()\`, and on success replaces \`quote\`, on failure stores the message. It never clears \`quote\`. Rendering then branches on whether a quote exists. Without one, the component is in first-load territory: \`Loading...\` while busy, or the \`Could not load\` alert with \`Try again\`. With one, it always shows the price and time, and layers the refresh state on top: a disabled \`Refreshing...\` button while busy, or the \`Refresh failed\` alert.
+
+Clearing \`error\` at the start of \`run()\` is what removes the alert the moment a new attempt begins. Disabling the button while busy prevents overlapping requests, so no stale-response guard is needed here. Each attempt is one call to \`load\`.`,
+    solution: `import React, { useState, useEffect } from 'react';
+
+export default function QuoteCard({ load }) {
+  const [quote, setQuote] = useState(null);
+  const [busy, setBusy] = useState(true);
+  const [error, setError] = useState(null);
+
+  function run() {
+    setBusy(true);
+    setError(null);
+    load().then(
+      (next) => {
+        setQuote(next);
+        setBusy(false);
+      },
+      (err) => {
+        setError(err && err.message ? err.message : String(err));
+        setBusy(false);
+      }
+    );
+  }
+
+  useEffect(() => {
+    run();
+  }, []);
+
+  if (quote === null) {
+    if (busy) return <div><p>Loading...</p></div>;
+    return (
+      <div>
+        <p role="alert">{'Could not load: ' + error}</p>
+        <button type="button" onClick={run}>Try again</button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p data-testid="price">{'Price: ' + quote.price}</p>
+      <p data-testid="updated">{'Updated: ' + quote.time}</p>
+      {error !== null && <p role="alert">{'Refresh failed: ' + error}</p>}
+      <button type="button" disabled={busy} onClick={run}>{busy ? 'Refreshing...' : 'Refresh'}</button>
+    </div>
+  );
+}
+`,
+  },
+  {
+    id: 'react-optimistic-delete-rollback',
+    number: 87,
+    title: 'Optimistic Delete with Rollback',
+    difficulty: 'Hard',
+    topic: 'Async & Data',
+    statement: `Build \`BookmarkList({ initialBookmarks, deleteBookmark })\`. \`initialBookmarks\` is an array of \`{ id, title }\` with unique ids and titles. \`deleteBookmark(id)\` returns a Promise that resolves when the server deleted the bookmark and rejects when it could not.
+
+Render:
+- One \`<li>\` per visible bookmark, in the order of \`initialBookmarks\`. Each \`<li>\` contains \`<span data-testid="title"><title></span>\` and a button with \`aria-label="Delete <title>"\`.
+- \`<p data-testid="count">Bookmarks: <number of visible bookmarks></p>\`.
+- \`<p>No bookmarks</p>\` when no bookmark is visible.
+
+Deleting is optimistic:
+- Clicking a Delete button hides that bookmark IMMEDIATELY (before the promise settles) and calls \`deleteBookmark(id)\` once.
+- If the promise resolves, the bookmark stays gone.
+- If it rejects, the bookmark comes back in its ORIGINAL position (the order of \`initialBookmarks\` among the visible ones) and \`<p role="alert">Could not delete <title></p>\` is rendered.
+- Several deletes can be in flight at once and each settles on its own. A failed delete brings back only its own bookmark: it must not bring back another bookmark whose delete succeeded or is still pending.
+- Only one alert is shown, for the most recent failure. Clicking any Delete button removes the alert.`,
+    componentName: 'BookmarkList',
+    starter: `import React, { useState } from 'react';
+
+export default function BookmarkList({ initialBookmarks, deleteBookmark }) {
+  const [bookmarks, setBookmarks] = useState(initialBookmarks);
+  // TODO: hide optimistically, call deleteBookmark, roll back on failure
+  return (
+    <div>
+      <ul>
+        {bookmarks.map((b) => (
+          <li key={b.id}>
+            <span data-testid="title">{b.title}</span>
+            <button type="button" aria-label={'Delete ' + b.title}>Delete</button>
+          </li>
+        ))}
+      </ul>
+      <p data-testid="count">Bookmarks: {bookmarks.length}</p>
+    </div>
+  );
+}
+`,
+    previewProps: {"initialBookmarks": [{"id": 1, "title": "React docs"}, {"id": 2, "title": "MDN"}, {"id": 3, "title": "Protected page"}, {"id": 4, "title": "Can I use"}]},
+    previewSetup: `return { deleteBookmark: (id) => new Promise((resolve, reject) => setTimeout(() => (id === 3 ? reject(new Error('locked')) : resolve()), 800)) };`,
+    tests: [
+      {
+        name: 'renders the bookmarks in order with a count',
+        code: `const data = [{ id: 1, title: 'Docs' }, { id: 2, title: 'Blog' }, { id: 3, title: 'Wiki' }];
+const { container, getByTestId, getAllByRole, queryByText, queryByRole } = render({ initialBookmarks: data, deleteBookmark: async () => {} });
+expect(Array.from(container.querySelectorAll('[data-testid="title"]')).map((el) => el.textContent)).toEqual(['Docs', 'Blog', 'Wiki']);
+expect(getAllByRole('listitem')).toHaveLength(3);
+expect(getByTestId('count').textContent).toBe('Bookmarks: 3');
+expect(queryByText('No bookmarks')).toBeNull();
+expect(queryByRole('alert')).toBeNull();`,
+      },
+      {
+        name: 'a click hides the bookmark before the server answers',
+        code: `const data = [{ id: 1, title: 'Docs' }, { id: 2, title: 'Blog' }, { id: 3, title: 'Wiki' }];
+const calls = [];
+const settle = {};
+const deleteBookmark = (id) => new Promise((resolve, reject) => { calls.push(id); settle[id] = { resolve, reject }; });
+const { container, getByTestId, getByLabelText } = render({ initialBookmarks: data, deleteBookmark });
+const titles = () => Array.from(container.querySelectorAll('[data-testid="title"]')).map((el) => el.textContent);
+fireEvent.click(getByLabelText('Delete Blog'));
+expect(titles()).toEqual(['Docs', 'Wiki']);
+expect(getByTestId('count').textContent).toBe('Bookmarks: 2');
+expect(calls).toEqual([2]);
+settle[2].resolve();
+await sleep(20);
+expect(titles()).toEqual(['Docs', 'Wiki']);
+expect(container.querySelector('[role="alert"]')).toBeNull();`,
+      },
+      {
+        name: 'a rejected delete restores the bookmark in its original position',
+        code: `const data = [{ id: 1, title: 'Docs' }, { id: 2, title: 'Blog' }, { id: 3, title: 'Wiki' }];
+const settle = {};
+const deleteBookmark = (id) => new Promise((resolve, reject) => { settle[id] = { resolve, reject }; });
+const { container, getByTestId, getByLabelText, getByRole } = render({ initialBookmarks: data, deleteBookmark });
+const titles = () => Array.from(container.querySelectorAll('[data-testid="title"]')).map((el) => el.textContent);
+fireEvent.click(getByLabelText('Delete Blog'));
+expect(titles()).toEqual(['Docs', 'Wiki']);
+settle[2].reject(new Error('nope'));
+await waitFor(() => getByRole('alert'));
+expect(getByRole('alert').textContent).toBe('Could not delete Blog');
+expect(titles()).toEqual(['Docs', 'Blog', 'Wiki']);
+expect(getByTestId('count').textContent).toBe('Bookmarks: 3');`,
+      },
+      {
+        name: 'a failure does not bring back a bookmark that was deleted successfully',
+        code: `const data = [{ id: 1, title: 'Docs' }, { id: 2, title: 'Blog' }, { id: 3, title: 'Wiki' }, { id: 4, title: 'News' }];
+const settle = {};
+const deleteBookmark = (id) => new Promise((resolve, reject) => { settle[id] = { resolve, reject }; });
+const { container, getByLabelText, getByRole } = render({ initialBookmarks: data, deleteBookmark });
+const titles = () => Array.from(container.querySelectorAll('[data-testid="title"]')).map((el) => el.textContent);
+fireEvent.click(getByLabelText('Delete Docs'));
+fireEvent.click(getByLabelText('Delete Wiki'));
+fireEvent.click(getByLabelText('Delete News'));
+expect(titles()).toEqual(['Blog']);
+settle[3].resolve();
+await sleep(10);
+settle[1].reject(new Error('nope'));
+await waitFor(() => getByRole('alert'));
+expect(getByRole('alert').textContent).toBe('Could not delete Docs');
+expect(titles()).toEqual(['Docs', 'Blog']);
+settle[4].reject(new Error('nope'));
+await waitFor(() => expect(getByRole('alert').textContent).toBe('Could not delete News'));
+expect(titles()).toEqual(['Docs', 'Blog', 'News']);
+expect(container.querySelectorAll('[role="alert"]')).toHaveLength(1);`,
+      },
+      {
+        name: 'the alert goes away on the next Delete click',
+        code: `const data = [{ id: 1, title: 'Docs' }, { id: 2, title: 'Blog' }];
+const settle = {};
+const deleteBookmark = (id) => new Promise((resolve, reject) => { settle[id] = { resolve, reject }; });
+const { getByLabelText, getByRole, queryByRole } = render({ initialBookmarks: data, deleteBookmark });
+fireEvent.click(getByLabelText('Delete Docs'));
+settle[1].reject(new Error('nope'));
+await waitFor(() => getByRole('alert'));
+fireEvent.click(getByLabelText('Delete Blog'));
+expect(queryByRole('alert')).toBeNull();`,
+      },
+      {
+        name: 'deleting everything shows No bookmarks',
+        code: `const data = [{ id: 1, title: 'Docs' }, { id: 2, title: 'Blog' }];
+const { container, getByLabelText, getByText, getByTestId } = render({ initialBookmarks: data, deleteBookmark: async () => {} });
+fireEvent.click(getByLabelText('Delete Docs'));
+fireEvent.click(getByLabelText('Delete Blog'));
+expect(getByText('No bookmarks')).toBeTruthy();
+expect(getByTestId('count').textContent).toBe('Bookmarks: 0');
+await sleep(20);
+expect(container.querySelectorAll('[data-testid="title"]')).toHaveLength(0);
+expect(getByText('No bookmarks')).toBeTruthy();`,
+      },
+    ],
+    hint: `Restoring a snapshot of the whole list (\`setBookmarks(listBeforeTheClick)\`) undoes every other delete that happened in the meantime. Instead of removing items from an array, keep a set of hidden ids and derive the visible list from \`initialBookmarks\`. Rolling back is then "take this one id out of the set", always with a functional update.`,
+    explanation: `Optimistic UI means acting as if the server already agreed, and undoing the action if it did not. The hard part is the undo when several requests overlap.
+
+The obvious rollback saves the list before the click and puts it back on failure. That snapshot is a picture of the past: if another delete succeeded since then, restoring the picture resurrects that bookmark as well. The fourth test deletes three bookmarks, lets one succeed and then fails another to expose exactly this.
+
+The reference never edits the list. It keeps a \`Set\` of hidden ids and computes \`visible = initialBookmarks.filter((b) => !hidden.has(b.id))\` during render. Deleting adds one id, a rejection removes that same id, and both use functional updates (\`setHidden((prev) => ...)\`) so each change is applied to the latest set and not to the one captured when the click happened. Because the visible list is always filtered from the original array, a restored bookmark reappears in its original position without any index bookkeeping.
+
+The alert is a separate piece of state holding the title of the last failure. It is cleared at the start of every delete click. Each render filters the list once, O(n).`,
+    solution: `import React, { useState } from 'react';
+
+export default function BookmarkList({ initialBookmarks, deleteBookmark }) {
+  const [hidden, setHidden] = useState(() => new Set());
+  const [failedTitle, setFailedTitle] = useState(null);
+
+  function remove(bookmark) {
+    setFailedTitle(null);
+    setHidden((prev) => {
+      const next = new Set(prev);
+      next.add(bookmark.id);
+      return next;
+    });
+    deleteBookmark(bookmark.id).catch(() => {
+      setHidden((prev) => {
+        const next = new Set(prev);
+        next.delete(bookmark.id);
+        return next;
+      });
+      setFailedTitle(bookmark.title);
+    });
+  }
+
+  const visible = initialBookmarks.filter((b) => !hidden.has(b.id));
+
+  return (
+    <div>
+      {failedTitle !== null && <p role="alert">{'Could not delete ' + failedTitle}</p>}
+      <ul>
+        {visible.map((b) => (
+          <li key={b.id}>
+            <span data-testid="title">{b.title}</span>{' '}
+            <button type="button" aria-label={'Delete ' + b.title} onClick={() => remove(b)}>Delete</button>
+          </li>
+        ))}
+      </ul>
+      {visible.length === 0 && <p>No bookmarks</p>}
+      <p data-testid="count">{'Bookmarks: ' + visible.length}</p>
+    </div>
+  );
+}
+`,
+  },
+  {
+    id: 'react-abortable-city-search',
+    number: 88,
+    title: 'Cancelling Requests with AbortController',
+    difficulty: 'Hard',
+    topic: 'Async & Data',
+    statement: `Build \`CitySearch({ search })\`. \`search(query, signal)\` returns a Promise of an array of city names. \`signal\` is an \`AbortSignal\`: when it is aborted the request is cancelled and its promise usually rejects with an \`AbortError\`.
+
+Render a text input with \`aria-label="City"\`. There is no debounce: every change of the input starts a new search.
+
+For each change:
+- A query that is empty or only spaces is "empty": do not call \`search\`, and render no list and none of the messages below.
+- Otherwise create a NEW \`AbortController\` and call \`search(query, controller.signal)\` with the query exactly as typed.
+- Before that (and also when the query becomes empty, and when the component unmounts) call \`abort()\` on the controller of the previous request, so the earlier call's \`signal.aborted\` becomes \`true\`.
+
+What to show for a non-empty query:
+- While the latest request is pending: \`<p>Searching...</p>\` and no list from an earlier query.
+- When it resolves with cities: a \`<ul>\` with one \`<li>\` per city, in the given order.
+- When it resolves with an empty array: \`<p>No cities found</p>\`.
+- When it rejects and was NOT aborted: \`<p role="alert">Search failed</p>\`.
+
+A request that has been aborted must never change the screen, whether its promise rejects (no \`Search failed\` for a cancelled request) or resolves late (its cities are ignored).`,
+    componentName: 'CitySearch',
+    starter: `import React, { useState, useEffect } from 'react';
+
+export default function CitySearch({ search }) {
+  const [query, setQuery] = useState('');
+  // TODO: search on every change, abort the previous request, ignore aborted results
+  return (
+    <div>
+      <input aria-label="City" value={query} onChange={(e) => setQuery(e.target.value)} />
+    </div>
+  );
+}
+`,
+    previewProps: {},
+    previewSetup: `const cities = ['Amsterdam', 'Athens', 'Auckland', 'Berlin', 'Bern', 'Bogota', 'Boston', 'Lima', 'Lisbon', 'London'];
+return {
+  search: (query, signal) => new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve(cities.filter((c) => c.toLowerCase().startsWith(query.trim().toLowerCase()))), 600);
+    signal.addEventListener('abort', () => { clearTimeout(timer); const e = new Error('Aborted'); e.name = 'AbortError'; reject(e); });
+  }),
+};`,
+    tests: [
+      {
+        name: 'calls search with the query and a live signal, then lists the cities',
+        code: `const calls = [];
+const search = (query, signal) => new Promise((resolve, reject) => { calls.push({ query, signal, resolve, reject }); });
+const { getByLabelText, getByText, getAllByRole, queryByText, queryByRole } = render({ search });
+expect(calls).toHaveLength(0);
+expect(queryByText('Searching...')).toBeNull();
+fireEvent.change(getByLabelText('City'), 'Li');
+expect(calls).toHaveLength(1);
+expect(calls[0].query).toBe('Li');
+expect(typeof calls[0].signal.addEventListener).toBe('function');
+expect(calls[0].signal.aborted).toBe(false);
+expect(getByText('Searching...')).toBeTruthy();
+calls[0].resolve(['Lima', 'Lisbon']);
+await waitFor(() => getAllByRole('listitem'));
+expect(getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Lima', 'Lisbon']);
+expect(queryByText('Searching...')).toBeNull();
+expect(calls[0].signal.aborted).toBe(false);
+expect(queryByRole('alert')).toBeNull();`,
+      },
+      {
+        name: 'a new query aborts the previous request without showing an error',
+        code: `const calls = [];
+const search = (query, signal) => new Promise((resolve, reject) => {
+  calls.push({ query, signal, resolve, reject });
+  signal.addEventListener('abort', () => { const e = new Error('Aborted'); e.name = 'AbortError'; reject(e); });
+});
+const { getByLabelText, getByText, getAllByRole, queryByRole } = render({ search });
+fireEvent.change(getByLabelText('City'), 'B');
+fireEvent.change(getByLabelText('City'), 'Be');
+expect(calls.map((c) => c.query)).toEqual(['B', 'Be']);
+expect(calls[0].signal.aborted).toBe(true);
+expect(calls[1].signal.aborted).toBe(false);
+expect(calls[0].signal).not.toBe(calls[1].signal);
+await sleep(20);
+expect(queryByRole('alert')).toBeNull();
+expect(getByText('Searching...')).toBeTruthy();
+calls[1].resolve(['Berlin', 'Bern']);
+await waitFor(() => getAllByRole('listitem'));
+expect(getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Berlin', 'Bern']);
+expect(queryByRole('alert')).toBeNull();`,
+      },
+      {
+        name: 'a cancelled request that resolves late is ignored',
+        code: `const calls = [];
+const search = (query, signal) => new Promise((resolve, reject) => { calls.push({ query, signal, resolve, reject }); });
+const { getByLabelText, getAllByRole } = render({ search });
+fireEvent.change(getByLabelText('City'), 'A');
+fireEvent.change(getByLabelText('City'), 'At');
+calls[1].resolve(['Athens']);
+await waitFor(() => getAllByRole('listitem'));
+calls[0].resolve(['Amsterdam', 'Athens', 'Auckland']);
+await sleep(30);
+expect(getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Athens']);`,
+      },
+      {
+        name: 'an empty result and a real failure have their own messages',
+        code: `const calls = [];
+const search = (query, signal) => new Promise((resolve, reject) => { calls.push({ query, signal, resolve, reject }); });
+const { getByLabelText, getByText, getByRole, queryByRole, queryByText } = render({ search });
+fireEvent.change(getByLabelText('City'), 'Zz');
+calls[0].resolve([]);
+await waitFor(() => getByText('No cities found'));
+expect(queryByRole('listitem')).toBeNull();
+fireEvent.change(getByLabelText('City'), 'Zzz');
+expect(queryByText('No cities found')).toBeNull();
+expect(getByText('Searching...')).toBeTruthy();
+calls[1].reject(new Error('500'));
+await waitFor(() => getByRole('alert'));
+expect(getByRole('alert').textContent).toBe('Search failed');
+expect(queryByText('Searching...')).toBeNull();
+fireEvent.change(getByLabelText('City'), 'Zzzz');
+expect(queryByRole('alert')).toBeNull();
+expect(getByText('Searching...')).toBeTruthy();`,
+      },
+      {
+        name: 'clearing the input aborts the request and clears the screen',
+        code: `const calls = [];
+const search = (query, signal) => new Promise((resolve, reject) => { calls.push({ query, signal, resolve, reject }); });
+const { getByLabelText, getAllByRole, queryByText, queryByRole } = render({ search });
+fireEvent.change(getByLabelText('City'), 'Bo');
+calls[0].resolve(['Bogota', 'Boston']);
+await waitFor(() => getAllByRole('listitem'));
+fireEvent.change(getByLabelText('City'), 'Bos');
+fireEvent.change(getByLabelText('City'), '');
+expect(calls).toHaveLength(2);
+expect(calls[1].signal.aborted).toBe(true);
+expect(queryByRole('listitem')).toBeNull();
+expect(queryByText('Searching...')).toBeNull();
+fireEvent.change(getByLabelText('City'), '   ');
+expect(calls).toHaveLength(2);
+expect(queryByText('Searching...')).toBeNull();
+expect(queryByText('No cities found')).toBeNull();
+calls[1].resolve(['Boston']);
+await sleep(30);
+expect(queryByRole('listitem')).toBeNull();`,
+      },
+      {
+        name: 'unmounting aborts the request in flight',
+        code: `const calls = [];
+const search = (query, signal) => new Promise((resolve, reject) => { calls.push({ query, signal, resolve, reject }); });
+const { getByLabelText, unmount } = render({ search });
+fireEvent.change(getByLabelText('City'), 'Lon');
+expect(calls[0].signal.aborted).toBe(false);
+unmount();
+expect(calls[0].signal.aborted).toBe(true);`,
+      },
+    ],
+    hint: `Run the request in an effect keyed on the query. Create the controller inside the effect, pass \`controller.signal\` to \`search\`, and return \`() => controller.abort()\` as the cleanup: React calls it before the next query's effect and on unmount. In BOTH promise callbacks, first check \`controller.signal.aborted\` and do nothing if it is true.`,
+    explanation: `Ignoring a stale response with a boolean flag fixes the screen, but the request itself keeps running and wasting bandwidth. \`AbortController\` cancels the work as well: the controller's \`signal\` goes to the request, and \`controller.abort()\` flips \`signal.aborted\` and tells the request to stop.
+
+The effect lifecycle maps onto this exactly. One effect run equals one request. The effect creates a controller, starts the search and returns a cleanup that aborts. React runs that cleanup before the effect for the next query and when the component unmounts, so there is never more than one live request. For an empty query the effect resets the view and returns without starting anything, but the previous run's cleanup has already aborted the old request.
+
+Cancelling has a side effect people forget: an aborted request rejects. A \`.catch\` that blindly shows an error turns every keystroke into a flash of \`Search failed\`. So both the success and the failure handler begin with \`if (controller.signal.aborted) return;\`. That one check covers rejections caused by the abort and also servers that ignore the signal and answer late.
+
+The view is a single state object with a \`status\` (\`idle\`, \`loading\`, \`done\`, \`error\`), set to \`loading\` at the start of each run, which is what clears older results while a new request is pending. Each change costs one request.`,
+    solution: `import React, { useState, useEffect } from 'react';
+
+export default function CitySearch({ search }) {
+  const [query, setQuery] = useState('');
+  const [view, setView] = useState({ status: 'idle', cities: [] });
+
+  useEffect(() => {
+    if (query.trim() === '') {
+      setView({ status: 'idle', cities: [] });
+      return undefined;
+    }
+    const controller = new AbortController();
+    setView({ status: 'loading', cities: [] });
+    search(query, controller.signal).then(
+      (cities) => {
+        if (controller.signal.aborted) return;
+        setView({ status: 'done', cities });
+      },
+      () => {
+        if (controller.signal.aborted) return;
+        setView({ status: 'error', cities: [] });
+      }
+    );
+    return () => controller.abort();
+  }, [query, search]);
+
+  return (
+    <div>
+      <input aria-label="City" value={query} onChange={(e) => setQuery(e.target.value)} />
+      {view.status === 'loading' && <p>Searching...</p>}
+      {view.status === 'error' && <p role="alert">Search failed</p>}
+      {view.status === 'done' && view.cities.length === 0 && <p>No cities found</p>}
+      {view.status === 'done' && view.cities.length > 0 && (
+        <ul>
+          {view.cities.map((city) => <li key={city}>{city}</li>)}
+        </ul>
+      )}
+    </div>
+  );
+}
+`,
+  },
+  {
+    id: 'react-door-state-machine',
+    number: 89,
+    title: 'Door Lock State Machine',
+    difficulty: 'Easy',
+    topic: 'State & Events',
+    statement: `Build \`DoorControl({ initialState = 'closed' })\`, a door modelled as a small state machine with \`useReducer\`.
+
+The door is always in exactly one of three states: \`open\`, \`closed\` or \`locked\`. Only these four moves are allowed:
+
+- \`Open\`: from \`closed\` to \`open\`
+- \`Close\`: from \`open\` to \`closed\`
+- \`Lock\`: from \`closed\` to \`locked\`
+- \`Unlock\`: from \`locked\` to \`closed\`
+
+So a locked door cannot be opened directly, and an open door cannot be locked.
+
+Render:
+- \`<p data-testid="state">Door is <state></p>\`, for example \`Door is closed\`.
+- Four buttons with the texts \`Open\`, \`Close\`, \`Lock\` and \`Unlock\`. A button is \`disabled\` whenever its move is not allowed in the current state.
+- \`<p data-testid="moves">Moves: <n></p>\`, the number of moves made so far (starts at 0).
+
+\`initialState\` is one of the three state names.`,
+    componentName: 'DoorControl',
+    starter: `import React, { useReducer } from 'react';
+
+export default function DoorControl({ initialState = 'closed' }) {
+  // TODO: a reducer that only allows the four legal moves
+  return (
+    <div>
+      <p data-testid="state">Door is {initialState}</p>
+      <button type="button">Open</button>
+      <button type="button">Close</button>
+      <button type="button">Lock</button>
+      <button type="button">Unlock</button>
+      <p data-testid="moves">Moves: 0</p>
+    </div>
+  );
+}
+`,
+    previewProps: {"initialState": "closed"},
+    tests: [
+      {
+        name: 'a closed door can be opened or locked, nothing else',
+        code: `const { getByTestId, getByRole } = render({});
+expect(getByTestId('state').textContent).toBe('Door is closed');
+expect(getByTestId('moves').textContent).toBe('Moves: 0');
+expect(getByRole('button', { name: 'Open' })).not.toBeDisabled();
+expect(getByRole('button', { name: 'Lock' })).not.toBeDisabled();
+expect(getByRole('button', { name: 'Close' })).toBeDisabled();
+expect(getByRole('button', { name: 'Unlock' })).toBeDisabled();`,
+      },
+      {
+        name: 'an open door can only be closed',
+        code: `const { getByTestId, getByRole } = render({ initialState: 'closed' });
+fireEvent.click(getByRole('button', { name: 'Open' }));
+expect(getByTestId('state').textContent).toBe('Door is open');
+expect(getByRole('button', { name: 'Close' })).not.toBeDisabled();
+expect(getByRole('button', { name: 'Open' })).toBeDisabled();
+expect(getByRole('button', { name: 'Lock' })).toBeDisabled();
+expect(getByRole('button', { name: 'Unlock' })).toBeDisabled();`,
+      },
+      {
+        name: 'a locked door can only be unlocked',
+        code: `const { getByTestId, getByRole } = render({ initialState: 'closed' });
+fireEvent.click(getByRole('button', { name: 'Lock' }));
+expect(getByTestId('state').textContent).toBe('Door is locked');
+expect(getByRole('button', { name: 'Unlock' })).not.toBeDisabled();
+expect(getByRole('button', { name: 'Open' })).toBeDisabled();
+expect(getByRole('button', { name: 'Close' })).toBeDisabled();
+expect(getByRole('button', { name: 'Lock' })).toBeDisabled();
+fireEvent.click(getByRole('button', { name: 'Unlock' }));
+expect(getByTestId('state').textContent).toBe('Door is closed');`,
+      },
+      {
+        name: 'counts every move through a full cycle',
+        code: `const { getByTestId, getByRole } = render({ initialState: 'closed' });
+fireEvent.click(getByRole('button', { name: 'Open' }));
+fireEvent.click(getByRole('button', { name: 'Close' }));
+fireEvent.click(getByRole('button', { name: 'Lock' }));
+expect(getByTestId('moves').textContent).toBe('Moves: 3');
+fireEvent.click(getByRole('button', { name: 'Unlock' }));
+fireEvent.click(getByRole('button', { name: 'Open' }));
+expect(getByTestId('state').textContent).toBe('Door is open');
+expect(getByTestId('moves').textContent).toBe('Moves: 5');`,
+      },
+      {
+        name: 'initialState picks the starting state',
+        code: `const a = render({ initialState: 'locked' });
+expect(a.getByTestId('state').textContent).toBe('Door is locked');
+expect(a.getByRole('button', { name: 'Unlock' })).not.toBeDisabled();
+expect(a.getByRole('button', { name: 'Open' })).toBeDisabled();
+const b = render({ initialState: 'open' });
+expect(b.getByTestId('state').textContent).toBe('Door is open');
+expect(b.getByRole('button', { name: 'Close' })).not.toBeDisabled();
+expect(b.getByRole('button', { name: 'Lock' })).toBeDisabled();
+expect(b.getByTestId('moves').textContent).toBe('Moves: 0');`,
+      },
+    ],
+    hint: `Write the rules as data: a table from state to the moves it allows and where each leads, for example \`closed: { Open: 'open', Lock: 'locked' }\`. The reducer looks the move up and returns the old state when there is no entry. The same table tells you which buttons to disable.`,
+    explanation: `A state machine replaces a pile of booleans (\`isOpen\`, \`isLocked\`) that can contradict each other with one value that is always valid. The impossible combination "open and locked" cannot even be written down.
+
+The rules live in a transition table, \`TRANSITIONS[state][move]\`, that gives the next state or \`undefined\`. The reducer looks the move up: if there is a next state it returns it with the move counter increased, otherwise it returns the previous state object unchanged, which makes React skip the re-render. Keeping the rule in the reducer means an illegal move is rejected no matter where it was dispatched from.
+
+The buttons read the same table: a button is disabled when \`TRANSITIONS[state][move]\` is missing. Since the table is the single source of truth, the UI and the logic cannot drift apart, and adding a state or a move is a one-line change. A hand-written \`if\` chain such as "Open is allowed unless the door is already open" is where bugs like opening a locked door come from.
+
+Every dispatch is an O(1) lookup.`,
+    solution: `import React, { useReducer } from 'react';
+
+const TRANSITIONS = {
+  closed: { Open: 'open', Lock: 'locked' },
+  open: { Close: 'closed' },
+  locked: { Unlock: 'closed' },
+};
+const MOVES = ['Open', 'Close', 'Lock', 'Unlock'];
+
+function doorReducer(state, move) {
+  const next = TRANSITIONS[state.door][move];
+  if (!next) return state;
+  return { door: next, moves: state.moves + 1 };
+}
+
+export default function DoorControl({ initialState = 'closed' }) {
+  const [state, dispatch] = useReducer(doorReducer, { door: initialState, moves: 0 });
+
+  return (
+    <div>
+      <p data-testid="state">{'Door is ' + state.door}</p>
+      {MOVES.map((move) => (
+        <button key={move} type="button" disabled={!TRANSITIONS[state.door][move]} onClick={() => dispatch(move)}>
+          {move}
+        </button>
+      ))}
+      <p data-testid="moves">{'Moves: ' + state.moves}</p>
+    </div>
+  );
+}
+`,
+  },
+  {
+    id: 'react-playlist-queue-reducer',
+    number: 90,
+    title: 'Playlist Queue Reducer',
+    difficulty: 'Medium',
+    topic: 'Performance & Hooks',
+    statement: `Build \`PlaylistQueue({ tracks })\` with ALL state changes in one \`useReducer\` reducer. \`tracks\` is the catalogue: an array of \`{ id, title }\` with unique ids and titles.
+
+The state is a play queue (an ordered list of tracks) plus which queued track is the current one. The queue starts empty.
+
+Render:
+- Catalogue: for every track a button \`Queue <title>\`. It is \`disabled\` while that track is in the queue.
+- Queue: one \`<li>\` per queued track, in queue order. Each \`<li>\` contains \`<span data-testid="queued"><title></span>\` and a button with \`aria-label="Remove <title>"\`. The \`<li>\` of the current track has \`aria-current="true"\`; the others have no \`aria-current\` attribute.
+- \`<p data-testid="now">Now playing: <title of the current track></p>\`, or \`Now playing: nothing\` when the queue is empty.
+- Buttons \`Previous\`, \`Next\` and \`Clear queue\`.
+
+Actions:
+- \`Queue <title>\` appends the track to the end of the queue. If the queue was empty, it becomes the current track; otherwise the current track does not change.
+- \`Next\` makes the following track current. It is disabled when the current track is the last one or the queue is empty.
+- \`Previous\` makes the preceding track current. It is disabled when the current track is the first one or the queue is empty.
+- \`Remove <title>\` takes that track out of the queue:
+  - removing a track that is NOT current never changes which track is playing, even when the removed track was earlier in the queue;
+  - removing the current track makes the track that followed it current; if it was the last one, the new last track becomes current; if the queue is now empty nothing is playing.
+- \`Clear queue\` empties the queue. It is disabled when the queue is empty.`,
+    componentName: 'PlaylistQueue',
+    starter: `import React, { useReducer } from 'react';
+
+function queueReducer(state, action) {
+  // TODO: handle queue / next / previous / remove / clear
+  return state;
+}
+
+export default function PlaylistQueue({ tracks }) {
+  const [state, dispatch] = useReducer(queueReducer, { queue: [], current: -1 });
+  return (
+    <div>
+      {tracks.map((track) => (
+        <button key={track.id} type="button">Queue {track.title}</button>
+      ))}
+      <p data-testid="now">Now playing: nothing</p>
+      <button type="button" disabled>Previous</button>
+      <button type="button" disabled>Next</button>
+      <button type="button" disabled>Clear queue</button>
+    </div>
+  );
+}
+`,
+    previewProps: {"tracks": [{"id": "t1", "title": "Blue Monday"}, {"id": "t2", "title": "Heroes"}, {"id": "t3", "title": "Hyperballad"}, {"id": "t4", "title": "Windowlicker"}]},
+    tests: [
+      {
+        name: 'starts empty with the transport buttons disabled',
+        code: `const tracks = [{ id: 'a', title: 'Alpha' }, { id: 'b', title: 'Bravo' }, { id: 'c', title: 'Charlie' }];
+const { container, getByTestId, getByRole } = render({ tracks });
+expect(getByTestId('now').textContent).toBe('Now playing: nothing');
+expect(container.querySelectorAll('[data-testid="queued"]')).toHaveLength(0);
+expect(getByRole('button', { name: 'Previous' })).toBeDisabled();
+expect(getByRole('button', { name: 'Next' })).toBeDisabled();
+expect(getByRole('button', { name: 'Clear queue' })).toBeDisabled();
+expect(getByRole('button', { name: 'Queue Bravo' })).not.toBeDisabled();`,
+      },
+      {
+        name: 'queueing appends and the first queued track starts playing',
+        code: `const tracks = [{ id: 'a', title: 'Alpha' }, { id: 'b', title: 'Bravo' }, { id: 'c', title: 'Charlie' }];
+const { container, getByTestId, getByRole } = render({ tracks });
+const queued = () => Array.from(container.querySelectorAll('[data-testid="queued"]')).map((el) => el.textContent);
+fireEvent.click(getByRole('button', { name: 'Queue Bravo' }));
+fireEvent.click(getByRole('button', { name: 'Queue Alpha' }));
+expect(queued()).toEqual(['Bravo', 'Alpha']);
+expect(getByTestId('now').textContent).toBe('Now playing: Bravo');
+expect(getByRole('button', { name: 'Queue Bravo' })).toBeDisabled();
+expect(getByRole('button', { name: 'Queue Alpha' })).toBeDisabled();
+expect(getByRole('button', { name: 'Queue Charlie' })).not.toBeDisabled();
+const current = container.querySelectorAll('li[aria-current]');
+expect(current).toHaveLength(1);
+expect(current[0].getAttribute('aria-current')).toBe('true');
+expect(current[0]).toHaveTextContent('Bravo');
+expect(getByRole('button', { name: 'Clear queue' })).not.toBeDisabled();`,
+      },
+      {
+        name: 'Next and Previous walk the queue and stop at the ends',
+        code: `const tracks = [{ id: 'a', title: 'Alpha' }, { id: 'b', title: 'Bravo' }, { id: 'c', title: 'Charlie' }];
+const { container, getByTestId, getByRole } = render({ tracks });
+['Alpha', 'Bravo', 'Charlie'].forEach((t) => fireEvent.click(getByRole('button', { name: 'Queue ' + t })));
+expect(getByRole('button', { name: 'Previous' })).toBeDisabled();
+expect(getByRole('button', { name: 'Next' })).not.toBeDisabled();
+fireEvent.click(getByRole('button', { name: 'Next' }));
+expect(getByTestId('now').textContent).toBe('Now playing: Bravo');
+expect(getByRole('button', { name: 'Previous' })).not.toBeDisabled();
+fireEvent.click(getByRole('button', { name: 'Next' }));
+expect(getByTestId('now').textContent).toBe('Now playing: Charlie');
+expect(container.querySelector('li[aria-current="true"]')).toHaveTextContent('Charlie');
+expect(getByRole('button', { name: 'Next' })).toBeDisabled();
+fireEvent.click(getByRole('button', { name: 'Previous' }));
+expect(getByTestId('now').textContent).toBe('Now playing: Bravo');`,
+      },
+      {
+        name: 'removing an earlier track keeps the same track playing',
+        code: `const tracks = [{ id: 'a', title: 'Alpha' }, { id: 'b', title: 'Bravo' }, { id: 'c', title: 'Charlie' }];
+const { container, getByTestId, getByRole, getByLabelText } = render({ tracks });
+const queued = () => Array.from(container.querySelectorAll('[data-testid="queued"]')).map((el) => el.textContent);
+['Alpha', 'Bravo', 'Charlie'].forEach((t) => fireEvent.click(getByRole('button', { name: 'Queue ' + t })));
+fireEvent.click(getByRole('button', { name: 'Next' }));
+fireEvent.click(getByLabelText('Remove Alpha'));
+expect(queued()).toEqual(['Bravo', 'Charlie']);
+expect(getByTestId('now').textContent).toBe('Now playing: Bravo');
+expect(container.querySelector('li[aria-current="true"]')).toHaveTextContent('Bravo');
+expect(getByRole('button', { name: 'Previous' })).toBeDisabled();
+expect(getByRole('button', { name: 'Queue Alpha' })).not.toBeDisabled();
+fireEvent.click(getByLabelText('Remove Charlie'));
+expect(getByTestId('now').textContent).toBe('Now playing: Bravo');
+expect(getByRole('button', { name: 'Next' })).toBeDisabled();`,
+      },
+      {
+        name: 'removing the current track hands over to the next, or the new last one',
+        code: `const tracks = [{ id: 'a', title: 'Alpha' }, { id: 'b', title: 'Bravo' }, { id: 'c', title: 'Charlie' }];
+const { container, getByTestId, getByRole, getByLabelText } = render({ tracks });
+['Alpha', 'Bravo', 'Charlie'].forEach((t) => fireEvent.click(getByRole('button', { name: 'Queue ' + t })));
+fireEvent.click(getByRole('button', { name: 'Next' }));
+fireEvent.click(getByLabelText('Remove Bravo'));
+expect(getByTestId('now').textContent).toBe('Now playing: Charlie');
+fireEvent.click(getByLabelText('Remove Charlie'));
+expect(getByTestId('now').textContent).toBe('Now playing: Alpha');
+expect(container.querySelectorAll('li[aria-current="true"]')).toHaveLength(1);
+fireEvent.click(getByLabelText('Remove Alpha'));
+expect(getByTestId('now').textContent).toBe('Now playing: nothing');
+expect(container.querySelectorAll('[data-testid="queued"]')).toHaveLength(0);
+expect(getByRole('button', { name: 'Clear queue' })).toBeDisabled();`,
+      },
+      {
+        name: 'Clear queue empties everything and tracks can be queued again',
+        code: `const tracks = [{ id: 'a', title: 'Alpha' }, { id: 'b', title: 'Bravo' }];
+const { container, getByTestId, getByRole } = render({ tracks });
+fireEvent.click(getByRole('button', { name: 'Queue Alpha' }));
+fireEvent.click(getByRole('button', { name: 'Queue Bravo' }));
+fireEvent.click(getByRole('button', { name: 'Next' }));
+fireEvent.click(getByRole('button', { name: 'Clear queue' }));
+expect(getByTestId('now').textContent).toBe('Now playing: nothing');
+expect(container.querySelectorAll('[data-testid="queued"]')).toHaveLength(0);
+expect(getByRole('button', { name: 'Queue Alpha' })).not.toBeDisabled();
+fireEvent.click(getByRole('button', { name: 'Queue Bravo' }));
+expect(getByTestId('now').textContent).toBe('Now playing: Bravo');
+expect(getByRole('button', { name: 'Next' })).toBeDisabled();
+expect(getByRole('button', { name: 'Previous' })).toBeDisabled();`,
+      },
+    ],
+    hint: `If you store the current track as an INDEX, removing an earlier track shifts everything after it one place to the left, so the index has to move with it. Handle three cases in the \`remove\` branch: the removed position is before the current index, equal to it, or after it.`,
+    explanation: `The queue and the "current" marker change together, which is the situation \`useReducer\` is for: one pure function receives the whole state and an action and returns the whole next state, so the two values can never be updated half-way.
+
+The reference stores \`queue\` (an array of track ids) and \`current\` (an index, -1 when empty). Most actions are one-liners. \`remove\` is where the thinking happens, because an index is a position and positions shift when an earlier element disappears:
+
+- removed position before \`current\`: everything moved left by one, so \`current - 1\` keeps the same track playing;
+- removed position equal to \`current\`: keep the index, since the following track slid into this slot, but clamp it to the new last index (\`Math.min(current, queue.length - 1)\`), which also yields -1 for an empty queue;
+- removed position after \`current\`: nothing to adjust.
+
+Leaving the index alone in the first case is the classic bug: removing an earlier song silently skips to the next one.
+
+Storing the current track's id instead of an index is a valid alternative. Then removal of other tracks needs no adjustment, but removing the current one has to look up its neighbour before filtering. Either way the reducer returns new arrays and never mutates the old state. Every action is O(n) in the queue length.`,
+    solution: `import React, { useReducer } from 'react';
+
+const EMPTY = { queue: [], current: -1 };
+
+function queueReducer(state, action) {
+  switch (action.type) {
+    case 'queue': {
+      if (state.queue.includes(action.id)) return state;
+      return { queue: [...state.queue, action.id], current: state.current === -1 ? 0 : state.current };
+    }
+    case 'next':
+      return state.current < state.queue.length - 1 ? { ...state, current: state.current + 1 } : state;
+    case 'previous':
+      return state.current > 0 ? { ...state, current: state.current - 1 } : state;
+    case 'remove': {
+      const at = state.queue.indexOf(action.id);
+      if (at === -1) return state;
+      const queue = state.queue.filter((id) => id !== action.id);
+      let current = state.current;
+      if (at < current) current -= 1;
+      else if (at === current) current = Math.min(current, queue.length - 1);
+      return { queue, current };
+    }
+    case 'clear':
+      return EMPTY;
+    default:
+      return state;
+  }
+}
+
+export default function PlaylistQueue({ tracks }) {
+  const [state, dispatch] = useReducer(queueReducer, EMPTY);
+  const byId = {};
+  tracks.forEach((track) => { byId[track.id] = track; });
+  const queued = state.queue.map((id) => byId[id]);
+  const playing = state.current === -1 ? null : queued[state.current];
+
+  return (
+    <div>
+      <div>
+        {tracks.map((track) => (
+          <button key={track.id} type="button" disabled={state.queue.includes(track.id)} onClick={() => dispatch({ type: 'queue', id: track.id })}>
+            {'Queue ' + track.title}
+          </button>
+        ))}
+      </div>
+      <p data-testid="now">{'Now playing: ' + (playing ? playing.title : 'nothing')}</p>
+      <ol>
+        {queued.map((track, i) => (
+          <li key={track.id} aria-current={i === state.current ? 'true' : undefined}>
+            <span data-testid="queued">{track.title}</span>{' '}
+            <button type="button" aria-label={'Remove ' + track.title} onClick={() => dispatch({ type: 'remove', id: track.id })}>x</button>
+          </li>
+        ))}
+      </ol>
+      <button type="button" disabled={state.current <= 0} onClick={() => dispatch({ type: 'previous' })}>Previous</button>
+      <button type="button" disabled={state.current === -1 || state.current >= state.queue.length - 1} onClick={() => dispatch({ type: 'next' })}>Next</button>
+      <button type="button" disabled={state.queue.length === 0} onClick={() => dispatch({ type: 'clear' })}>Clear queue</button>
+    </div>
+  );
+}
+`,
+  },
+  {
+    id: 'react-locale-context-fallback',
+    number: 91,
+    title: 'Translations Through Context',
+    difficulty: 'Easy',
+    topic: 'Composition & Patterns',
+    statement: `Build \`LocalizedApp({ messages, initialLocale = 'en' })\`, which shares the current language through React context so that deeply nested components can translate without receiving props.
+
+\`messages\` maps a locale code to its translations, for example \`{ en: { greeting: 'Hello', farewell: 'Goodbye' }, es: { greeting: 'Hola' } }\`. It always contains \`en\`.
+
+In the same file create a context, a provider that owns the current locale, and a hook \`useTranslate()\` that returns a function \`t(key)\`:
+- \`t(key)\` returns the text for \`key\` in the current locale;
+- if the current locale has no entry for \`key\`, it returns the \`en\` text;
+- if \`en\` has none either, it returns the \`key\` itself.
+
+\`LocalizedApp\` renders:
+- One button per locale code, in the key order of \`messages\`, whose text is the code (\`en\`, \`es\`, ...). The button of the current locale has \`aria-pressed="true"\`, all others \`aria-pressed="false"\`. Clicking a button switches the locale.
+- \`<h1 data-testid="greeting">\` with \`t('greeting')\`.
+- \`<p data-testid="farewell">\` with \`t('farewell')\`.
+- \`<p data-testid="tagline">\` with \`t('tagline')\`.
+
+The three texts should come from small child components that call \`useTranslate()\` themselves and take no translation props.`,
+    componentName: 'LocalizedApp',
+    starter: `import React, { createContext, useContext, useState } from 'react';
+
+const LocaleContext = createContext(null);
+
+function useTranslate() {
+  // TODO: read the context and return t(key) with the en fallback
+  return (key) => key;
+}
+
+function Greeting() {
+  const t = useTranslate();
+  return <h1 data-testid="greeting">{t('greeting')}</h1>;
+}
+
+export default function LocalizedApp({ messages, initialLocale = 'en' }) {
+  // TODO: provide the locale, render one button per locale, the greeting, farewell and tagline
+  return (
+    <div>
+      <Greeting />
+    </div>
+  );
+}
+`,
+    previewProps: {"messages": {"en": {"greeting": "Hello", "farewell": "Goodbye", "tagline": "Learn every day"}, "es": {"greeting": "Hola", "farewell": "Adios"}, "fr": {"greeting": "Bonjour"}}, "initialLocale": "en"},
+    tests: [
+      {
+        name: 'renders English by default with one button per locale',
+        code: `const messages = { en: { greeting: 'Hello', farewell: 'Goodbye', tagline: 'Learn daily' }, es: { greeting: 'Hola', farewell: 'Adios', tagline: 'Aprende a diario' } };
+const { getByTestId, getAllByRole, getByRole } = render({ messages });
+expect(getByTestId('greeting').textContent).toBe('Hello');
+expect(getByTestId('farewell').textContent).toBe('Goodbye');
+expect(getByTestId('tagline').textContent).toBe('Learn daily');
+expect(getAllByRole('button').map((b) => b.textContent)).toEqual(['en', 'es']);
+expect(getByRole('button', { name: 'en' })).toHaveAttribute('aria-pressed', 'true');
+expect(getByRole('button', { name: 'es' })).toHaveAttribute('aria-pressed', 'false');`,
+      },
+      {
+        name: 'switching the locale translates every consumer',
+        code: `const messages = { en: { greeting: 'Hello', farewell: 'Goodbye', tagline: 'Learn daily' }, es: { greeting: 'Hola', farewell: 'Adios', tagline: 'Aprende a diario' } };
+const { getByTestId, getByRole } = render({ messages });
+fireEvent.click(getByRole('button', { name: 'es' }));
+expect(getByTestId('greeting').textContent).toBe('Hola');
+expect(getByTestId('farewell').textContent).toBe('Adios');
+expect(getByTestId('tagline').textContent).toBe('Aprende a diario');
+expect(getByRole('button', { name: 'es' })).toHaveAttribute('aria-pressed', 'true');
+expect(getByRole('button', { name: 'en' })).toHaveAttribute('aria-pressed', 'false');
+fireEvent.click(getByRole('button', { name: 'en' }));
+expect(getByTestId('greeting').textContent).toBe('Hello');`,
+      },
+      {
+        name: 'a key missing in the current locale falls back to English',
+        code: `const messages = { en: { greeting: 'Hello', farewell: 'Goodbye', tagline: 'Learn daily' }, fr: { greeting: 'Bonjour' } };
+const { getByTestId, getByRole } = render({ messages });
+fireEvent.click(getByRole('button', { name: 'fr' }));
+expect(getByTestId('greeting').textContent).toBe('Bonjour');
+expect(getByTestId('farewell').textContent).toBe('Goodbye');
+expect(getByTestId('tagline').textContent).toBe('Learn daily');`,
+      },
+      {
+        name: 'a key missing everywhere shows the key itself',
+        code: `const messages = { en: { greeting: 'Hello' }, de: { farewell: 'Tschuess' } };
+const { getByTestId, getByRole } = render({ messages });
+expect(getByTestId('farewell').textContent).toBe('farewell');
+expect(getByTestId('tagline').textContent).toBe('tagline');
+fireEvent.click(getByRole('button', { name: 'de' }));
+expect(getByTestId('greeting').textContent).toBe('Hello');
+expect(getByTestId('farewell').textContent).toBe('Tschuess');
+expect(getByTestId('tagline').textContent).toBe('tagline');`,
+      },
+      {
+        name: 'initialLocale picks the starting language',
+        code: `const messages = { en: { greeting: 'Hello', farewell: 'Goodbye' }, es: { greeting: 'Hola', farewell: 'Adios' }, fr: { greeting: 'Bonjour' } };
+const { getByTestId, getByRole, getAllByRole } = render({ messages, initialLocale: 'es' });
+expect(getByTestId('greeting').textContent).toBe('Hola');
+expect(getAllByRole('button').map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'true', 'false']);
+expect(getByRole('button', { name: 'es' })).toHaveAttribute('aria-pressed', 'true');`,
+      },
+    ],
+    hint: `Put \`{ locale, setLocale, messages }\` into the context value. \`useTranslate\` reads it and returns a function that tries \`messages[locale][key]\`, then \`messages.en[key]\`, then gives back \`key\`. Check for \`undefined\`, and remember that \`messages[locale]\` might not have the key at all.`,
+    explanation: `Translation is the textbook case for context: almost every component needs it, and threading a \`t\` prop through every level would be noise. The provider sits at the top and owns one piece of state, the current locale. Consumers call a hook and stay unaware of where the data comes from.
+
+\`useTranslate\` hides the context behind a small API. It builds \`t(key)\` as a lookup chain: the current locale's table, then the English table, then the key. Returning the key as a last resort keeps the screen readable and makes a missing translation easy to spot, where rendering \`undefined\` would show nothing at all. That missing fallback is the usual bug.
+
+When a locale button calls \`setLocale\`, the provider re-renders with a new context value and React re-renders every component that reads the context, however deep it is, which is why the greeting, farewell and tagline all switch together. The buttons are consumers too: they read \`locale\` to set \`aria-pressed\`.
+
+Each \`t\` call is at most two object lookups.`,
+    solution: `import React, { createContext, useContext, useState } from 'react';
+
+const LocaleContext = createContext(null);
+
+function LocaleProvider({ messages, initialLocale, children }) {
+  const [locale, setLocale] = useState(initialLocale);
+  return (
+    <LocaleContext.Provider value={{ locale, setLocale, messages }}>
+      {children}
+    </LocaleContext.Provider>
+  );
+}
+
+function useTranslate() {
+  const { locale, messages } = useContext(LocaleContext);
+  return function t(key) {
+    const current = messages[locale] || {};
+    if (current[key] !== undefined) return current[key];
+    const fallback = messages.en || {};
+    if (fallback[key] !== undefined) return fallback[key];
+    return key;
+  };
+}
+
+function LocaleSwitcher() {
+  const { locale, setLocale, messages } = useContext(LocaleContext);
+  return (
+    <div>
+      {Object.keys(messages).map((code) => (
+        <button key={code} type="button" aria-pressed={code === locale ? 'true' : 'false'} onClick={() => setLocale(code)}>
+          {code}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Greeting() {
+  const t = useTranslate();
+  return <h1 data-testid="greeting">{t('greeting')}</h1>;
+}
+
+function Farewell() {
+  const t = useTranslate();
+  return <p data-testid="farewell">{t('farewell')}</p>;
+}
+
+function Tagline() {
+  const t = useTranslate();
+  return <p data-testid="tagline">{t('tagline')}</p>;
+}
+
+export default function LocalizedApp({ messages, initialLocale = 'en' }) {
+  return (
+    <LocaleProvider messages={messages} initialLocale={initialLocale}>
+      <LocaleSwitcher />
+      <Greeting />
+      <Farewell />
+      <Tagline />
+    </LocaleProvider>
+  );
+}
+`,
+  },
+  {
+    id: 'react-toast-queue-context',
+    number: 92,
+    title: 'Toast Queue with Auto-Dismiss',
+    difficulty: 'Hard',
+    topic: 'Composition & Patterns',
+    statement: `Build a toast notification system and a demo for it: \`ToastDemo({ duration = 3000, maxVisible = 3 })\`.
+
+Structure (all in one file): a \`ToastProvider\` that owns the list of toasts and exposes \`addToast(message)\` and \`dismissToast(id)\` through context, a \`useToasts()\` hook, and a toast list rendered by the provider. The form below is a consumer that only calls \`addToast\`.
+
+\`ToastDemo\` renders:
+- A text input with \`aria-label="Message"\` and a button \`Show toast\`. Clicking the button adds a toast with the input's current text, trimmed. If the trimmed text is empty nothing happens. The input keeps its text.
+- \`<p data-testid="toast-count">Toasts: <n></p>\` with the number of toasts on screen.
+- One \`<div role="status">\` per toast, oldest first. Each contains \`<span data-testid="toast-message"><message></span>\` and a button with \`aria-label="Dismiss"\`.
+
+Rules:
+- Every toast removes itself \`duration\` ms after IT was added. Each toast has its own timer: adding or dismissing another toast must not restart or delay it.
+- Clicking a toast's \`Dismiss\` button removes that toast immediately.
+- At most \`maxVisible\` toasts are shown. Adding one more removes the oldest toast first.
+- Two toasts may have the same message; they are still separate toasts.
+- Clear all pending timers when the component unmounts.`,
+    componentName: 'ToastDemo',
+    starter: `import React, { createContext, useContext, useState, useReducer, useEffect, useRef } from 'react';
+
+const ToastContext = createContext(null);
+
+export default function ToastDemo({ duration = 3000, maxVisible = 3 }) {
+  const [text, setText] = useState('');
+  // TODO: ToastProvider + useToasts, own timer per toast, maxVisible, Dismiss
+  return (
+    <div>
+      <input aria-label="Message" value={text} onChange={(e) => setText(e.target.value)} />
+      <button type="button">Show toast</button>
+      <p data-testid="toast-count">Toasts: 0</p>
+    </div>
+  );
+}
+`,
+    previewProps: {"duration": 3000, "maxVisible": 3},
+    tests: [
+      {
+        name: 'Show toast adds a status element with the trimmed message',
+        code: `const { container, getByLabelText, getByRole, getByTestId, queryByRole } = render({ duration: 1000, maxVisible: 3 });
+const messages = () => Array.from(container.querySelectorAll('[role="status"] [data-testid="toast-message"]')).map((el) => el.textContent);
+expect(queryByRole('status')).toBeNull();
+expect(getByTestId('toast-count').textContent).toBe('Toasts: 0');
+fireEvent.click(getByRole('button', { name: 'Show toast' }));
+expect(messages()).toEqual([]);
+fireEvent.change(getByLabelText('Message'), '   ');
+fireEvent.click(getByRole('button', { name: 'Show toast' }));
+expect(messages()).toEqual([]);
+fireEvent.change(getByLabelText('Message'), '  Saved  ');
+fireEvent.click(getByRole('button', { name: 'Show toast' }));
+expect(messages()).toEqual(['Saved']);
+expect(getByTestId('toast-count').textContent).toBe('Toasts: 1');
+expect(getByLabelText('Message').value).toBe('  Saved  ');
+fireEvent.click(getByRole('button', { name: 'Show toast' }));
+expect(messages()).toEqual(['Saved', 'Saved']);`,
+      },
+      {
+        name: 'a toast disappears by itself after the duration',
+        code: `const { container, getByLabelText, getByRole, getByTestId } = render({ duration: 30, maxVisible: 3 });
+fireEvent.change(getByLabelText('Message'), 'Saved');
+fireEvent.click(getByRole('button', { name: 'Show toast' }));
+expect(container.querySelectorAll('[role="status"]')).toHaveLength(1);
+await waitFor(() => expect(container.querySelectorAll('[role="status"]')).toHaveLength(0));
+expect(getByTestId('toast-count').textContent).toBe('Toasts: 0');`,
+      },
+      {
+        name: 'Dismiss removes only that toast',
+        code: `const { container, getByLabelText, getByRole, getAllByRole, getByTestId } = render({ duration: 1000, maxVisible: 5 });
+const messages = () => Array.from(container.querySelectorAll('[role="status"] [data-testid="toast-message"]')).map((el) => el.textContent);
+['One', 'Two', 'Three'].forEach((m) => { fireEvent.change(getByLabelText('Message'), m); fireEvent.click(getByRole('button', { name: 'Show toast' })); });
+expect(messages()).toEqual(['One', 'Two', 'Three']);
+const second = getAllByRole('status')[1];
+fireEvent.click(within(second).getByLabelText('Dismiss'));
+expect(messages()).toEqual(['One', 'Three']);
+expect(getByTestId('toast-count').textContent).toBe('Toasts: 2');
+fireEvent.click(within(getAllByRole('status')[0]).getByLabelText('Dismiss'));
+expect(messages()).toEqual(['Three']);`,
+      },
+      {
+        name: 'never shows more than maxVisible, dropping the oldest',
+        code: `const { container, getByLabelText, getByRole, getByTestId } = render({ duration: 1000, maxVisible: 2 });
+const messages = () => Array.from(container.querySelectorAll('[role="status"] [data-testid="toast-message"]')).map((el) => el.textContent);
+['One', 'Two', 'Three', 'Four'].forEach((m) => { fireEvent.change(getByLabelText('Message'), m); fireEvent.click(getByRole('button', { name: 'Show toast' })); });
+expect(messages()).toEqual(['Three', 'Four']);
+expect(getByTestId('toast-count').textContent).toBe('Toasts: 2');`,
+      },
+      {
+        name: 'each toast keeps its own timer when another one is added',
+        code: `const { container, getByLabelText, getByRole } = render({ duration: 150, maxVisible: 3 });
+const messages = () => Array.from(container.querySelectorAll('[role="status"] [data-testid="toast-message"]')).map((el) => el.textContent);
+fireEvent.change(getByLabelText('Message'), 'First');
+fireEvent.click(getByRole('button', { name: 'Show toast' }));
+await sleep(90);
+fireEvent.change(getByLabelText('Message'), 'Second');
+fireEvent.click(getByRole('button', { name: 'Show toast' }));
+expect(messages()).toEqual(['First', 'Second']);
+await sleep(100);
+expect(messages()).toEqual(['Second']);
+await waitFor(() => expect(messages()).toEqual([]));`,
+      },
+      {
+        name: 'dismissing one toast does not cancel the timers of the others',
+        code: `const { container, getByLabelText, getByRole, getAllByRole } = render({ duration: 40, maxVisible: 3 });
+['One', 'Two', 'Three'].forEach((m) => { fireEvent.change(getByLabelText('Message'), m); fireEvent.click(getByRole('button', { name: 'Show toast' })); });
+fireEvent.click(within(getAllByRole('status')[0]).getByLabelText('Dismiss'));
+expect(container.querySelectorAll('[role="status"]')).toHaveLength(2);
+await waitFor(() => expect(container.querySelectorAll('[role="status"]')).toHaveLength(0));`,
+      },
+    ],
+    hint: `Give every toast a unique id (a counter in a ref is enough). The simplest way to get one timer per toast is to make each toast its own component: its \`useEffect\` starts a \`setTimeout\` that dismisses its id and returns \`clearTimeout\` as cleanup. One shared effect that depends on the whole list gets cancelled and restarted every time the list changes.`,
+    explanation: `There are three parts: who owns the list, how consumers reach it, and who owns the timers.
+
+Ownership and access: the provider keeps the list in a reducer (\`add\` appends and trims to the newest \`maxVisible\`, \`dismiss\` filters by id) and publishes \`addToast\` and \`dismissToast\` through context. Any component, however deep, can raise a toast with \`useToasts().addToast('Saved')\` and knows nothing about rendering or timing. Ids come from a counter in a ref, because messages can repeat and array indexes shift as toasts leave.
+
+Timers are where implementations go wrong. A single effect in the provider that depends on the list, something like "after \`duration\`, remove the oldest", is torn down and restarted on every change, so a new toast extends the life of all older ones. The reference instead renders each toast as its own \`ToastItem\` component whose effect starts one timeout for its own id. React keys keep that component instance alive while other toasts come and go, so its timer is never touched. When the toast is removed for any reason (timeout, Dismiss, pushed out by \`maxVisible\`, the whole tree unmounting) its cleanup clears the timeout. That one mechanism satisfies every timer rule.
+
+\`dismissToast\` is created with \`useCallback\` so its identity is stable and the item effects do not re-run. Adding and dismissing are O(n) in the number of visible toasts.`,
+    solution: `import React, { createContext, useContext, useState, useReducer, useEffect, useRef, useCallback } from 'react';
+
+const ToastContext = createContext(null);
+
+function toastReducer(toasts, action) {
+  switch (action.type) {
+    case 'add': {
+      const next = [...toasts, action.toast];
+      return next.length > action.max ? next.slice(next.length - action.max) : next;
+    }
+    case 'dismiss':
+      return toasts.filter((toast) => toast.id !== action.id);
+    default:
+      return toasts;
+  }
+}
+
+function ToastItem({ toast, duration, onDismiss }) {
+  useEffect(() => {
+    const timer = setTimeout(() => onDismiss(toast.id), duration);
+    return () => clearTimeout(timer);
+  }, [toast.id, duration, onDismiss]);
+
+  return (
+    <div role="status">
+      <span data-testid="toast-message">{toast.message}</span>{' '}
+      <button type="button" aria-label="Dismiss" onClick={() => onDismiss(toast.id)}>x</button>
+    </div>
+  );
+}
+
+function ToastProvider({ duration, maxVisible, children }) {
+  const [toasts, dispatch] = useReducer(toastReducer, []);
+  const nextId = useRef(1);
+
+  const addToast = useCallback((message) => {
+    const id = nextId.current;
+    nextId.current += 1;
+    dispatch({ type: 'add', toast: { id, message }, max: maxVisible });
+  }, [maxVisible]);
+
+  const dismissToast = useCallback((id) => dispatch({ type: 'dismiss', id }), []);
+
+  return (
+    <ToastContext.Provider value={{ toasts, addToast, dismissToast }}>
+      {children}
+      <div>
+        {toasts.map((toast) => (
+          <ToastItem key={toast.id} toast={toast} duration={duration} onDismiss={dismissToast} />
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+}
+
+function useToasts() {
+  return useContext(ToastContext);
+}
+
+function ToastForm() {
+  const { toasts, addToast } = useToasts();
+  const [text, setText] = useState('');
+
+  function show() {
+    const message = text.trim();
+    if (message === '') return;
+    addToast(message);
+  }
+
+  return (
+    <div>
+      <input aria-label="Message" value={text} onChange={(e) => setText(e.target.value)} />
+      <button type="button" onClick={show}>Show toast</button>
+      <p data-testid="toast-count">{'Toasts: ' + toasts.length}</p>
+    </div>
+  );
+}
+
+export default function ToastDemo({ duration = 3000, maxVisible = 3 }) {
+  return (
+    <ToastProvider duration={duration} maxVisible={maxVisible}>
+      <ToastForm />
+    </ToastProvider>
+  );
+}
+`,
+  },
+  {
+    id: 'react-reveal-search-focus',
+    number: 93,
+    title: 'Reveal a Search Field and Manage Focus',
+    difficulty: 'Easy',
+    topic: 'Performance & Hooks',
+    statement: `Build \`SearchReveal()\`, a search field that is hidden behind a button and handles keyboard focus properly.
+
+Closed (the initial state):
+- Render a button \`Search\`. There is no \`<input>\` in the DOM.
+- On the first mount the component must NOT move focus anywhere. The \`Search\` button is not focused automatically.
+
+Open (after clicking \`Search\`):
+- Render a text input with \`aria-label="Search query"\` and a button \`Cancel\`. The \`Search\` button is not rendered.
+- The input receives focus automatically as soon as it appears (\`document.activeElement\` is the input).
+
+Closing:
+- Clicking \`Cancel\`, or pressing the \`Escape\` key while the input has focus, closes the field.
+- After closing, focus returns to the \`Search\` button (\`document.activeElement\` is that button).
+- The typed text is discarded: opening again shows an empty input.`,
+    componentName: 'SearchReveal',
+    starter: `import React, { useState, useRef, useEffect } from 'react';
+
+export default function SearchReveal() {
+  const [open, setOpen] = useState(false);
+  // TODO: focus the input when it appears, return focus to the button when it closes
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen(true)}>Search</button>
+    </div>
+  );
+}
+`,
+    previewProps: {},
+    tests: [
+      {
+        name: 'starts closed without stealing focus',
+        code: `const { container, getByRole, queryByRole } = render({});
+expect(getByRole('button', { name: 'Search' })).toBeTruthy();
+expect(container.querySelector('input')).toBeNull();
+expect(queryByRole('button', { name: 'Cancel' })).toBeNull();
+expect(document.activeElement === getByRole('button', { name: 'Search' })).toBe(false);`,
+      },
+      {
+        name: 'clicking Search shows the input and focuses it',
+        code: `const { getByRole, getByLabelText, queryByRole } = render({});
+fireEvent.click(getByRole('button', { name: 'Search' }));
+const input = getByLabelText('Search query');
+expect(document.activeElement === input).toBe(true);
+expect(queryByRole('button', { name: 'Search' })).toBeNull();
+expect(getByRole('button', { name: 'Cancel' })).toBeTruthy();`,
+      },
+      {
+        name: 'Escape closes the field and returns focus to the Search button',
+        code: `const { container, getByRole, getByLabelText } = render({});
+fireEvent.click(getByRole('button', { name: 'Search' }));
+fireEvent.keyDown(getByLabelText('Search query'), 'a');
+expect(container.querySelector('input')).toBeTruthy();
+fireEvent.keyDown(getByLabelText('Search query'), 'Escape');
+expect(container.querySelector('input')).toBeNull();
+expect(document.activeElement === getByRole('button', { name: 'Search' })).toBe(true);`,
+      },
+      {
+        name: 'Cancel closes the field and returns focus too',
+        code: `const { container, getByRole } = render({});
+fireEvent.click(getByRole('button', { name: 'Search' }));
+fireEvent.click(getByRole('button', { name: 'Cancel' }));
+expect(container.querySelector('input')).toBeNull();
+expect(document.activeElement === getByRole('button', { name: 'Search' })).toBe(true);`,
+      },
+      {
+        name: 'reopening shows an empty, focused input',
+        code: `const { getByRole, getByLabelText } = render({});
+fireEvent.click(getByRole('button', { name: 'Search' }));
+fireEvent.change(getByLabelText('Search query'), 'react hooks');
+expect(getByLabelText('Search query').value).toBe('react hooks');
+fireEvent.click(getByRole('button', { name: 'Cancel' }));
+fireEvent.click(getByRole('button', { name: 'Search' }));
+expect(getByLabelText('Search query').value).toBe('');
+expect(document.activeElement === getByLabelText('Search query')).toBe(true);`,
+      },
+    ],
+    hint: `An element can only be focused after it exists in the DOM, so focus belongs in an effect that runs after the render that changed \`open\`. That effect also runs on the very first render, when \`open\` is false: you need a way to tell "just mounted" apart from "just closed", for example a ref that remembers whether the field has ever been open.`,
+    explanation: `Focus is imperative: there is no "focused" prop, you call \`element.focus()\` on a DOM node, which React hands you through a ref. The node only exists after React has committed the render, so the call goes into \`useEffect\`, not into the click handler that merely requested the state change.
+
+One effect keyed on \`open\` covers both directions. When \`open\` became true the input has just been mounted, so focus it. When \`open\` became false the button has just been mounted again, so focus that. This keeps keyboard and screen-reader users oriented: without it, closing the field removes the focused element and focus falls back to the page body.
+
+The trap is the first render. Effects also run after mount, and at that moment \`open\` is false, so a naive effect focuses the \`Search\` button the instant the component appears and steals focus from whatever the user was doing. The reference keeps a \`wasOpen\` ref and only returns focus when the field really was open before.
+
+Discarding the text is done by resetting the query state when closing. Because the input is unmounted while closed, keeping its text in the input's own DOM state would also lose it. All of this is O(1).`,
+    solution: `import React, { useState, useRef, useEffect } from 'react';
+
+export default function SearchReveal() {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const inputRef = useRef(null);
+  const buttonRef = useRef(null);
+  const wasOpen = useRef(false);
+
+  useEffect(() => {
+    if (open) {
+      inputRef.current.focus();
+    } else if (wasOpen.current) {
+      buttonRef.current.focus();
+    }
+    wasOpen.current = open;
+  }, [open]);
+
+  function close() {
+    setOpen(false);
+    setQuery('');
+  }
+
+  if (!open) {
+    return (
+      <div>
+        <button type="button" ref={buttonRef} onClick={() => setOpen(true)}>Search</button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <input
+        ref={inputRef}
+        aria-label="Search query"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Escape') close(); }}
+      />
+      <button type="button" onClick={close}>Cancel</button>
+    </div>
+  );
+}
+`,
+  },
+  {
+    id: 'react-one-time-code-boxes',
+    number: 94,
+    title: 'One-Time Code Boxes',
+    difficulty: 'Medium',
+    topic: 'Performance & Hooks',
+    statement: `Build \`CodeInput({ length = 4, onComplete })\`, the row of single-digit boxes used for verification codes, with focus that follows the user.
+
+Render:
+- \`length\` text inputs. Box number i (1-based) has \`aria-label="Digit i"\`, so \`Digit 1\`, \`Digit 2\`, and so on. Give each \`maxLength={1}\`.
+- \`<p data-testid="code">Code: <display></p>\` where the display has one character per box: the digit, or \`_\` for an empty box. With 4 boxes and digits 1 and 2 entered it reads \`Code: 12__\`.
+
+Focus and input rules:
+- On mount, \`Digit 1\` is focused.
+- When a change event gives a box a single digit (\`0\` to \`9\`), store it and move focus to the next box. The last box keeps focus.
+- Any other non-empty text (a letter, a symbol) is rejected: the box keeps its previous content and focus does not move.
+- When a change event makes a box empty (the user deleted the digit), clear that box. Focus stays there.
+- Pressing \`Backspace\` (keydown) in a box that is EMPTY moves focus to the previous box and clears that previous box. In \`Digit 1\` it does nothing.
+
+Completion:
+- Whenever a change fills the last empty box, call \`onComplete(code)\` with all digits joined into one string, for example \`onComplete('1234')\`. If the user then changes a digit and the code becomes complete again, call it again with the new code. \`onComplete\` is optional.`,
+    componentName: 'CodeInput',
+    starter: `import React, { useState, useRef, useEffect } from 'react';
+
+export default function CodeInput({ length = 4, onComplete }) {
+  const [digits, setDigits] = useState(() => Array(length).fill(''));
+  // TODO: focus handling, digit validation, Backspace, onComplete
+  return (
+    <div>
+      {digits.map((digit, i) => (
+        <input key={i} aria-label={'Digit ' + (i + 1)} maxLength={1} value={digit} onChange={() => {}} />
+      ))}
+      <p data-testid="code">Code: {digits.map((d) => d || '_').join('')}</p>
+    </div>
+  );
+}
+`,
+    previewProps: {"length": 4},
+    previewSetup: `return { onComplete: (code) => console.log('code entered', code) };`,
+    tests: [
+      {
+        name: 'renders one box per digit and focuses the first',
+        code: `const { container, getByLabelText, getByTestId } = render({ length: 6 });
+expect(container.querySelectorAll('input')).toHaveLength(6);
+expect(getByLabelText('Digit 6')).toBeTruthy();
+expect(document.activeElement === getByLabelText('Digit 1')).toBe(true);
+expect(getByTestId('code').textContent).toBe('Code: ______');`,
+      },
+      {
+        name: 'typing a digit stores it and moves focus to the next box',
+        code: `const { getByLabelText, getByTestId } = render({ length: 4 });
+fireEvent.change(getByLabelText('Digit 1'), '4');
+expect(getByLabelText('Digit 1').value).toBe('4');
+expect(document.activeElement === getByLabelText('Digit 2')).toBe(true);
+fireEvent.change(getByLabelText('Digit 2'), '0');
+expect(document.activeElement === getByLabelText('Digit 3')).toBe(true);
+expect(getByTestId('code').textContent).toBe('Code: 40__');`,
+      },
+      {
+        name: 'anything that is not a digit is rejected',
+        code: `const calls = [];
+const { getByLabelText, getByTestId } = render({ length: 4, onComplete: (c) => calls.push(c) });
+fireEvent.change(getByLabelText('Digit 1'), 'x');
+expect(getByLabelText('Digit 1').value).toBe('');
+expect(document.activeElement === getByLabelText('Digit 1')).toBe(true);
+fireEvent.change(getByLabelText('Digit 1'), ' ');
+fireEvent.change(getByLabelText('Digit 1'), '-');
+expect(getByLabelText('Digit 1').value).toBe('');
+expect(getByTestId('code').textContent).toBe('Code: ____');
+expect(calls).toEqual([]);`,
+      },
+      {
+        name: 'calls onComplete once with the whole code and keeps focus on the last box',
+        code: `const calls = [];
+const { getByLabelText, getByTestId } = render({ length: 4, onComplete: (c) => calls.push(c) });
+['1', '2', '3'].forEach((d, i) => fireEvent.change(getByLabelText('Digit ' + (i + 1)), d));
+expect(calls).toEqual([]);
+fireEvent.change(getByLabelText('Digit 4'), '4');
+expect(calls).toEqual(['1234']);
+expect(getByTestId('code').textContent).toBe('Code: 1234');
+expect(document.activeElement === getByLabelText('Digit 4')).toBe(true);`,
+      },
+      {
+        name: 'Backspace in an empty box goes back and clears the previous digit',
+        code: `const { getByLabelText, getByTestId } = render({ length: 4 });
+fireEvent.change(getByLabelText('Digit 1'), '1');
+fireEvent.change(getByLabelText('Digit 2'), '2');
+expect(document.activeElement === getByLabelText('Digit 3')).toBe(true);
+fireEvent.keyDown(getByLabelText('Digit 3'), 'Backspace');
+expect(document.activeElement === getByLabelText('Digit 2')).toBe(true);
+expect(getByLabelText('Digit 2').value).toBe('');
+expect(getByTestId('code').textContent).toBe('Code: 1___');
+fireEvent.keyDown(getByLabelText('Digit 2'), 'Backspace');
+expect(document.activeElement === getByLabelText('Digit 1')).toBe(true);
+expect(getByTestId('code').textContent).toBe('Code: ____');
+fireEvent.keyDown(getByLabelText('Digit 1'), 'Backspace');
+expect(document.activeElement === getByLabelText('Digit 1')).toBe(true);`,
+      },
+      {
+        name: 'deleting a digit and completing again reports the new code',
+        code: `const calls = [];
+const { getByLabelText, getByTestId } = render({ length: 3, onComplete: (c) => calls.push(c) });
+['7', '8', '9'].forEach((d, i) => fireEvent.change(getByLabelText('Digit ' + (i + 1)), d));
+fireEvent.change(getByLabelText('Digit 3'), '');
+expect(getByTestId('code').textContent).toBe('Code: 78_');
+expect(document.activeElement === getByLabelText('Digit 3')).toBe(true);
+fireEvent.change(getByLabelText('Digit 3'), '5');
+expect(calls).toEqual(['789', '785']);`,
+      },
+    ],
+    hint: `Keep the digits in one array in state and the input DOM nodes in one ref holding an array (\`inputsRef.current[i] = node\`). In the change handler, compute the next array, set it, then call \`.focus()\` on the neighbour directly. \`Backspace\` on a filled box already produces a change event with an empty value, so \`onKeyDown\` only has to handle the empty-box case.`,
+    explanation: `The component is a controlled array plus imperative focus moves.
+
+State: one array of strings, one entry per box. Each input is controlled by its slot, so a rejected character never shows up: the handler simply does not update state and React restores the old value. Validation is a regular expression for exactly one digit, \`/^[0-9]$/\`.
+
+Refs: focus has to jump between sibling inputs, so the component needs their DOM nodes. A single \`useRef([])\` filled by callback refs (\`ref={(node) => { inputs.current[i] = node; }}\`) scales to any \`length\`; you cannot call \`useRef\` in a loop. The neighbours already exist in the DOM, so the handler can focus them directly without waiting for an effect. Only the initial focus on mount needs \`useEffect\`.
+
+Backspace has two cases that are easy to confuse. In a filled box the browser deletes the character and fires a change event with an empty value, which the change handler treats as "clear this box". In an empty box no change event fires at all, so \`onKeyDown\` handles it: clear the previous box and focus it. Moving back without clearing forces the user to press Backspace twice per digit.
+
+Completion is checked in the change handler on the freshly computed array (\`next.every(Boolean)\`), not on the state variable, which still holds the old digits at that point. Work per keystroke is O(length).`,
+    solution: `import React, { useState, useRef, useEffect } from 'react';
+
+export default function CodeInput({ length = 4, onComplete }) {
+  const [digits, setDigits] = useState(() => Array(length).fill(''));
+  const inputs = useRef([]);
+
+  useEffect(() => {
+    if (inputs.current[0]) inputs.current[0].focus();
+  }, []);
+
+  function handleChange(index, value) {
+    if (value !== '' && !/^[0-9]$/.test(value)) return;
+    const next = digits.slice();
+    next[index] = value;
+    setDigits(next);
+    if (value === '') return;
+    if (index < length - 1) inputs.current[index + 1].focus();
+    if (next.every((d) => d !== '') && onComplete) onComplete(next.join(''));
+  }
+
+  function handleKeyDown(index, event) {
+    if (event.key !== 'Backspace' || digits[index] !== '' || index === 0) return;
+    const next = digits.slice();
+    next[index - 1] = '';
+    setDigits(next);
+    inputs.current[index - 1].focus();
+  }
+
+  return (
+    <div>
+      {digits.map((digit, i) => (
+        <input
+          key={i}
+          ref={(node) => { inputs.current[i] = node; }}
+          aria-label={'Digit ' + (i + 1)}
+          inputMode="numeric"
+          maxLength={1}
+          value={digit}
+          onChange={(e) => handleChange(i, e.target.value)}
+          onKeyDown={(e) => handleKeyDown(i, e)}
+          style={{ width: 32, textAlign: 'center', marginRight: 6 }}
+        />
+      ))}
+      <p data-testid="code">{'Code: ' + digits.map((d) => d || '_').join('')}</p>
+    </div>
+  );
+}
+`,
+  },
+  {
+    id: 'react-imperative-handle-pin-field',
+    number: 95,
+    title: 'Imperative Handle on a Custom Field',
+    difficulty: 'Medium',
+    topic: 'Performance & Hooks',
+    statement: `Build \`PinField\`, a text field that a parent component can command through a ref without getting access to the DOM node. Define it with \`forwardRef\`:
+
+\`const PinField = forwardRef(function PinField({ label }, ref) { ... })\`
+
+Render:
+- A text input with \`aria-label\` equal to the \`label\` prop, empty at first.
+- \`<p data-testid="length">Length: <n></p>\` with the number of characters currently in the input.
+
+Expose EXACTLY three methods on the ref with \`useImperativeHandle\`:
+- \`focus()\` focuses the input.
+- \`clear()\` empties the input (so \`Length: 0\`) and focuses it.
+- \`getValue()\` returns the text that is in the input right now, including text typed after the component mounted.
+
+Rules:
+- \`ref.current\` must be the object with those three methods, NOT the \`<input>\` element. The parent should not be able to reach \`tagName\`, \`value\`, \`style\` and the like.
+- The field does not focus itself on mount.
+
+(In the tests a parent creates \`const ref = React.createRef()\`, renders \`<PinField label="PIN" ref={ref} />\` and calls the methods.)`,
+    componentName: 'PinField',
+    starter: `import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+
+const PinField = forwardRef(function PinField({ label }, ref) {
+  const [value, setValue] = useState('');
+  // TODO: expose { focus, clear, getValue } through the ref
+  return (
+    <div>
+      <input aria-label={label} value={value} onChange={(e) => setValue(e.target.value)} />
+      <p data-testid="length">Length: {value.length}</p>
+    </div>
+  );
+});
+
+export default PinField;
+`,
+    previewProps: {"label": "PIN"},
+    tests: [
+      {
+        name: 'the ref exposes exactly focus, clear and getValue, not the DOM node',
+        code: `const ref = React.createRef();
+const { getByLabelText, getByTestId } = render({ label: 'PIN', ref });
+expect(getByLabelText('PIN').value).toBe('');
+expect(getByTestId('length').textContent).toBe('Length: 0');
+expect(ref.current).toBeTruthy();
+expect(Object.keys(ref.current).sort()).toEqual(['clear', 'focus', 'getValue']);
+expect(typeof ref.current.focus).toBe('function');
+expect(typeof ref.current.clear).toBe('function');
+expect(typeof ref.current.getValue).toBe('function');
+expect(ref.current.tagName).toBeUndefined();
+expect(ref.current === getByLabelText('PIN')).toBe(false);`,
+      },
+      {
+        name: 'focus() focuses the input, which is not focused on mount',
+        code: `const ref = React.createRef();
+const { getByLabelText } = render({ label: 'Card PIN', ref });
+expect(document.activeElement === getByLabelText('Card PIN')).toBe(false);
+act(() => { ref.current.focus(); });
+expect(document.activeElement === getByLabelText('Card PIN')).toBe(true);`,
+      },
+      {
+        name: 'getValue() returns what is currently typed',
+        code: `const ref = React.createRef();
+const { getByLabelText, getByTestId } = render({ label: 'PIN', ref });
+expect(ref.current.getValue()).toBe('');
+fireEvent.change(getByLabelText('PIN'), '12');
+expect(ref.current.getValue()).toBe('12');
+fireEvent.change(getByLabelText('PIN'), '1234');
+expect(ref.current.getValue()).toBe('1234');
+expect(getByTestId('length').textContent).toBe('Length: 4');`,
+      },
+      {
+        name: 'clear() empties the field and focuses it',
+        code: `const ref = React.createRef();
+const { getByLabelText, getByTestId } = render({ label: 'PIN', ref });
+fireEvent.change(getByLabelText('PIN'), '9876');
+expect(getByTestId('length').textContent).toBe('Length: 4');
+act(() => { ref.current.clear(); });
+expect(getByLabelText('PIN').value).toBe('');
+expect(getByTestId('length').textContent).toBe('Length: 0');
+expect(ref.current.getValue()).toBe('');
+expect(document.activeElement === getByLabelText('PIN')).toBe(true);`,
+      },
+      {
+        name: 'the handle keeps working after clear and more typing',
+        code: `const ref = React.createRef();
+const { getByLabelText, getByTestId } = render({ label: 'PIN', ref });
+fireEvent.change(getByLabelText('PIN'), '11');
+act(() => { ref.current.clear(); });
+fireEvent.change(getByLabelText('PIN'), '222');
+expect(ref.current.getValue()).toBe('222');
+expect(getByTestId('length').textContent).toBe('Length: 3');
+expect(Object.keys(ref.current).sort()).toEqual(['clear', 'focus', 'getValue']);`,
+      },
+    ],
+    hint: `Keep a private \`inputRef\` for the real DOM node and pass the parent's \`ref\` only to \`useImperativeHandle(ref, () => ({ ... }), deps)\`. If \`getValue\` reads a state variable, that variable must be in the dependency list, otherwise the handle keeps returning the value from the render in which it was created.`,
+    explanation: `Normally data flows down through props. Sometimes a parent needs to trigger an action that is not state, such as "focus yourself", and a ref is the right tool. Forwarding the ref straight to the \`<input>\` works, but hands the parent the whole DOM node: it can change styles, read anything, and it now depends on your component being implemented with exactly that element.
+
+\`useImperativeHandle\` lets the component publish a small, deliberate API instead. The component keeps its own \`inputRef\` for the DOM node, and tells React "when a parent asks for my ref, give it this object". The parent sees three functions and nothing else.
+
+The detail that bites is the dependency list. The handle object is created by a function that closes over the current render's variables. With \`[]\` as dependencies it is created once, and a \`getValue\` that returns the \`value\` state variable would return the empty string forever. Listing \`[value]\` rebuilds the handle when the text changes. Reading from the DOM node (\`inputRef.current.value\`) or from a ref is another way to stay current.
+
+\`clear()\` combines a state update with a focus call. The focus can happen immediately because the input already exists. Every method is O(1).`,
+    solution: `import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+
+const PinField = forwardRef(function PinField({ label }, ref) {
+  const [value, setValue] = useState('');
+  const inputRef = useRef(null);
+
+  useImperativeHandle(ref, () => ({
+    focus() {
+      inputRef.current.focus();
+    },
+    clear() {
+      setValue('');
+      inputRef.current.focus();
+    },
+    getValue() {
+      return value;
+    },
+  }), [value]);
+
+  return (
+    <div>
+      <input ref={inputRef} aria-label={label} value={value} onChange={(e) => setValue(e.target.value)} />
+      <p data-testid="length">{'Length: ' + value.length}</p>
+    </div>
+  );
+});
+
+export default PinField;
 `,
   },
 ];
