@@ -11,6 +11,9 @@ def _canon_key(x):
 def _normalize(x):
     if isinstance(x, bool):
         return x
+    if isinstance(x, _LISTY):
+        # A deque or dict view grades as a plain list.
+        x = list(x)
     if isinstance(x, (tuple, list)):
         return [_normalize(i) for i in x]
     if isinstance(x, (set, frozenset)):
@@ -39,7 +42,20 @@ def _equal(a, b, compare='exact'):
 # Problems that declare structs get real node objects instead of raw arrays:
 # level-order arrays become TreeNode trees, value lists become ListNode chains,
 # and returned nodes are flattened back so results compare against plain JSON.
-from typing import Optional, List, Dict, Tuple, Set, Any
+import collections, heapq, bisect, math, itertools, functools, string, re, random, operator, typing
+
+# Names available to every solution without an import, the way interview
+# sites provide them. Anything the user defines or imports themselves wins.
+_PRELOAD_NAMES = [
+    (collections, 'deque defaultdict Counter OrderedDict namedtuple'),
+    (heapq, 'heappush heappop heapify heappushpop heapreplace nlargest nsmallest'),
+    (bisect, 'bisect_left bisect_right insort insort_left insort_right'),
+    (math, 'inf gcd lcm ceil floor sqrt isqrt comb factorial log2'),
+    (functools, 'lru_cache cache reduce cmp_to_key'),
+    (itertools, 'accumulate permutations combinations combinations_with_replacement product zip_longest chain groupby pairwise'),
+    (typing, 'Optional List Dict Tuple Set Any Deque DefaultDict Union Callable Iterable Iterator'),
+]
+_PRELOAD_MODULES = [collections, heapq, bisect, math, itertools, functools, string, re, random, operator, typing]
 
 class TreeNode:
     def __init__(self, val=0, left=None, right=None):
@@ -59,12 +75,28 @@ class ListNode:
 _MAX_NODES = 100000
 
 def _base_globals():
-    return {
-        '__name__': '__main__',
-        'TreeNode': TreeNode, 'ListNode': ListNode,
-        'Optional': Optional, 'List': List, 'Dict': Dict,
-        'Tuple': Tuple, 'Set': Set, 'Any': Any,
-    }
+    glb = {'__name__': '__main__', 'TreeNode': TreeNode, 'ListNode': ListNode}
+    for mod in _PRELOAD_MODULES:
+        glb[mod.__name__] = mod
+    for mod, names in _PRELOAD_NAMES:
+        for name in names.split():
+            glb[name] = getattr(mod, name)
+    return glb
+
+# Concrete collections that grade as plain lists. Lazy iterators (generators,
+# map, zip...) are deliberately NOT included: returning one where a list is
+# expected is a real bug, and some debug problems are about exactly that.
+_LISTY = (collections.deque, type({}.keys()), type({}.values()), type({}.items()))
+
+def _json_safe(x):
+    # JSON has no inf / nan; show them as text instead of breaking the result.
+    if isinstance(x, float) and (x != x or x in (math.inf, -math.inf)):
+        return str(x)
+    if isinstance(x, list):
+        return [_json_safe(i) for i in x]
+    if isinstance(x, dict):
+        return {str(k): _json_safe(v) for k, v in x.items()}
+    return x
 
 def _build_tree(vals, cls):
     # Standard level-order encoding: children of a missing node are omitted.
@@ -205,9 +237,9 @@ def main():
             signal.alarm(5)
             got = fn(*args)
             signal.alarm(0)
-            got = _export_value(got, structs, cycle_nodes)
+            got = _normalize(_export_value(got, structs, cycle_nodes))
             ok = _equal(got, t['expected'], t.get('compare', 'exact'))
-            results.append({'id': t['id'], 'pass': bool(ok), 'got': _normalize(got), 'error': None})
+            results.append({'id': t['id'], 'pass': bool(ok), 'got': _json_safe(got), 'error': None})
         except BaseException as e:
             signal.alarm(0)
             results.append({'id': t['id'], 'pass': False, 'got': None, 'error': '%s: %s' % (type(e).__name__, e)})
