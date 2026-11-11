@@ -132,9 +132,8 @@ export const traps: Record<string, string[]> = {
     // mean, not median
     `SELECT courier, COUNT(minutes), AVG(minutes) FROM deliveries WHERE minutes IS NOT NULL GROUP BY courier ORDER BY courier`,
     // NULLs numbered along with the rest
-    `WITH d AS (SELECT courier, minutes, ROW_NUMBER() OVER (PARTITION BY courier ORDER BY minutes) AS rn, COUNT(*) OVER (PARTITION BY courier) AS n FROM deliveries)
-     SELECT courier, COUNT(minutes) FILTER (WHERE 1) + 0 * MAX(n) + (SELECT COUNT(x.minutes) FROM deliveries x WHERE x.courier = d.courier) - COUNT(minutes), AVG(minutes)
-     FROM d WHERE rn IN ((n + 1) / 2, (n + 2) / 2) GROUP BY courier HAVING (SELECT COUNT(x.minutes) FROM deliveries x WHERE x.courier = d.courier) > 0 ORDER BY courier`,
+    `WITH d AS (SELECT courier, minutes, ROW_NUMBER() OVER (PARTITION BY courier ORDER BY minutes) AS rn, COUNT(minutes) OVER (PARTITION BY courier) AS n FROM deliveries)
+     SELECT courier, MAX(n), AVG(minutes) FROM d WHERE n > 0 AND rn IN ((n + 1) / 2, (n + 2) / 2) GROUP BY courier ORDER BY courier`,
     // lower middle only for an even count
     `WITH d AS (SELECT courier, minutes, ROW_NUMBER() OVER (PARTITION BY courier ORDER BY minutes) AS rn, COUNT(*) OVER (PARTITION BY courier) AS n FROM deliveries WHERE minutes IS NOT NULL)
      SELECT courier, MAX(n), AVG(minutes) FROM d WHERE rn = (n + 1) / 2 GROUP BY courier ORDER BY courier`,
@@ -150,5 +149,291 @@ export const traps: Record<string, string[]> = {
     // no PARTITION BY: borrows a value from another tank
     `WITH g AS (SELECT tank, read_at, litres, COUNT(litres) OVER (ORDER BY tank, read_at) AS grp FROM tank_levels)
      SELECT tank, read_at, MAX(litres) OVER (PARTITION BY grp) FROM g ORDER BY tank, read_at`,
+  ],
+  'sql-takings-by-weekday': [
+    // %w order puts Sunday first
+    `WITH d AS (SELECT CAST(strftime('%w', sold_on) AS INTEGER) AS w, amount_cents FROM sales)
+     SELECT CASE w WHEN 0 THEN 'Sunday' WHEN 1 THEN 'Monday' WHEN 2 THEN 'Tuesday' WHEN 3 THEN 'Wednesday' WHEN 4 THEN 'Thursday' WHEN 5 THEN 'Friday' ELSE 'Saturday' END,
+            COUNT(*), SUM(amount_cents) FROM d GROUP BY w ORDER BY w`,
+    // alphabetical order of the names
+    `WITH d AS (SELECT CAST(strftime('%w', sold_on) AS INTEGER) AS w, amount_cents FROM sales)
+     SELECT CASE w WHEN 0 THEN 'Sunday' WHEN 1 THEN 'Monday' WHEN 2 THEN 'Tuesday' WHEN 3 THEN 'Wednesday' WHEN 4 THEN 'Thursday' WHEN 5 THEN 'Friday' ELSE 'Saturday' END AS weekday,
+            COUNT(*), SUM(amount_cents) FROM d GROUP BY w ORDER BY weekday`,
+    // grouped per calendar date instead of per weekday
+    `SELECT CASE strftime('%w', sold_on) WHEN '0' THEN 'Sunday' WHEN '1' THEN 'Monday' WHEN '2' THEN 'Tuesday' WHEN '3' THEN 'Wednesday' WHEN '4' THEN 'Thursday' WHEN '5' THEN 'Friday' ELSE 'Saturday' END,
+            COUNT(*), SUM(amount_cents) FROM sales GROUP BY sold_on ORDER BY (strftime('%w', sold_on) + 6) % 7, sold_on`,
+    // compares the text result of strftime with integers: everything falls into ELSE
+    `SELECT CASE strftime('%w', sold_on) WHEN 0 THEN 'Sunday' WHEN 1 THEN 'Monday' WHEN 2 THEN 'Tuesday' WHEN 3 THEN 'Wednesday' WHEN 4 THEN 'Thursday' WHEN 5 THEN 'Friday' ELSE 'Saturday' END,
+            COUNT(*), SUM(amount_cents) FROM sales GROUP BY strftime('%w', sold_on) ORDER BY (strftime('%w', sold_on) + 6) % 7`,
+  ],
+  'sql-days-left-in-signup-month': [
+    // adds the month before snapping to the 1st: overflows on long months
+    `SELECT id, started_on, date(started_on, '+1 month', 'start of month', '-1 day'),
+            CAST(julianday(date(started_on, '+1 month', 'start of month', '-1 day')) - julianday(started_on) AS INTEGER) + 1
+     FROM memberships ORDER BY id`,
+    // forgets to count both ends
+    `SELECT id, started_on, date(started_on, 'start of month', '+1 month', '-1 day'),
+            CAST(julianday(date(started_on, 'start of month', '+1 month', '-1 day')) - julianday(started_on) AS INTEGER)
+     FROM memberships ORDER BY id`,
+    // assumes every month has 31 days
+    `SELECT id, started_on, date(started_on, 'start of month', '+30 days'),
+            CAST(julianday(date(started_on, 'start of month', '+30 days')) - julianday(started_on) AS INTEGER) + 1
+     FROM memberships ORDER BY id`,
+    // one month after the start date, minus a day
+    `SELECT id, started_on, date(started_on, '+1 month', '-1 day'),
+            CAST(julianday(date(started_on, '+1 month', '-1 day')) - julianday(started_on) AS INTEGER) + 1
+     FROM memberships ORDER BY id`,
+  ],
+  'sql-tickets-per-monday-week': [
+    // Sunday-start weeks
+    `SELECT date(opened_on, '-' || strftime('%w', opened_on) || ' days') AS week_start, COUNT(*) FROM tickets GROUP BY week_start ORDER BY week_start`,
+    // 'weekday 1' moves forward to the next Monday
+    `SELECT date(opened_on, 'weekday 1') AS week_start, COUNT(*) FROM tickets GROUP BY week_start ORDER BY week_start`,
+    // right for six days, a week early for Mondays
+    `SELECT date(opened_on, 'weekday 1', '-7 days') AS week_start, COUNT(*) FROM tickets GROUP BY week_start ORDER BY week_start`,
+    // groups by week number: splits the week that straddles New Year
+    `SELECT MIN(date(opened_on, '-' || ((strftime('%w', opened_on) + 6) % 7) || ' days')) AS week_start, COUNT(*)
+     FROM tickets GROUP BY strftime('%Y-%W', opened_on) ORDER BY week_start`,
+  ],
+  'sql-same-month-last-year': [
+    // twelve rows back is not twelve months back when months are missing
+    `WITH t AS (SELECT month, revenue_cents, LAG(revenue_cents, 12) OVER (ORDER BY month) AS p FROM monthly_revenue)
+     SELECT month, revenue_cents, p, ROUND(100.0 * (revenue_cents - p) / p, 1) FROM t
+     WHERE substr(month, 1, 4) = (SELECT substr(MAX(month), 1, 4) FROM monthly_revenue) ORDER BY month`,
+    // INNER JOIN drops months with no counterpart
+    `SELECT c.month, c.revenue_cents, p.revenue_cents, ROUND(100.0 * (c.revenue_cents - p.revenue_cents) / p.revenue_cents, 1)
+     FROM monthly_revenue c JOIN monthly_revenue p ON p.month = (CAST(substr(c.month, 1, 4) AS INTEGER) - 1) || substr(c.month, 5)
+     WHERE substr(c.month, 1, 4) = (SELECT substr(MAX(month), 1, 4) FROM monthly_revenue) ORDER BY c.month`,
+    // every year, not only the latest
+    `SELECT c.month, c.revenue_cents, p.revenue_cents, ROUND(100.0 * (c.revenue_cents - p.revenue_cents) / p.revenue_cents, 1)
+     FROM monthly_revenue c LEFT JOIN monthly_revenue p ON p.month = (CAST(substr(c.month, 1, 4) AS INTEGER) - 1) || substr(c.month, 5)
+     ORDER BY c.month`,
+    // integer division
+    `SELECT c.month, c.revenue_cents, p.revenue_cents, ROUND(100 * (c.revenue_cents - p.revenue_cents) / p.revenue_cents, 1)
+     FROM monthly_revenue c LEFT JOIN monthly_revenue p ON p.month = (CAST(substr(c.month, 1, 4) AS INTEGER) - 1) || substr(c.month, 5)
+     WHERE substr(c.month, 1, 4) = (SELECT substr(MAX(month), 1, 4) FROM monthly_revenue) ORDER BY c.month`,
+    // previous row (month over month)
+    `WITH t AS (SELECT month, revenue_cents, LAG(revenue_cents) OVER (ORDER BY month) AS p FROM monthly_revenue)
+     SELECT month, revenue_cents, p, ROUND(100.0 * (revenue_cents - p) / p, 1) FROM t
+     WHERE substr(month, 1, 4) = (SELECT substr(MAX(month), 1, 4) FROM monthly_revenue) ORDER BY month`,
+  ],
+  'sql-products-behind-80-percent': [
+    // cumulative <= 80% drops the product that crosses the line
+    `WITH t AS (SELECT product, SUM(amount_cents) AS revenue FROM sales GROUP BY product),
+     r AS (SELECT product, revenue, SUM(revenue) OVER (ORDER BY revenue DESC, product ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running, SUM(revenue) OVER () AS grand FROM t)
+     SELECT product, revenue, ROUND(100.0 * running / grand, 1) FROM r WHERE running * 5 <= grand * 4 ORDER BY revenue DESC, product`,
+    // default RANGE frame: tied products share one running total
+    `WITH t AS (SELECT product, SUM(amount_cents) AS revenue FROM sales GROUP BY product),
+     r AS (SELECT product, revenue, SUM(revenue) OVER (ORDER BY revenue DESC) AS running, SUM(revenue) OVER () AS grand FROM t)
+     SELECT product, revenue, ROUND(100.0 * running / grand, 1) FROM r WHERE (running - revenue) * 5 < grand * 4 ORDER BY revenue DESC, product`,
+    // keeps going after exactly 80% has been reached
+    `WITH t AS (SELECT product, SUM(amount_cents) AS revenue FROM sales GROUP BY product),
+     r AS (SELECT product, revenue, SUM(revenue) OVER (ORDER BY revenue DESC, product ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running, SUM(revenue) OVER () AS grand FROM t)
+     SELECT product, revenue, ROUND(100.0 * running / grand, 1) FROM r WHERE (running - revenue) * 5 <= grand * 4 ORDER BY revenue DESC, product`,
+    // running total over raw sales rows instead of per-product totals
+    `WITH r AS (SELECT product, amount_cents AS revenue, SUM(amount_cents) OVER (ORDER BY amount_cents DESC, product, id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running, SUM(amount_cents) OVER () AS grand FROM sales)
+     SELECT product, revenue, ROUND(100.0 * running / grand, 1) FROM r WHERE (running - revenue) * 5 < grand * 4 ORDER BY revenue DESC, product`,
+  ],
+  'sql-monthly-retention-triangle': [
+    // counts purchases, not buyers
+    `WITH f AS (SELECT buyer_id, MIN(bought_on) AS first_on FROM purchases GROUP BY buyer_id)
+     SELECT strftime('%Y-%m', f.first_on) AS c,
+            (strftime('%Y', p.bought_on) - strftime('%Y', f.first_on)) * 12 + strftime('%m', p.bought_on) - strftime('%m', f.first_on) AS m, COUNT(*)
+     FROM purchases p JOIN f ON f.buyer_id = p.buyer_id GROUP BY c, m ORDER BY c, m`,
+    // month numbers only: breaks across New Year
+    `WITH f AS (SELECT buyer_id, MIN(bought_on) AS first_on FROM purchases GROUP BY buyer_id)
+     SELECT strftime('%Y-%m', f.first_on) AS c, strftime('%m', p.bought_on) - strftime('%m', f.first_on) AS m, COUNT(DISTINCT p.buyer_id)
+     FROM purchases p JOIN f ON f.buyer_id = p.buyer_id GROUP BY c, m ORDER BY c, m`,
+    // 30-day periods instead of calendar months
+    `WITH f AS (SELECT buyer_id, MIN(bought_on) AS first_on FROM purchases GROUP BY buyer_id)
+     SELECT strftime('%Y-%m', f.first_on) AS c, CAST((julianday(p.bought_on) - julianday(f.first_on)) / 30 AS INTEGER) AS m, COUNT(DISTINCT p.buyer_id)
+     FROM purchases p JOIN f ON f.buyer_id = p.buyer_id GROUP BY c, m ORDER BY c, m`,
+    // 30-day periods measured from the first of the cohort month
+    `WITH f AS (SELECT buyer_id, MIN(bought_on) AS first_on FROM purchases GROUP BY buyer_id)
+     SELECT strftime('%Y-%m', f.first_on) AS c, CAST((julianday(p.bought_on) - julianday(date(f.first_on, 'start of month'))) / 30 AS INTEGER) AS m, COUNT(DISTINCT p.buyer_id)
+     FROM purchases p JOIN f ON f.buyer_id = p.buyer_id GROUP BY c, m ORDER BY c, m`,
+  ],
+  'sql-loan-repayment-schedule': [
+    // every instalment equal: the leftover cents are lost
+    `WITH RECURSIVE s(loan_id, n, k, p, d) AS (SELECT id, 1, instalments, principal_cents, first_due_on FROM loans UNION ALL SELECT loan_id, n + 1, k, p, d FROM s WHERE n < k)
+     SELECT loan_id, n, date(d, '+' || (n - 1) || ' months'), p / k FROM s ORDER BY loan_id, n`,
+    // 30 days is not a month
+    `WITH RECURSIVE s(loan_id, n, k, p, d) AS (SELECT id, 1, instalments, principal_cents, first_due_on FROM loans UNION ALL SELECT loan_id, n + 1, k, p, d FROM s WHERE n < k)
+     SELECT loan_id, n, date(d, '+' || ((n - 1) * 30) || ' days'), CASE WHEN n < k THEN p / k ELSE p - (p / k) * (k - 1) END FROM s ORDER BY loan_id, n`,
+    // remainder put on the first instalment
+    `WITH RECURSIVE s(loan_id, n, k, p, d) AS (SELECT id, 1, instalments, principal_cents, first_due_on FROM loans UNION ALL SELECT loan_id, n + 1, k, p, d FROM s WHERE n < k)
+     SELECT loan_id, n, date(d, '+' || (n - 1) || ' months'), CASE WHEN n > 1 THEN p / k ELSE p - (p / k) * (k - 1) END FROM s ORDER BY loan_id, n`,
+    // off by one: generates an extra instalment
+    `WITH RECURSIVE s(loan_id, n, k, p, d) AS (SELECT id, 1, instalments, principal_cents, first_due_on FROM loans UNION ALL SELECT loan_id, n + 1, k, p, d FROM s WHERE n <= k)
+     SELECT loan_id, n, date(d, '+' || (n - 1) || ' months'), CASE WHEN n < k THEN p / k ELSE p - (p / k) * (k - 1) END FROM s ORDER BY loan_id, n`,
+  ],
+  'sql-beds-occupied-each-night': [
+    // counts the discharge day as occupied
+    `WITH RECURSIVE n(night) AS (SELECT first_night FROM report_range UNION ALL SELECT date(night, '+1 day') FROM n WHERE night < (SELECT last_night FROM report_range))
+     SELECT n.night, COUNT(s.id) FROM n LEFT JOIN stays s ON s.admitted_on <= n.night AND (s.discharged_on IS NULL OR s.discharged_on >= n.night) GROUP BY n.night ORDER BY n.night`,
+    // NULL discharge never matches
+    `WITH RECURSIVE n(night) AS (SELECT first_night FROM report_range UNION ALL SELECT date(night, '+1 day') FROM n WHERE night < (SELECT last_night FROM report_range))
+     SELECT n.night, COUNT(s.id) FROM n LEFT JOIN stays s ON s.admitted_on <= n.night AND s.discharged_on > n.night GROUP BY n.night ORDER BY n.night`,
+    // INNER JOIN loses the empty nights
+    `WITH RECURSIVE n(night) AS (SELECT first_night FROM report_range UNION ALL SELECT date(night, '+1 day') FROM n WHERE night < (SELECT last_night FROM report_range))
+     SELECT n.night, COUNT(s.id) FROM n JOIN stays s ON s.admitted_on <= n.night AND (s.discharged_on IS NULL OR s.discharged_on > n.night) GROUP BY n.night ORDER BY n.night`,
+    // COUNT(*) counts the NULL-extended row
+    `WITH RECURSIVE n(night) AS (SELECT first_night FROM report_range UNION ALL SELECT date(night, '+1 day') FROM n WHERE night < (SELECT last_night FROM report_range))
+     SELECT n.night, COUNT(*) FROM n LEFT JOIN stays s ON s.admitted_on <= n.night AND (s.discharged_on IS NULL OR s.discharged_on > n.night) GROUP BY n.night ORDER BY n.night`,
+  ],
+  'sql-pair-badge-in-with-out': [
+    // earliest later 'out', even if another 'in' lies in between
+    `SELECT i.worker_id, i.scanned_at,
+            (SELECT MIN(o.scanned_at) FROM badge_events o WHERE o.worker_id = i.worker_id AND o.kind = 'out' AND o.scanned_at > i.scanned_at) AS out_at,
+            (strftime('%s', (SELECT MIN(o.scanned_at) FROM badge_events o WHERE o.worker_id = i.worker_id AND o.kind = 'out' AND o.scanned_at > i.scanned_at)) - strftime('%s', i.scanned_at)) / 60
+     FROM badge_events i WHERE i.kind = 'in' ORDER BY i.worker_id, i.scanned_at`,
+    // next event taken as the badge-out whatever its kind
+    `WITH s AS (SELECT worker_id, kind, scanned_at, LEAD(scanned_at) OVER (PARTITION BY worker_id ORDER BY scanned_at) AS nx FROM badge_events)
+     SELECT worker_id, scanned_at, nx, (strftime('%s', nx) - strftime('%s', scanned_at)) / 60 FROM s WHERE kind = 'in' ORDER BY worker_id, scanned_at`,
+    // no PARTITION BY
+    `WITH s AS (SELECT worker_id, kind, scanned_at, LEAD(kind) OVER (ORDER BY scanned_at, id) AS nk, LEAD(scanned_at) OVER (ORDER BY scanned_at, id) AS nx FROM badge_events)
+     SELECT worker_id, scanned_at, CASE WHEN nk = 'out' THEN nx END, CASE WHEN nk = 'out' THEN (strftime('%s', nx) - strftime('%s', scanned_at)) / 60 END
+     FROM s WHERE kind = 'in' ORDER BY worker_id, scanned_at`,
+    // open badge-ins dropped
+    `WITH s AS (SELECT worker_id, kind, scanned_at, LEAD(kind) OVER w AS nk, LEAD(scanned_at) OVER w AS nx FROM badge_events WINDOW w AS (PARTITION BY worker_id ORDER BY scanned_at))
+     SELECT worker_id, scanned_at, nx, (strftime('%s', nx) - strftime('%s', scanned_at)) / 60 FROM s WHERE kind = 'in' AND nk = 'out' ORDER BY worker_id, scanned_at`,
+  ],
+  'sql-outage-windows': [
+    // one row per service: all its down checks lumped together
+    `SELECT service, MIN(checked_at) AS f, MAX(checked_at), COUNT(*),
+            (SELECT MIN(u.checked_at) FROM health_checks u WHERE u.service = h.service AND u.status = 'up' AND u.checked_at > MAX(h.checked_at))
+     FROM health_checks h WHERE status = 'down' GROUP BY service ORDER BY service, f`,
+    // no PARTITION BY service
+    `WITH m AS (SELECT service, checked_at, status,
+                       SUM(CASE WHEN status = 'up' THEN 1 ELSE 0 END) OVER (ORDER BY checked_at, service ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS g,
+                       LEAD(status) OVER (PARTITION BY service ORDER BY checked_at) AS ns, LEAD(checked_at) OVER (PARTITION BY service ORDER BY checked_at) AS na
+                FROM health_checks)
+     SELECT service, MIN(checked_at) AS f, MAX(checked_at), COUNT(*), MAX(CASE WHEN ns = 'up' THEN na END) FROM m WHERE status = 'down' GROUP BY service, g ORDER BY service, f`,
+    // recovered_at taken as the latest "next" time: wrong when still down
+    `WITH m AS (SELECT service, checked_at, status,
+                       SUM(CASE WHEN status = 'up' THEN 1 ELSE 0 END) OVER (PARTITION BY service ORDER BY checked_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS g,
+                       LEAD(checked_at) OVER (PARTITION BY service ORDER BY checked_at) AS na
+                FROM health_checks)
+     SELECT service, MIN(checked_at) AS f, MAX(checked_at), COUNT(*), MAX(na) FROM m WHERE status = 'down' GROUP BY service, g ORDER BY service, f`,
+    // ordered by id
+    `WITH m AS (SELECT service, checked_at, status,
+                       SUM(CASE WHEN status = 'up' THEN 1 ELSE 0 END) OVER (PARTITION BY service ORDER BY id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS g,
+                       LEAD(status) OVER (PARTITION BY service ORDER BY id) AS ns, LEAD(checked_at) OVER (PARTITION BY service ORDER BY id) AS na
+                FROM health_checks)
+     SELECT service, MIN(checked_at) AS f, MAX(checked_at), COUNT(*), MAX(CASE WHEN ns = 'up' THEN na END) FROM m WHERE status = 'down' GROUP BY service, g ORDER BY service, f`,
+    // LEAD computed after filtering to the down rows: never sees the 'up'
+    `WITH m AS (SELECT service, checked_at, status,
+                       SUM(CASE WHEN status = 'up' THEN 1 ELSE 0 END) OVER (PARTITION BY service ORDER BY checked_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS g
+                FROM health_checks),
+     d AS (SELECT *, LEAD(checked_at) OVER (PARTITION BY service ORDER BY checked_at) AS na FROM m WHERE status = 'down')
+     SELECT service, MIN(checked_at) AS f, MAX(checked_at), COUNT(*), MAX(na) FROM d GROUP BY service, g ORDER BY service, f`,
+  ],
+  'sql-live-settings-after-deletes': [
+    // latest 'set' wins, deletes ignored
+    `WITH r AS (SELECT name, value, ROW_NUMBER() OVER (PARTITION BY name ORDER BY changed_at DESC, id DESC) AS rn FROM setting_log WHERE op = 'set')
+     SELECT name, value FROM r WHERE rn = 1 ORDER BY name`,
+    // tie broken by the lowest id
+    `WITH r AS (SELECT name, op, value, ROW_NUMBER() OVER (PARTITION BY name ORDER BY changed_at DESC, id) AS rn FROM setting_log)
+     SELECT name, value FROM r WHERE rn = 1 AND op = 'set' ORDER BY name`,
+    // highest id taken as latest
+    `WITH r AS (SELECT name, op, value, ROW_NUMBER() OVER (PARTITION BY name ORDER BY id DESC) AS rn FROM setting_log)
+     SELECT name, value FROM r WHERE rn = 1 AND op = 'set' ORDER BY name`,
+    // join on MAX(changed_at) with no tie-break
+    `SELECT l.name, l.value FROM setting_log l
+     JOIN (SELECT name, MAX(changed_at) AS m FROM setting_log GROUP BY name) x ON x.name = l.name AND x.m = l.changed_at
+     WHERE l.op = 'set' ORDER BY l.name, l.value`,
+  ],
+  'sql-raw-parts-per-assembly': [
+    // UNION removes identical rows that came from different paths
+    `WITH RECURSIVE w(product, item, qty) AS (
+       SELECT parent, child, qty FROM bom WHERE parent NOT IN (SELECT child FROM bom)
+       UNION
+       SELECT w.product, b.child, w.qty * b.qty FROM w JOIN bom b ON b.parent = w.item)
+     SELECT product, item, SUM(qty) FROM w WHERE item NOT IN (SELECT parent FROM bom) GROUP BY product, item ORDER BY product, item`,
+    // quantities added, not multiplied down the path
+    `WITH RECURSIVE w(product, item, qty) AS (
+       SELECT parent, child, qty FROM bom WHERE parent NOT IN (SELECT child FROM bom)
+       UNION ALL
+       SELECT w.product, b.child, b.qty FROM w JOIN bom b ON b.parent = w.item)
+     SELECT product, item, SUM(qty) FROM w WHERE item NOT IN (SELECT parent FROM bom) GROUP BY product, item ORDER BY product, item`,
+    // direct children only
+    `SELECT parent, child, qty FROM bom
+     WHERE parent NOT IN (SELECT child FROM bom) AND child NOT IN (SELECT parent FROM bom) ORDER BY parent, child`,
+    // starts from every parent, sub-assemblies included
+    `WITH RECURSIVE w(product, item, qty) AS (
+       SELECT parent, child, qty FROM bom
+       UNION ALL
+       SELECT w.product, b.child, w.qty * b.qty FROM w JOIN bom b ON b.parent = w.item)
+     SELECT product, item, SUM(qty) FROM w WHERE item NOT IN (SELECT parent FROM bom) GROUP BY product, item ORDER BY product, item`,
+  ],
+  'sql-fewest-flights-from-hub': [
+    // routes treated as two-way
+    `WITH RECURSIVE reach(code, hops) AS (
+       SELECT code, 0 FROM airports WHERE is_hub = 1
+       UNION
+       SELECT CASE WHEN r.origin = reach.code THEN r.destination ELSE r.origin END, reach.hops + 1
+       FROM reach JOIN routes r ON r.origin = reach.code OR r.destination = reach.code
+       WHERE reach.hops < (SELECT COUNT(*) FROM airports))
+     SELECT a.code, b.f FROM airports a LEFT JOIN (SELECT code, MIN(hops) AS f FROM reach GROUP BY code) b ON b.code = a.code
+     ORDER BY b.f IS NULL, b.f, a.code`,
+    // INNER JOIN: unreachable airports missing
+    `WITH RECURSIVE reach(code, hops) AS (
+       SELECT code, 0 FROM airports WHERE is_hub = 1
+       UNION
+       SELECT r.destination, reach.hops + 1 FROM reach JOIN routes r ON r.origin = reach.code
+       WHERE reach.hops < (SELECT COUNT(*) FROM airports))
+     SELECT code, MIN(hops) AS f FROM reach GROUP BY code ORDER BY f, code`,
+    // NULLs sort first
+    `WITH RECURSIVE reach(code, hops) AS (
+       SELECT code, 0 FROM airports WHERE is_hub = 1
+       UNION
+       SELECT r.destination, reach.hops + 1 FROM reach JOIN routes r ON r.origin = reach.code
+       WHERE reach.hops < (SELECT COUNT(*) FROM airports))
+     SELECT a.code, b.f FROM airports a LEFT JOIN (SELECT code, MIN(hops) AS f FROM reach GROUP BY code) b ON b.code = a.code
+     ORDER BY b.f, a.code`,
+    // only looks two flights out
+    `WITH RECURSIVE reach(code, hops) AS (
+       SELECT code, 0 FROM airports WHERE is_hub = 1
+       UNION
+       SELECT r.destination, reach.hops + 1 FROM reach JOIN routes r ON r.origin = reach.code WHERE reach.hops < 2)
+     SELECT a.code, b.f FROM airports a LEFT JOIN (SELECT code, MIN(hops) AS f FROM reach GROUP BY code) b ON b.code = a.code
+     ORDER BY b.f IS NULL, b.f, a.code`,
+    // longest loop-free walk instead of the shortest
+    `WITH RECURSIVE reach(code, hops) AS (
+       SELECT code, 0 FROM airports WHERE is_hub = 1
+       UNION
+       SELECT r.destination, reach.hops + 1 FROM reach JOIN routes r ON r.origin = reach.code
+       WHERE reach.hops < (SELECT COUNT(*) FROM airports))
+     SELECT a.code, b.f FROM airports a LEFT JOIN (SELECT code, MAX(hops) AS f FROM reach GROUP BY code) b ON b.code = a.code
+     ORDER BY b.f IS NULL, b.f, a.code`,
+  ],
+  'sql-closest-shared-manager': [
+    // chains exclude the person: a manager is never their own report's arbiter
+    `WITH RECURSIVE chain(person, ancestor, dist) AS (
+       SELECT id, manager_id, 1 FROM staff WHERE manager_id IS NOT NULL
+       UNION ALL
+       SELECT c.person, s.manager_id, c.dist + 1 FROM chain c JOIN staff s ON s.id = c.ancestor WHERE s.manager_id IS NOT NULL),
+     sh AS (SELECT p.id AS pid, ca.ancestor, ROW_NUMBER() OVER (PARTITION BY p.id ORDER BY ca.dist) AS rn
+            FROM pairs p JOIN chain ca ON ca.person = p.a_id JOIN chain cb ON cb.person = p.b_id AND cb.ancestor = ca.ancestor)
+     SELECT p.id, s.name FROM pairs p LEFT JOIN sh ON sh.pid = p.id AND sh.rn = 1 LEFT JOIN staff s ON s.id = sh.ancestor ORDER BY p.id`,
+    // farthest shared person: the head of the tree
+    `WITH RECURSIVE chain(person, ancestor, dist) AS (
+       SELECT id, id, 0 FROM staff
+       UNION ALL
+       SELECT c.person, s.manager_id, c.dist + 1 FROM chain c JOIN staff s ON s.id = c.ancestor WHERE s.manager_id IS NOT NULL),
+     sh AS (SELECT p.id AS pid, ca.ancestor, ROW_NUMBER() OVER (PARTITION BY p.id ORDER BY ca.dist DESC) AS rn
+            FROM pairs p JOIN chain ca ON ca.person = p.a_id JOIN chain cb ON cb.person = p.b_id AND cb.ancestor = ca.ancestor)
+     SELECT p.id, s.name FROM pairs p LEFT JOIN sh ON sh.pid = p.id AND sh.rn = 1 LEFT JOIN staff s ON s.id = sh.ancestor ORDER BY p.id`,
+    // INNER JOIN: pairs with nobody in common disappear
+    `WITH RECURSIVE chain(person, ancestor, dist) AS (
+       SELECT id, id, 0 FROM staff
+       UNION ALL
+       SELECT c.person, s.manager_id, c.dist + 1 FROM chain c JOIN staff s ON s.id = c.ancestor WHERE s.manager_id IS NOT NULL),
+     sh AS (SELECT p.id AS pid, ca.ancestor, ROW_NUMBER() OVER (PARTITION BY p.id ORDER BY ca.dist) AS rn
+            FROM pairs p JOIN chain ca ON ca.person = p.a_id JOIN chain cb ON cb.person = p.b_id AND cb.ancestor = ca.ancestor)
+     SELECT sh.pid, s.name FROM sh JOIN staff s ON s.id = sh.ancestor WHERE sh.rn = 1 ORDER BY sh.pid`,
+    // only checks whether the two have the same direct manager
+    `SELECT p.id, CASE WHEN a.manager_id = b.manager_id THEN m.name END
+     FROM pairs p JOIN staff a ON a.id = p.a_id JOIN staff b ON b.id = p.b_id LEFT JOIN staff m ON m.id = a.manager_id ORDER BY p.id`,
   ],
 };
