@@ -165,11 +165,14 @@ def mod_inverse(a, m):
     return old_x % m
 
 
-def last_one_standing(n, k):
-    pos = 0
-    for size in range(2, n + 1):
-        pos = (pos + k) % size
-    return pos + 1
+def count_consecutive_runs(n):
+    count = 0
+    length = 1
+    while length * (length - 1) // 2 < n:
+        if (n - length * (length - 1) // 2) % length == 0:
+            count += 1
+        length += 1
+    return count
 
 
 def kth_arrangement(n, k):
@@ -364,24 +367,27 @@ def shortest_window_subsequence(text, pattern):
     return best
 
 
-def kth_smallest_pair_gap(nums, k):
-    s = sorted(nums)
-    n = len(s)
-
-    def pairs_within(limit):
-        count = 0
-        left = 0
-        for right in range(n):
-            while s[right] - s[left] > limit:
-                left += 1
-            count += right - left
-        return count
-
-    lo, hi = 0, s[-1] - s[0]
-    while lo < hi:
-        mid = (lo + hi) // 2
-        if pairs_within(mid) >= k:
-            hi = mid
-        else:
-            lo = mid + 1
-    return lo
+def min_swaps_to_palindrome(s):
+    counts = {}
+    for ch in s:
+        counts[ch] = counts.get(ch, 0) + 1
+    if sum(v % 2 for v in counts.values()) > 1:
+        return -1
+    chars = list(s)
+    swaps = 0
+    i, j = 0, len(chars) - 1
+    while i < j:
+        k = j
+        while chars[k] != chars[i]:
+            k -= 1
+        if k == i:
+            chars[i], chars[i + 1] = chars[i + 1], chars[i]
+            swaps += 1
+            continue
+        while k < j:
+            chars[k], chars[k + 1] = chars[k + 1], chars[k]
+            k += 1
+            swaps += 1
+        i += 1
+        j -= 1
+    return swaps
