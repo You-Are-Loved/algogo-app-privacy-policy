@@ -2187,4 +2187,889 @@ export default function TipCalculator() {
 }
 `,
   },
+
+  {
+    id: 'react-topping-picker-limit',
+    number: 66,
+    title: 'Checkbox Group with a Maximum',
+    difficulty: 'Medium',
+    topic: 'Forms',
+    statement: `Build \`ToppingPicker({ options, max = 3, basePrice = 0, onChange })\`. \`options\` is an array of \`{ id, label, price }\`; the prices and \`basePrice\` are whole numbers of cents. \`onChange\` is optional.
+
+- One checkbox per option, in order, all unchecked at first. Each sits in a \`<label>\` whose text is the option label followed by its price in brackets, exactly like \`Mushrooms (+$1.50)\`.
+- \`<p data-testid="summary">\` reads \`N of {max} selected\`, for example \`2 of 3 selected\`.
+- \`<p data-testid="total">\` reads \`Total: $X.XX\`: \`basePrice\` plus the prices of the checked options, in dollars with two decimals.
+- Once \`max\` options are checked, every **unchecked** checkbox is disabled. The checked ones stay enabled so the user can untick them, which enables the others again.
+- A button labelled \`Clear\` unticks everything. It is disabled while nothing is checked.
+- Whenever the selection changes (a tick, an untick or Clear), call \`onChange(ids)\` if it was given, with the checked ids in the order of the \`options\` array, not in click order.`,
+    componentName: 'ToppingPicker',
+    starter: `import React, { useState } from 'react';
+
+export default function ToppingPicker({ options, max = 3, basePrice = 0, onChange }) {
+  // TODO: track the checked ids; derive the summary, the total and which boxes are disabled
+  return (
+    <div>
+      {options.map((option) => (
+        <label key={option.id} style={{ display: 'block' }}>
+          <input type="checkbox" /> {option.label} (+\${(option.price / 100).toFixed(2)})
+        </label>
+      ))}
+      <p data-testid="summary">0 of {max} selected</p>
+      <p data-testid="total">Total: \${(basePrice / 100).toFixed(2)}</p>
+      <button type="button" disabled>Clear</button>
+    </div>
+  );
+}
+`,
+    previewProps: {
+      options: [
+        { id: 'mush', label: 'Mushrooms', price: 150 },
+        { id: 'pep', label: 'Pepperoni', price: 200 },
+        { id: 'oli', label: 'Olives', price: 100 },
+        { id: 'ham', label: 'Ham', price: 250 },
+      ],
+      max: 2,
+      basePrice: 900,
+    },
+    tests: [
+      {
+        name: 'starts with nothing selected and the base price',
+        code: `const { getAllByRole, getByLabelText, getByRole, getByTestId } = render({ options: props.options, max: 3, basePrice: 900 });
+expect(getAllByRole('checkbox')).toHaveLength(4);
+expect(getAllByRole('checkbox').some((c) => c.checked)).toBe(false);
+expect(getByLabelText('Mushrooms (+$1.50)')).toBeTruthy();
+expect(getByLabelText('Ham (+$2.50)')).toBeTruthy();
+expect(getByTestId('summary').textContent).toBe('0 of 3 selected');
+expect(getByTestId('total').textContent).toBe('Total: $9.00');
+expect(getByRole('button', { name: 'Clear' })).toBeDisabled();`,
+      },
+      {
+        name: 'ticking and unticking updates the summary and the total',
+        code: `const { getByLabelText, getByTestId } = render({ options: props.options, max: 3, basePrice: 900 });
+fireEvent.click(getByLabelText('Pepperoni (+$2.00)'));
+fireEvent.click(getByLabelText('Olives (+$1.00)'));
+expect(getByLabelText('Pepperoni (+$2.00)').checked).toBe(true);
+expect(getByTestId('summary').textContent).toBe('2 of 3 selected');
+expect(getByTestId('total').textContent).toBe('Total: $12.00');
+fireEvent.click(getByLabelText('Olives (+$1.00)'));
+expect(getByLabelText('Olives (+$1.00)').checked).toBe(false);
+expect(getByTestId('summary').textContent).toBe('1 of 3 selected');
+expect(getByTestId('total').textContent).toBe('Total: $11.00');`,
+      },
+      {
+        name: 'at the maximum only the unchecked boxes are disabled',
+        code: `const { getByLabelText, getByTestId } = render({ options: props.options, max: 2, basePrice: 900 });
+fireEvent.click(getByLabelText('Ham (+$2.50)'));
+expect(getByLabelText('Olives (+$1.00)')).not.toBeDisabled();
+fireEvent.click(getByLabelText('Mushrooms (+$1.50)'));
+expect(getByTestId('summary').textContent).toBe('2 of 2 selected');
+expect(getByLabelText('Pepperoni (+$2.00)')).toBeDisabled();
+expect(getByLabelText('Olives (+$1.00)')).toBeDisabled();
+expect(getByLabelText('Ham (+$2.50)')).not.toBeDisabled();
+expect(getByLabelText('Mushrooms (+$1.50)')).not.toBeDisabled();
+fireEvent.click(getByLabelText('Ham (+$2.50)'));
+expect(getByLabelText('Pepperoni (+$2.00)')).not.toBeDisabled();
+expect(getByLabelText('Olives (+$1.00)')).not.toBeDisabled();`,
+      },
+      {
+        name: 'reports the checked ids in option order, not click order',
+        code: `const calls = [];
+const { getByLabelText } = render({ options: props.options, max: 3, onChange: (ids) => calls.push(ids.slice()) });
+fireEvent.click(getByLabelText('Ham (+$2.50)'));
+fireEvent.click(getByLabelText('Mushrooms (+$1.50)'));
+fireEvent.click(getByLabelText('Olives (+$1.00)'));
+fireEvent.click(getByLabelText('Mushrooms (+$1.50)'));
+expect(calls).toEqual([['ham'], ['mush', 'ham'], ['mush', 'oli', 'ham'], ['oli', 'ham']]);`,
+      },
+      {
+        name: 'Clear unticks everything',
+        code: `const calls = [];
+const { getAllByRole, getByLabelText, getByRole, getByTestId } = render({ options: props.options, max: 2, basePrice: 900, onChange: (ids) => calls.push(ids.slice()) });
+fireEvent.click(getByLabelText('Pepperoni (+$2.00)'));
+fireEvent.click(getByLabelText('Ham (+$2.50)'));
+expect(getByRole('button', { name: 'Clear' })).not.toBeDisabled();
+fireEvent.click(getByRole('button', { name: 'Clear' }));
+expect(getAllByRole('checkbox').some((c) => c.checked)).toBe(false);
+expect(getAllByRole('checkbox').some((c) => c.disabled)).toBe(false);
+expect(getByTestId('summary').textContent).toBe('0 of 2 selected');
+expect(getByTestId('total').textContent).toBe('Total: $9.00');
+expect(getByRole('button', { name: 'Clear' })).toBeDisabled();
+expect(calls[calls.length - 1]).toEqual([]);
+expect(calls).toHaveLength(3);`,
+      },
+      {
+        name: 'defaults to a maximum of 3 and a base price of 0',
+        code: `const { getByLabelText, getByTestId } = render({ options: props.options });
+expect(getByTestId('summary').textContent).toBe('0 of 3 selected');
+expect(getByTestId('total').textContent).toBe('Total: $0.00');
+fireEvent.click(getByLabelText('Mushrooms (+$1.50)'));
+fireEvent.click(getByLabelText('Pepperoni (+$2.00)'));
+expect(getByLabelText('Ham (+$2.50)')).not.toBeDisabled();
+fireEvent.click(getByLabelText('Olives (+$1.00)'));
+expect(getByLabelText('Ham (+$2.50)')).toBeDisabled();
+expect(getByTestId('total').textContent).toBe('Total: $4.50');`,
+      },
+    ],
+    hint: 'Store the checked ids. To keep them in option order, rebuild the list with `options.filter(...)` every time instead of pushing the clicked id onto the end.',
+    explanation:
+      'The state is the set of checked ids; the summary, the total and the disabled flags are all computed from it during render. A box is disabled when it is not checked and the limit has been reached, which automatically leaves the checked ones clickable. Disabling every box at the limit is the usual slip, and it traps the user with no way to change their mind. ' +
+      'For the callback, order matters. Appending the clicked id (`[...selected, id]`) produces click order, so the parent receives `[ham, mush]` for one user and `[mush, ham]` for another with the same pizza. Rebuilding the list by filtering `options` gives a canonical order for free. ' +
+      'Compute the next selection in the handler, then use that one value for both `setSelected` and `onChange`, so the parent is told exactly what will be rendered. Money stays in integer cents until it is formatted.',
+    solution: `import React, { useState } from 'react';
+
+const dollars = (cents) => '$' + (cents / 100).toFixed(2);
+
+export default function ToppingPicker({ options, max = 3, basePrice = 0, onChange }) {
+  const [selected, setSelected] = useState([]);
+
+  const update = (next) => {
+    setSelected(next);
+    if (onChange) onChange(next);
+  };
+
+  const toggle = (id) => {
+    const wasChecked = selected.includes(id);
+    const next = options
+      .map((option) => option.id)
+      .filter((optionId) => (optionId === id ? !wasChecked : selected.includes(optionId)));
+    update(next);
+  };
+
+  const full = selected.length >= max;
+  const total = options.reduce(
+    (sum, option) => (selected.includes(option.id) ? sum + option.price : sum),
+    basePrice
+  );
+
+  return (
+    <div>
+      {options.map((option) => {
+        const checked = selected.includes(option.id);
+        return (
+          <label key={option.id} style={{ display: 'block' }}>
+            <input
+              type="checkbox"
+              checked={checked}
+              disabled={!checked && full}
+              onChange={() => toggle(option.id)}
+            />{' '}
+            {option.label + ' (+' + dollars(option.price) + ')'}
+          </label>
+        );
+      })}
+      <p data-testid="summary">{selected.length} of {max} selected</p>
+      <p data-testid="total">Total: {dollars(total)}</p>
+      <button type="button" disabled={selected.length === 0} onClick={() => update([])}>
+        Clear
+      </button>
+    </div>
+  );
+}
+`,
+  },
+
+  {
+    id: 'react-phone-input-mask',
+    number: 67,
+    title: 'Phone Number Input Mask',
+    difficulty: 'Medium',
+    topic: 'Forms',
+    statement: `Build \`PhoneInput()\`, a controlled field that formats a 10-digit phone number while the user types. It takes no props.
+
+- A text input labelled \`Phone\` with the placeholder \`(555) 123-4567\`. It starts empty.
+- On every change, take the text of the field, keep only the digits 0-9 and keep at most the first 10 of them. The field then displays those digits formatted according to how many there are:
+  - 0 digits: the empty string
+  - 1 to 3 digits: an opening bracket and the digits, e.g. \`(55\`
+  - 4 to 6 digits: e.g. \`(555) 1\` and \`(555) 123\`
+  - 7 to 10 digits: e.g. \`(555) 123-4\` and \`(555) 123-4567\`
+- \`<p data-testid="status">\` reads \`N/10 digits\` while the number is incomplete (for example \`3/10 digits\`) and \`Complete\` once there are 10 digits.
+
+Store the digits, not the formatted text.`,
+    componentName: 'PhoneInput',
+    starter: `import React, { useState } from 'react';
+
+export default function PhoneInput() {
+  const [value, setValue] = useState('');
+
+  // TODO: keep only digits (max 10) and display them as (555) 123-4567
+
+  return (
+    <div>
+      <label>
+        Phone{' '}
+        <input type="text" placeholder="(555) 123-4567" value={value} onChange={(e) => setValue(e.target.value)} />
+      </label>
+      <p data-testid="status">0/10 digits</p>
+    </div>
+  );
+}
+`,
+    previewProps: {},
+    tests: [
+      {
+        name: 'formats the number step by step',
+        code: `const { getByLabelText } = render({});
+const input = getByLabelText('Phone');
+expect(input.value).toBe('');
+expect(input.getAttribute('placeholder')).toBe('(555) 123-4567');
+const cases = [['5', '(5'], ['555', '(555'], ['5551', '(555) 1'], ['555123', '(555) 123'], ['5551234', '(555) 123-4'], ['555123456', '(555) 123-456']];
+for (const [typed, shown] of cases) {
+  fireEvent.change(input, typed);
+  expect(input.value).toBe(shown);
+}`,
+      },
+      {
+        name: 'a full number is formatted and reported as complete',
+        code: `const { getByLabelText, getByTestId } = render({});
+fireEvent.change(getByLabelText('Phone'), '5551234567');
+expect(getByLabelText('Phone').value).toBe('(555) 123-4567');
+expect(getByTestId('status').textContent).toBe('Complete');`,
+      },
+      {
+        name: 'drops everything that is not a digit',
+        code: `const { getByLabelText, getByTestId } = render({});
+const input = getByLabelText('Phone');
+fireEvent.change(input, '555.123.4567');
+expect(input.value).toBe('(555) 123-4567');
+fireEvent.change(input, '+1 (415) 555');
+expect(input.value).toBe('(141) 555-5');
+fireEvent.change(input, 'abc');
+expect(input.value).toBe('');
+expect(getByTestId('status').textContent).toBe('0/10 digits');`,
+      },
+      {
+        name: 'ignores digits after the tenth',
+        code: `const { getByLabelText, getByTestId } = render({});
+const input = getByLabelText('Phone');
+fireEvent.change(input, '55512345678999');
+expect(input.value).toBe('(555) 123-4567');
+expect(getByTestId('status').textContent).toBe('Complete');
+fireEvent.change(input, '(555) 123-45670');
+expect(input.value).toBe('(555) 123-4567');`,
+      },
+      {
+        name: 'copes with deleting back through the punctuation',
+        code: `const { getByLabelText } = render({});
+const input = getByLabelText('Phone');
+fireEvent.change(input, '(555) 123-45');
+expect(input.value).toBe('(555) 123-45');
+fireEvent.change(input, '(555) 123-');
+expect(input.value).toBe('(555) 123');
+fireEvent.change(input, '(555) ');
+expect(input.value).toBe('(555');
+fireEvent.change(input, '(');
+expect(input.value).toBe('');`,
+      },
+      {
+        name: 'counts the digits typed so far',
+        code: `const { getByLabelText, getByTestId } = render({});
+const input = getByLabelText('Phone');
+expect(getByTestId('status').textContent).toBe('0/10 digits');
+fireEvent.change(input, '555');
+expect(getByTestId('status').textContent).toBe('3/10 digits');
+fireEvent.change(input, '(555) 123-456');
+expect(getByTestId('status').textContent).toBe('9/10 digits');
+fireEvent.change(input, '(555) 123-4567');
+expect(getByTestId('status').textContent).toBe('Complete');
+fireEvent.change(input, '55512');
+expect(getByTestId('status').textContent).toBe('5/10 digits');`,
+      },
+    ],
+    hint: 'Keep the raw digits in state: `e.target.value.replace(/[^0-9]/g, \'\').slice(0, 10)`. A separate `format(digits)` function builds the display string from slices of it.',
+    explanation:
+      'A mask is easiest when the state is the clean value (digits only) and the formatted string is derived from it for display. The change handler strips every non-digit from whatever is in the field, including the punctuation the component added itself, and truncates to ten digits. Because the handler always starts from the full text of the field, typing, pasting and deleting all go through the same path. ' +
+      'The formatter is three slices: the area code, the next three digits and the last four, with each piece of punctuation added only when there are digits to go after it. Returning the empty string for zero digits matters: a lone `(` in an empty field cannot be deleted by the user, since the next change would add it straight back. ' +
+      'Forgetting `slice(0, 10)` lets extra digits spill onto the end of the last group. Storing the formatted text instead of the digits works until you need the real number, for example to count digits or submit it, and then you have to strip it all over again.',
+    solution: `import React, { useState } from 'react';
+
+function format(digits) {
+  if (digits.length === 0) return '';
+  if (digits.length <= 3) return '(' + digits;
+  if (digits.length <= 6) return '(' + digits.slice(0, 3) + ') ' + digits.slice(3);
+  return '(' + digits.slice(0, 3) + ') ' + digits.slice(3, 6) + '-' + digits.slice(6);
+}
+
+export default function PhoneInput() {
+  const [digits, setDigits] = useState('');
+
+  const handleChange = (e) => {
+    setDigits(e.target.value.replace(/[^0-9]/g, '').slice(0, 10));
+  };
+
+  return (
+    <div>
+      <label>
+        Phone{' '}
+        <input type="text" inputMode="tel" placeholder="(555) 123-4567" value={format(digits)} onChange={handleChange} />
+      </label>
+      <p data-testid="status">{digits.length === 10 ? 'Complete' : digits.length + '/10 digits'}</p>
+    </div>
+  );
+}
+`,
+  },
+
+  {
+    id: 'react-password-rule-checklist',
+    number: 68,
+    title: 'Live Password Checklist',
+    difficulty: 'Medium',
+    topic: 'Forms',
+    statement: `Build \`PasswordSetup({ onSubmit })\`, a new-password form with a live checklist.
+
+- Two inputs of \`type="password"\` labelled \`Password\` and \`Confirm password\`, both empty at first.
+- Four rules, each rendered as an \`<li>\` with \`data-testid="rule-{key}"\`, \`data-met="true"\` or \`"false"\`, and this text:
+  - \`rule-length\`: \`At least 8 characters\`
+  - \`rule-digit\`: \`Contains a number\` (a digit 0-9)
+  - \`rule-upper\`: \`Contains an uppercase letter\` (A-Z)
+  - \`rule-match\`: \`Passwords match\`, met only when the two fields are equal **and** the password is not empty
+- \`data-met\` is up to date after every keystroke.
+- \`<p data-testid="strength">\` reads \`Strength: Weak\` when none or one of the first three rules is met, \`Strength: Fair\` when two are met and \`Strength: Strong\` when all three are met. The match rule does not count towards strength.
+- A button labelled \`Save password\` is disabled until all four rules are met. Clicking it calls \`onSubmit(password)\` once.`,
+    componentName: 'PasswordSetup',
+    starter: `import React, { useState } from 'react';
+
+export default function PasswordSetup({ onSubmit }) {
+  const [password, setPassword] = useState('');
+
+  // TODO: add the confirm field, derive the four rules and the strength, gate the button
+
+  return (
+    <div>
+      <label>
+        Password <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+      </label>
+      <ul>
+        <li data-testid="rule-length" data-met="false">At least 8 characters</li>
+      </ul>
+      <button type="button" disabled>Save password</button>
+    </div>
+  );
+}
+`,
+    previewProps: {},
+    previewSetup: 'return { onSubmit: () => {} };',
+    tests: [
+      {
+        name: 'starts with every rule unmet and the button disabled',
+        code: `const { getByLabelText, getByTestId, getByRole } = render({ onSubmit: () => {} });
+expect(getByLabelText('Password').value).toBe('');
+expect(getByLabelText('Password').getAttribute('type')).toBe('password');
+expect(getByLabelText('Confirm password').getAttribute('type')).toBe('password');
+expect(getByTestId('rule-length').textContent).toBe('At least 8 characters');
+expect(getByTestId('rule-digit').textContent).toBe('Contains a number');
+expect(getByTestId('rule-upper').textContent).toBe('Contains an uppercase letter');
+expect(getByTestId('rule-match').textContent).toBe('Passwords match');
+for (const key of ['length', 'digit', 'upper', 'match']) expect(getByTestId('rule-' + key)).toHaveAttribute('data-met', 'false');
+expect(getByTestId('strength').textContent).toBe('Strength: Weak');
+expect(getByRole('button', { name: 'Save password' })).toBeDisabled();`,
+      },
+      {
+        name: 'the rules and the strength update as the password is typed',
+        code: `const { getByLabelText, getByTestId } = render({ onSubmit: () => {} });
+const met = () => ['length', 'digit', 'upper'].map((key) => getByTestId('rule-' + key).getAttribute('data-met'));
+fireEvent.change(getByLabelText('Password'), 'abcdefgh');
+expect(met()).toEqual(['true', 'false', 'false']);
+expect(getByTestId('strength').textContent).toBe('Strength: Weak');
+fireEvent.change(getByLabelText('Password'), 'abcdefg1');
+expect(met()).toEqual(['true', 'true', 'false']);
+expect(getByTestId('strength').textContent).toBe('Strength: Fair');
+fireEvent.change(getByLabelText('Password'), 'Abcdefg1');
+expect(met()).toEqual(['true', 'true', 'true']);
+expect(getByTestId('strength').textContent).toBe('Strength: Strong');
+fireEvent.change(getByLabelText('Password'), 'A1');
+expect(met()).toEqual(['false', 'true', 'true']);
+expect(getByTestId('strength').textContent).toBe('Strength: Fair');
+fireEvent.change(getByLabelText('Password'), 'abcdefg');
+expect(met()).toEqual(['false', 'false', 'false']);`,
+      },
+      {
+        name: 'the match rule needs equal, non-empty passwords',
+        code: `const { getByLabelText, getByTestId } = render({ onSubmit: () => {} });
+const match = () => getByTestId('rule-match').getAttribute('data-met');
+expect(match()).toBe('false');
+fireEvent.change(getByLabelText('Password'), 'Abcdefg1');
+fireEvent.change(getByLabelText('Confirm password'), 'Abcdefg');
+expect(match()).toBe('false');
+fireEvent.change(getByLabelText('Confirm password'), 'Abcdefg1');
+expect(match()).toBe('true');
+fireEvent.change(getByLabelText('Password'), 'Abcdefg12');
+expect(match()).toBe('false');
+fireEvent.change(getByLabelText('Password'), '');
+fireEvent.change(getByLabelText('Confirm password'), '');
+expect(match()).toBe('false');`,
+      },
+      {
+        name: 'the button is enabled only when all four rules are met',
+        code: `const { getByLabelText, getByRole, getByTestId } = render({ onSubmit: () => {} });
+const button = () => getByRole('button', { name: 'Save password' });
+fireEvent.change(getByLabelText('Password'), 'abc');
+fireEvent.change(getByLabelText('Confirm password'), 'abc');
+expect(getByTestId('rule-match')).toHaveAttribute('data-met', 'true');
+expect(button()).toBeDisabled();
+fireEvent.change(getByLabelText('Password'), 'Abcdefg1');
+expect(button()).toBeDisabled();
+fireEvent.change(getByLabelText('Confirm password'), 'Abcdefg1');
+expect(button()).not.toBeDisabled();
+fireEvent.change(getByLabelText('Confirm password'), 'Abcdefg1x');
+expect(button()).toBeDisabled();`,
+      },
+      {
+        name: 'Save password hands the password to onSubmit',
+        code: `const calls = [];
+const { getByLabelText, getByRole } = render({ onSubmit: (pw) => calls.push(pw) });
+fireEvent.change(getByLabelText('Password'), 'Tr1ckyPass');
+fireEvent.change(getByLabelText('Confirm password'), 'Tr1ckyPass');
+expect(calls).toEqual([]);
+fireEvent.click(getByRole('button', { name: 'Save password' }));
+expect(calls).toEqual(['Tr1ckyPass']);`,
+      },
+    ],
+    hint: 'State is just the two strings. Build an object of four booleans during render and derive the strength and the disabled flag from it.',
+    explanation:
+      'Validation state is derived state. The two strings are the only things the user can change, so they are the only `useState` values; the four rule flags are plain booleans computed from them on each render (`password.length >= 8`, two regular-expression tests and an equality check). Keeping flags in state and updating them in handlers leads to a checklist that lags one keystroke behind or forgets to update when the other field changes. ' +
+      'The match rule has a trap: two empty fields are equal, so `password === confirm` alone lights up the rule before the user has typed anything. It needs the extra `password !== \'\'` condition. ' +
+      'Strength counts only the three content rules, and the button is disabled unless every flag is true. Because all of that is recomputed from the same two strings, editing the password after confirming it immediately un-meets the match rule and disables the button again.',
+    solution: `import React, { useState } from 'react';
+
+export default function PasswordSetup({ onSubmit }) {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+
+  const rules = [
+    { key: 'length', text: 'At least 8 characters', met: password.length >= 8 },
+    { key: 'digit', text: 'Contains a number', met: /[0-9]/.test(password) },
+    { key: 'upper', text: 'Contains an uppercase letter', met: /[A-Z]/.test(password) },
+    { key: 'match', text: 'Passwords match', met: password !== '' && password === confirm },
+  ];
+  const score = rules.slice(0, 3).filter((rule) => rule.met).length;
+  const strength = score === 3 ? 'Strong' : score === 2 ? 'Fair' : 'Weak';
+  const allMet = rules.every((rule) => rule.met);
+
+  return (
+    <div>
+      <label style={{ display: 'block' }}>
+        Password <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+      </label>
+      <label style={{ display: 'block' }}>
+        Confirm password <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+      </label>
+      <ul>
+        {rules.map((rule) => (
+          <li
+            key={rule.key}
+            data-testid={'rule-' + rule.key}
+            data-met={rule.met ? 'true' : 'false'}
+            style={{ color: rule.met ? 'green' : 'gray' }}
+          >
+            {rule.text}
+          </li>
+        ))}
+      </ul>
+      <p data-testid="strength">Strength: {strength}</p>
+      <button type="button" disabled={!allMet} onClick={() => onSubmit(password)}>
+        Save password
+      </button>
+    </div>
+  );
+}
+`,
+  },
+
+  {
+    id: 'react-dynamic-invite-fields',
+    number: 69,
+    title: 'Dynamic Email Fields',
+    difficulty: 'Medium',
+    topic: 'Forms',
+    statement: `Build \`InviteForm({ onSubmit, max = 5 })\`, a form with a growing list of email fields.
+
+- Render a \`<form>\`. It starts with one empty text input. The inputs have the \`aria-label\`s \`Email 1\`, \`Email 2\` and so on, by position.
+- Each input has a button with \`aria-label\` \`Remove email N\` (same numbering). It removes that row: the rows after it move up and are renumbered, and every remaining row keeps the text typed into it. While there is only one row, its remove button is disabled.
+- A button labelled \`Add another\` appends an empty row. It is disabled once there are \`max\` rows.
+- A submit button labelled \`Send invites\`, inside the form.
+- On submit, prevent the default page reload, then collect the values that are not empty after trimming, trimmed, in row order:
+  - if there is at least one, call \`onSubmit(emails)\` and make sure no alert is shown;
+  - if there is none, do not call \`onSubmit\`, and show \`<p role="alert">Add at least one email</p>\`.
+- Only \`Send invites\` may submit the form: give the add and remove buttons \`type="button"\`.`,
+    componentName: 'InviteForm',
+    starter: `import React, { useState } from 'react';
+
+export default function InviteForm({ onSubmit, max = 5 }) {
+  const [email, setEmail] = useState('');
+
+  // TODO: turn the single field into a list of rows that can grow and shrink
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); onSubmit([email]); }}>
+      <input type="text" aria-label="Email 1" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <button type="button" aria-label="Remove email 1" disabled>Remove</button>
+      <button type="button">Add another</button>
+      <button type="submit">Send invites</button>
+    </form>
+  );
+}
+`,
+    previewProps: { max: 4 },
+    previewSetup: 'return { onSubmit: () => {} };',
+    tests: [
+      {
+        name: 'starts with a single empty row that cannot be removed',
+        code: `const { getAllByRole, getByRole } = render({ onSubmit: () => {} });
+const inputs = getAllByRole('textbox');
+expect(inputs).toHaveLength(1);
+expect(inputs[0]).toHaveAttribute('aria-label', 'Email 1');
+expect(inputs[0].value).toBe('');
+expect(getByRole('button', { name: 'Remove email 1' })).toBeDisabled();
+expect(getByRole('button', { name: 'Add another' })).not.toBeDisabled();`,
+      },
+      {
+        name: 'Add another appends rows up to the maximum without submitting',
+        code: `const calls = [];
+const { getAllByRole, getByRole, queryByRole } = render({ onSubmit: (emails) => calls.push(emails), max: 3 });
+fireEvent.click(getByRole('button', { name: 'Add another' }));
+expect(getAllByRole('textbox').map((i) => i.getAttribute('aria-label'))).toEqual(['Email 1', 'Email 2']);
+expect(getByRole('button', { name: 'Remove email 1' })).not.toBeDisabled();
+expect(getByRole('button', { name: 'Add another' })).not.toBeDisabled();
+fireEvent.click(getByRole('button', { name: 'Add another' }));
+expect(getAllByRole('textbox').map((i) => i.getAttribute('aria-label'))).toEqual(['Email 1', 'Email 2', 'Email 3']);
+expect(getByRole('button', { name: 'Add another' })).toBeDisabled();
+expect(calls).toEqual([]);
+expect(queryByRole('alert')).toBeNull();`,
+      },
+      {
+        name: 'removing a row keeps the text of the other rows',
+        code: `const { getAllByRole, getByRole, getByLabelText, queryByRole } = render({ onSubmit: () => {} });
+fireEvent.click(getByRole('button', { name: 'Add another' }));
+fireEvent.click(getByRole('button', { name: 'Add another' }));
+fireEvent.change(getByLabelText('Email 1'), 'a@x.com');
+fireEvent.change(getByLabelText('Email 2'), 'b@x.com');
+fireEvent.change(getByLabelText('Email 3'), 'c@x.com');
+fireEvent.click(getByRole('button', { name: 'Remove email 2' }));
+expect(getAllByRole('textbox').map((i) => i.value)).toEqual(['a@x.com', 'c@x.com']);
+expect(getAllByRole('textbox').map((i) => i.getAttribute('aria-label'))).toEqual(['Email 1', 'Email 2']);
+expect(queryByRole('button', { name: 'Remove email 3' })).toBeNull();
+fireEvent.click(getByRole('button', { name: 'Remove email 1' }));
+expect(getAllByRole('textbox').map((i) => i.value)).toEqual(['c@x.com']);
+expect(getByRole('button', { name: 'Remove email 1' })).toBeDisabled();
+expect(queryByRole('alert')).toBeNull();`,
+      },
+      {
+        name: 'submits the trimmed, non-empty emails in row order',
+        code: `const calls = [];
+const { getByRole, getByLabelText, queryByRole } = render({ onSubmit: (emails) => calls.push(emails) });
+fireEvent.click(getByRole('button', { name: 'Add another' }));
+fireEvent.click(getByRole('button', { name: 'Add another' }));
+fireEvent.change(getByLabelText('Email 1'), '  zoe@x.com ');
+fireEvent.change(getByLabelText('Email 2'), '   ');
+fireEvent.change(getByLabelText('Email 3'), 'ada@x.com');
+fireEvent.submit(getByRole('button', { name: 'Send invites' }));
+expect(calls).toEqual([['zoe@x.com', 'ada@x.com']]);
+expect(queryByRole('alert')).toBeNull();`,
+      },
+      {
+        name: 'shows an alert instead of submitting when every field is blank',
+        code: `const calls = [];
+const { getByRole, getByLabelText, queryByRole } = render({ onSubmit: (emails) => calls.push(emails) });
+expect(queryByRole('alert')).toBeNull();
+fireEvent.change(getByLabelText('Email 1'), '   ');
+fireEvent.submit(getByRole('button', { name: 'Send invites' }));
+expect(calls).toEqual([]);
+expect(getByRole('alert').textContent).toBe('Add at least one email');
+fireEvent.change(getByLabelText('Email 1'), 'kai@x.com');
+fireEvent.submit(getByRole('button', { name: 'Send invites' }));
+expect(calls).toEqual([['kai@x.com']]);
+expect(queryByRole('alert')).toBeNull();`,
+      },
+    ],
+    hint: 'Keep an array of row objects, each with its own generated `id` and `value`. Use the id as the React key and remove rows with `filter`.',
+    explanation:
+      'A dynamic field list is an array in state with one entry per row. Each entry needs a stable identity that is independent of its position, so the rows are objects `{ id, value }` with an id taken from a counter kept in a ref. The labels and numbering come from the index at render time, but the React key is the id. ' +
+      'Adding a row appends a new object; typing maps over the array and replaces one object; removing filters by id. Removing by the wrong thing is the common bug here: dropping the last element (`slice(0, -1)`) because "the list got shorter" throws away the wrong row\'s text. ' +
+      'Buttons inside a form default to `type="submit"`, so the add and remove buttons must be `type="button"` or every click would also submit the form. ' +
+      'The submit handler calls `preventDefault`, derives the cleaned list with `map(trim)` and `filter(Boolean)`, and either reports it or raises the alert. The alert flag is the only extra state.',
+    solution: `import React, { useRef, useState } from 'react';
+
+export default function InviteForm({ onSubmit, max = 5 }) {
+  const nextId = useRef(1);
+  const [rows, setRows] = useState([{ id: 0, value: '' }]);
+  const [showAlert, setShowAlert] = useState(false);
+
+  const addRow = () => {
+    setRows([...rows, { id: nextId.current, value: '' }]);
+    nextId.current += 1;
+  };
+  const changeRow = (id, value) => setRows(rows.map((row) => (row.id === id ? { ...row, value } : row)));
+  const removeRow = (id) => setRows(rows.filter((row) => row.id !== id));
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const emails = rows.map((row) => row.value.trim()).filter(Boolean);
+    if (emails.length === 0) {
+      setShowAlert(true);
+      return;
+    }
+    setShowAlert(false);
+    onSubmit(emails);
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {rows.map((row, index) => (
+        <div key={row.id} style={{ marginBottom: 4 }}>
+          <input
+            type="text"
+            aria-label={'Email ' + (index + 1)}
+            value={row.value}
+            onChange={(e) => changeRow(row.id, e.target.value)}
+          />{' '}
+          <button
+            type="button"
+            aria-label={'Remove email ' + (index + 1)}
+            disabled={rows.length === 1}
+            onClick={() => removeRow(row.id)}
+          >
+            Remove
+          </button>
+        </div>
+      ))}
+      {showAlert && <p role="alert">Add at least one email</p>}
+      <button type="button" disabled={rows.length >= max} onClick={addRow}>
+        Add another
+      </button>{' '}
+      <button type="submit">Send invites</button>
+    </form>
+  );
+}
+`,
+  },
+
+  {
+    id: 'react-nested-checkbox-tree',
+    number: 70,
+    title: 'Nested Checkbox Tree',
+    difficulty: 'Hard',
+    topic: 'Forms',
+    statement: `Build \`PermissionTree({ nodes, onChange })\`, a tree of checkboxes. Each node is \`{ id, label, children }\`. A node with a non-empty \`children\` array is a **group**; any other node is a **leaf** (a single permission). Groups can nest to any depth, labels are unique, and \`onChange\` is optional.
+
+Only the leaves hold real state: the component remembers which leaves are checked. Nothing is checked at first.
+
+- Render every node (the whole tree is always visible) as an \`<input type="checkbox">\` inside a \`<label>\` whose text is the node's label.
+- A leaf checkbox is checked when its leaf is checked. Clicking it toggles that leaf.
+- A group checkbox reflects the leaves below it, at any depth: checked when all of them are checked, unchecked when none is, and "mixed" when only some are. A mixed checkbox is not checked.
+- Every checkbox also carries \`aria-checked\`: \`"true"\`, \`"false"\` or, for a mixed group, \`"mixed"\`.
+- Clicking a group checkbox: if all of its leaves are checked, uncheck all of them; otherwise (none or some checked) check all of them.
+- \`<p data-testid="summary">\` reads \`N of M permissions selected\`, counting leaves only.
+- After every change call \`onChange(ids)\` (if given) with the ids of the checked leaves in tree order, that is, the order in which a depth-first walk from the top meets them.`,
+    componentName: 'PermissionTree',
+    starter: `import React, { useState } from 'react';
+
+function TreeNode({ node }) {
+  // TODO: derive this checkbox from the checked leaves below it, and recurse into children
+  return (
+    <li>
+      <label>
+        <input type="checkbox" aria-checked="false" /> {node.label}
+      </label>
+      {node.children && node.children.length > 0 && (
+        <ul>
+          {node.children.map((child) => (
+            <TreeNode key={child.id} node={child} />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
+export default function PermissionTree({ nodes, onChange }) {
+  return (
+    <div>
+      <ul>
+        {nodes.map((node) => (
+          <TreeNode key={node.id} node={node} />
+        ))}
+      </ul>
+      <p data-testid="summary">0 of 0 permissions selected</p>
+    </div>
+  );
+}
+`,
+    previewProps: {
+      nodes: [
+        {
+          id: 'content',
+          label: 'Content',
+          children: [
+            {
+              id: 'posts',
+              label: 'Posts',
+              children: [
+                { id: 'posts.read', label: 'Read posts' },
+                { id: 'posts.write', label: 'Write posts' },
+              ],
+            },
+            { id: 'comments', label: 'Moderate comments' },
+          ],
+        },
+        {
+          id: 'billing',
+          label: 'Billing',
+          children: [
+            { id: 'invoices', label: 'View invoices' },
+            { id: 'refunds', label: 'Issue refunds' },
+          ],
+        },
+      ],
+    },
+    tests: [
+      {
+        name: 'renders every node unchecked',
+        code: `const { getAllByRole, getByLabelText, getByTestId } = render({ nodes: props.nodes });
+const boxes = getAllByRole('checkbox');
+expect(boxes).toHaveLength(8);
+boxes.forEach((b) => { expect(b.checked).toBe(false); expect(b).toHaveAttribute('aria-checked', 'false'); });
+expect(getByLabelText('Posts')).toBeTruthy();
+expect(getByLabelText('Issue refunds')).toBeTruthy();
+expect(getByTestId('summary').textContent).toBe('0 of 5 permissions selected');`,
+      },
+      {
+        name: 'checking one leaf makes its ancestors mixed',
+        code: `const { getByLabelText, getByTestId } = render({ nodes: props.nodes });
+const state = (label) => getByLabelText(label).getAttribute('aria-checked');
+fireEvent.click(getByLabelText('Read posts'));
+expect(state('Read posts')).toBe('true');
+expect(getByLabelText('Read posts').checked).toBe(true);
+expect(state('Write posts')).toBe('false');
+expect(state('Posts')).toBe('mixed');
+expect(getByLabelText('Posts').checked).toBe(false);
+expect(state('Content')).toBe('mixed');
+expect(state('Billing')).toBe('false');
+expect(getByTestId('summary').textContent).toBe('1 of 5 permissions selected');`,
+      },
+      {
+        name: 'a group becomes checked when all its leaves are checked',
+        code: `const { getByLabelText } = render({ nodes: props.nodes });
+const state = (label) => getByLabelText(label).getAttribute('aria-checked');
+fireEvent.click(getByLabelText('Read posts'));
+fireEvent.click(getByLabelText('Write posts'));
+expect(state('Posts')).toBe('true');
+expect(getByLabelText('Posts').checked).toBe(true);
+expect(state('Content')).toBe('mixed');
+fireEvent.click(getByLabelText('Moderate comments'));
+expect(state('Content')).toBe('true');
+expect(getByLabelText('Content').checked).toBe(true);
+fireEvent.click(getByLabelText('Write posts'));
+expect(state('Posts')).toBe('mixed');
+expect(state('Content')).toBe('mixed');
+expect(getByLabelText('Content').checked).toBe(false);`,
+      },
+      {
+        name: 'clicking a group checks or unchecks every leaf below it',
+        code: `const { getByLabelText, getByTestId } = render({ nodes: props.nodes });
+const state = (label) => getByLabelText(label).getAttribute('aria-checked');
+fireEvent.click(getByLabelText('Content'));
+for (const label of ['Content', 'Posts', 'Read posts', 'Write posts', 'Moderate comments']) expect(state(label)).toBe('true');
+for (const label of ['Billing', 'View invoices', 'Issue refunds']) expect(state(label)).toBe('false');
+expect(getByTestId('summary').textContent).toBe('3 of 5 permissions selected');
+fireEvent.click(getByLabelText('Content'));
+for (const label of ['Content', 'Posts', 'Read posts', 'Write posts', 'Moderate comments']) expect(state(label)).toBe('false');
+expect(getByTestId('summary').textContent).toBe('0 of 5 permissions selected');`,
+      },
+      {
+        name: 'clicking a mixed group checks the rest',
+        code: `const { getByLabelText, getByTestId } = render({ nodes: props.nodes });
+const state = (label) => getByLabelText(label).getAttribute('aria-checked');
+fireEvent.click(getByLabelText('View invoices'));
+expect(state('Billing')).toBe('mixed');
+fireEvent.click(getByLabelText('Billing'));
+expect(state('Billing')).toBe('true');
+expect(state('View invoices')).toBe('true');
+expect(state('Issue refunds')).toBe('true');
+fireEvent.click(getByLabelText('Write posts'));
+fireEvent.click(getByLabelText('Content'));
+expect(state('Read posts')).toBe('true');
+expect(state('Moderate comments')).toBe('true');
+expect(getByTestId('summary').textContent).toBe('5 of 5 permissions selected');`,
+      },
+      {
+        name: 'reports the checked leaf ids in tree order',
+        code: `const calls = [];
+const { getByLabelText } = render({ nodes: props.nodes, onChange: (ids) => calls.push(ids.slice()) });
+fireEvent.click(getByLabelText('Issue refunds'));
+fireEvent.click(getByLabelText('Posts'));
+fireEvent.click(getByLabelText('Read posts'));
+fireEvent.click(getByLabelText('Moderate comments'));
+expect(calls).toEqual([
+  ['refunds'],
+  ['posts.read', 'posts.write', 'refunds'],
+  ['posts.write', 'refunds'],
+  ['posts.write', 'comments', 'refunds'],
+]);`,
+      },
+    ],
+    hint: 'Write `leafIds(node)`, which returns the ids of all leaves under a node. Every checkbox, leaf or group, can then be described the same way: count how many of its leaf ids are checked.',
+    explanation:
+      'The insight is that groups have no state of their own. If each group stored its own checked flag, every click would have to update the flags of its ancestors and descendants by hand, and they drift apart as soon as one path is missed. Instead, state is only the list of checked leaf ids, and a group\'s appearance is computed from the leaves beneath it. ' +
+      'A recursive helper `leafIds(node)` returns the leaf ids under any node (for a leaf, just its own id). With it, leaves and groups share one rule: count how many of those ids are checked, giving none, all or some, which maps to `false`, `true` or `mixed`. Clicking sets all of those ids to checked unless they all already are, which covers the leaf toggle and the three group cases in one line. ' +
+      'The next state is built by filtering the full depth-first list of leaf ids, so the result is always in tree order and can be passed straight to `onChange`. ' +
+      'The tree itself is rendered by a component that calls itself for each child. Each render walks the subtree of every node, O(n × depth) for n nodes, which is fine for a permissions tree.',
+    solution: `import React, { useState } from 'react';
+
+function leafIds(node) {
+  if (!node.children || node.children.length === 0) return [node.id];
+  return node.children.flatMap(leafIds);
+}
+
+function TreeNode({ node, checked, onSet }) {
+  const ids = leafIds(node);
+  const count = ids.filter((id) => checked.includes(id)).length;
+  const state = count === 0 ? 'false' : count === ids.length ? 'true' : 'mixed';
+  const isGroup = Boolean(node.children && node.children.length > 0);
+
+  return (
+    <li style={{ listStyle: 'none' }}>
+      <label>
+        <input
+          type="checkbox"
+          checked={state === 'true'}
+          aria-checked={state}
+          onChange={() => onSet(ids, state !== 'true')}
+        />{' '}
+        {node.label}
+      </label>
+      {isGroup && (
+        <ul>
+          {node.children.map((child) => (
+            <TreeNode key={child.id} node={child} checked={checked} onSet={onSet} />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
+export default function PermissionTree({ nodes, onChange }) {
+  const [checked, setChecked] = useState([]);
+  const allLeaves = nodes.flatMap(leafIds);
+
+  const setLeaves = (ids, on) => {
+    const next = allLeaves.filter((id) => (ids.includes(id) ? on : checked.includes(id)));
+    setChecked(next);
+    if (onChange) onChange(next);
+  };
+
+  return (
+    <div>
+      <ul style={{ paddingLeft: 0 }}>
+        {nodes.map((node) => (
+          <TreeNode key={node.id} node={node} checked={checked} onSet={setLeaves} />
+        ))}
+      </ul>
+      <p data-testid="summary">{checked.length} of {allLeaves.length} permissions selected</p>
+    </div>
+  );
+}
+`,
+  },
 ];

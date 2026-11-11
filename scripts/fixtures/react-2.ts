@@ -368,4 +368,136 @@ function TipCalculator() {
   );
 }
 `,
+
+  // appends the clicked id, so onChange reports click order
+  'react-topping-picker-limit': `
+function ToppingPicker({ options, max = 3, basePrice = 0, onChange }) {
+  const [selected, setSelected] = useState([]);
+  const dollars = (cents) => '$' + (cents / 100).toFixed(2);
+  const update = (next) => { setSelected(next); if (onChange) onChange(next); };
+  const toggle = (id) => update(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
+  const full = selected.length >= max;
+  const total = options.reduce((sum, o) => (selected.includes(o.id) ? sum + o.price : sum), basePrice);
+  return (
+    <div>
+      {options.map((o) => (
+        <label key={o.id} style={{ display: 'block' }}>
+          <input type="checkbox" checked={selected.includes(o.id)} disabled={!selected.includes(o.id) && full} onChange={() => toggle(o.id)} /> {o.label + ' (+' + dollars(o.price) + ')'}
+        </label>
+      ))}
+      <p data-testid="summary">{selected.length} of {max} selected</p>
+      <p data-testid="total">Total: {dollars(total)}</p>
+      <button type="button" disabled={selected.length === 0} onClick={() => update([])}>Clear</button>
+    </div>
+  );
+}
+`,
+  // strips non-digits but never limits the number to ten digits
+  'react-phone-input-mask': `
+function format(digits) {
+  if (digits.length === 0) return '';
+  if (digits.length <= 3) return '(' + digits;
+  if (digits.length <= 6) return '(' + digits.slice(0, 3) + ') ' + digits.slice(3);
+  return '(' + digits.slice(0, 3) + ') ' + digits.slice(3, 6) + '-' + digits.slice(6);
+}
+function PhoneInput() {
+  const [digits, setDigits] = useState('');
+  return (
+    <div>
+      <label>Phone <input type="text" placeholder="(555) 123-4567" value={format(digits)} onChange={(e) => setDigits(e.target.value.replace(/[^0-9]/g, ''))} /></label>
+      <p data-testid="status">{digits.length >= 10 ? 'Complete' : digits.length + '/10 digits'}</p>
+    </div>
+  );
+}
+`,
+  // two empty fields count as "matching"
+  'react-password-rule-checklist': `
+function PasswordSetup({ onSubmit }) {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const rules = [
+    { key: 'length', text: 'At least 8 characters', met: password.length >= 8 },
+    { key: 'digit', text: 'Contains a number', met: /[0-9]/.test(password) },
+    { key: 'upper', text: 'Contains an uppercase letter', met: /[A-Z]/.test(password) },
+    { key: 'match', text: 'Passwords match', met: password === confirm },
+  ];
+  const score = rules.slice(0, 3).filter((r) => r.met).length;
+  const strength = score === 3 ? 'Strong' : score === 2 ? 'Fair' : 'Weak';
+  return (
+    <div>
+      <label>Password <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+      <label>Confirm password <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></label>
+      <ul>
+        {rules.map((r) => <li key={r.key} data-testid={'rule-' + r.key} data-met={r.met ? 'true' : 'false'}>{r.text}</li>)}
+      </ul>
+      <p data-testid="strength">Strength: {strength}</p>
+      <button type="button" disabled={!rules.every((r) => r.met)} onClick={() => onSubmit(password)}>Save password</button>
+    </div>
+  );
+}
+`,
+  // "remove" always drops the last row
+  'react-dynamic-invite-fields': `
+function InviteForm({ onSubmit, max = 5 }) {
+  const [values, setValues] = useState(['']);
+  const [showAlert, setShowAlert] = useState(false);
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const emails = values.map((v) => v.trim()).filter(Boolean);
+    if (emails.length === 0) { setShowAlert(true); return; }
+    setShowAlert(false);
+    onSubmit(emails);
+  };
+  return (
+    <form onSubmit={handleSubmit}>
+      {values.map((value, index) => (
+        <div key={index}>
+          <input type="text" aria-label={'Email ' + (index + 1)} value={value} onChange={(e) => setValues(values.map((v, i) => (i === index ? e.target.value : v)))} />
+          <button type="button" aria-label={'Remove email ' + (index + 1)} disabled={values.length === 1} onClick={() => setValues(values.slice(0, -1))}>Remove</button>
+        </div>
+      ))}
+      {showAlert && <p role="alert">Add at least one email</p>}
+      <button type="button" disabled={values.length >= max} onClick={() => setValues([...values, ''])}>Add another</button>
+      <button type="submit">Send invites</button>
+    </form>
+  );
+}
+`,
+  // every node stores its own flag: groups are not derived from their leaves
+  'react-nested-checkbox-tree': `
+function allIds(node) {
+  return [node.id].concat((node.children || []).flatMap(allIds));
+}
+function leafIds(node) {
+  if (!node.children || node.children.length === 0) return [node.id];
+  return node.children.flatMap(leafIds);
+}
+function TreeNode({ node, checked, onToggle }) {
+  const on = checked.includes(node.id);
+  return (
+    <li>
+      <label><input type="checkbox" checked={on} aria-checked={on ? 'true' : 'false'} onChange={() => onToggle(node, !on)} /> {node.label}</label>
+      {node.children && node.children.length > 0 && (
+        <ul>{node.children.map((child) => <TreeNode key={child.id} node={child} checked={checked} onToggle={onToggle} />)}</ul>
+      )}
+    </li>
+  );
+}
+function PermissionTree({ nodes, onChange }) {
+  const [checked, setChecked] = useState([]);
+  const leaves = nodes.flatMap(leafIds);
+  const toggle = (node, on) => {
+    const ids = allIds(node);
+    const next = on ? Array.from(new Set(checked.concat(ids))) : checked.filter((id) => !ids.includes(id));
+    setChecked(next);
+    if (onChange) onChange(leaves.filter((id) => next.includes(id)));
+  };
+  return (
+    <div>
+      <ul>{nodes.map((node) => <TreeNode key={node.id} node={node} checked={checked} onToggle={toggle} />)}</ul>
+      <p data-testid="summary">{leaves.filter((id) => checked.includes(id)).length} of {leaves.length} permissions selected</p>
+    </div>
+  );
+}
+`,
 };
