@@ -647,7 +647,7 @@ function BugFixStep() {
         Code in the language you interview in
       </Animated.Text>
       <Animated.Text entering={FadeInDown.delay(300).duration(680)} style={styles.subtitle}>
-        {contentStats.codeProblems} build-and-debug challenges across Python, Node.js, JavaScript,
+        {contentStats.codeProblems.toLocaleString('en-US')} build-and-debug challenges across Python, Node.js, JavaScript,
         Java, Swift, and Kotlin, {contentStats.reactProblems} React components with a live preview,
         and {contentStats.sqlProblems} SQL queries graded by a real SQLite engine — all on-device.
       </Animated.Text>

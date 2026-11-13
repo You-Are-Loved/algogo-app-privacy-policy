@@ -188,8 +188,27 @@ export async function runDemoScript(name: string) {
 }
 
 /** Handle a deep link; returns true when it was a demo URL. */
+let partBuffer = '';
+
 export function handleDemoUrl(url: string | null | undefined): boolean {
   if (!__DEV__ || !url) return false;
+  // Generic test hooks (simulator automation):
+  //   demo?open=<Screen>&id=<problemId>      open a practice screen directly
+  //   demo?emit=<action>&payload=<url-encoded JSON>   fire any demo action
+  //   demo?emit=part&payload=<chunk>         buffer a chunk; the next emit gets buffer + its payload
+  const q = url.match(/demo\?(open|emit)=([A-Za-z0-9.]+)(?:&(?:id|payload)=([^&]*))?/);
+  if (q) {
+    let arg = q[3] ? decodeURIComponent(q[3]) : undefined;
+    if (q[1] === 'emit' && q[2] === 'part') { partBuffer += arg ?? ''; return true; }
+    if (q[1] === 'emit' && partBuffer) { arg = partBuffer + (arg ?? ''); partBuffer = ''; }
+    if (q[1] === 'open') tab('PracticeTab', q[2], arg ? { problemId: arg } : undefined);
+    else {
+      let payload: any;
+      try { payload = arg === undefined ? undefined : JSON.parse(arg); } catch { payload = arg; }
+      emitDemo(q[2], payload);
+    }
+    return true;
+  }
   const m = url.match(/demo\?script=([a-z0-9.-]+)/i);
   if (!m) return false;
   runDemoScript(m[1]);

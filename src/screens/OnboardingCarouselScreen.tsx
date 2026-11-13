@@ -79,7 +79,7 @@ const PAGES: Page[] = [
   {
     key: 'languages',
     title: 'Practice building\nreal solutions',
-    body: `${s.codingProblems} build-and-debug challenges across ${s.codingLanguages.length} languages, from React components with a live preview to SQL graded by SQLite.`,
+    body: `${s.codingProblems.toLocaleString('en-US')} build-and-debug challenges across ${s.codingLanguages.length} languages, from React components with a live preview to SQL graded by SQLite.`,
     accent: '#0EA5E9',
     image: require('../../assets/onboarding/languages.gif'),
   },

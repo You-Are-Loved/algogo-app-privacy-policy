@@ -117,6 +117,8 @@ export function BugFixProblemView({
   const [problemVisible, setProblemVisible] = useState(false);
   useDemoAction('problem.openBrief', useCallback(() => setProblemVisible(true), []));
   useDemoAction('problem.closeBrief', useCallback(() => setProblemVisible(false), []));
+  useDemoAction('problem.setCode', useCallback((code: string) => webRef.current?.postMessage(JSON.stringify({ type: 'reset', code })), []));
+  useDemoAction('problem.run', () => handleRun());
   const [pageUri, setPageUri] = useState<string | null>(null);
   const [stagedDir, setStagedDir] = useState<string | null>(null);
   const [stageError, setStageError] = useState<string | null>(null);
